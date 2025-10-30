@@ -1,0 +1,10 @@
+# Denegar acceso directo a todos los archivos en uploads
+# Solo permitir descargas a través de descargar.php
+
+<FilesMatch ".*">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Permitir solo acceso desde scripts PHP del servidor
+Options -Indexes

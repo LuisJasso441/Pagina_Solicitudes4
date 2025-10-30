@@ -1,0 +1,171 @@
+/**
+ * Estilos para formularios y modales
+ * Portal de Solicitudes TI
+ */
+
+/* ====================================
+   MODAL PERSONALIZADO
+   ==================================== */
+
+.modal-custom .modal-content {
+  border-radius: 15px;
+  border: none;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-custom .modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 15px 15px 0 0;
+  padding: 1.5rem;
+  border-bottom: none;
+}
+
+.modal-custom .modal-header h5 {
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-custom .modal-header .btn-close {
+  filter: brightness(0) invert(1);
+}
+
+.modal-custom .modal-body {
+  padding: 2rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.modal-custom .modal-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 1.5rem;
+}
+
+/* ====================================
+   FORMULARIOS
+   ==================================== */
+
+.form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.required::after {
+  content: " *";
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.form-check-input:checked {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+.conditional-field {
+  display: none;
+}
+
+/* Estilo para campos deshabilitados */
+.form-control:disabled,
+.form-select:disabled {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}
+
+/* ====================================
+   BOTONES DEL FORMULARIO
+   ==================================== */
+
+.btn-form-submit {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.btn-form-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+  color: white;
+}
+
+.btn-form-cancel {
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+}
+
+/* ====================================
+   ALERTAS EN MODAL
+   ==================================== */
+
+.alert-modal {
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+}
+
+/* ====================================
+   SCROLLBAR DEL MODAL
+   ==================================== */
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+}
+
+/* ====================================
+   MODO OSCURO PARA FORMULARIOS
+   ==================================== */
+
+body[data-theme="dark"] .modal-custom .modal-content {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+}
+
+body[data-theme="dark"] .modal-custom .modal-body {
+  background-color: #2d2d2d;
+}
+
+body[data-theme="dark"] .form-label {
+  color: #e0e0e0;
+}
+
+body[data-theme="dark"] .form-control,
+body[data-theme="dark"] .form-select {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+  border-color: #404040;
+}
+
+body[data-theme="dark"] .form-control:focus,
+body[data-theme="dark"] .form-select:focus {
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+  border-color: #667eea;
+}
+
+body[data-theme="dark"] .form-control:disabled,
+body[data-theme="dark"] .form-select:disabled {
+  background-color: #3a3a3a;
+}
