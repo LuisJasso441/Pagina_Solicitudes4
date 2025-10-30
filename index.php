@@ -29,7 +29,7 @@
     <p class="main-description">Este portal web es exclusivo para la generación de solicitudes de atención al departamento de Sistemas.</p>
     <p class="main-description">Por favor, inicia sesión o regístrate para continuar.</p>
     <p class="main-description">PRUEBA PARA VERIFICAR REPOSITORIO.</p>
-    <p class="main-description">HOLA.</p>
+    <p class="main-description">Comprobación de repositorio exitoso</p>
   </main>
 </body>
 </html>
