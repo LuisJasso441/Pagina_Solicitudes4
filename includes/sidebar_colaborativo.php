@@ -60,24 +60,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </a>
             </li>
             
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'documentos.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>colaborativo/documentos.php">
-                    <i class="bi bi-folder-symlink"></i> Documentos Compartidos
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'crear_documento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>colaborativo/crear_documento.php">
-                    <i class="bi bi-cloud-upload"></i> Subir Documento
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                    <i class="bi bi-search"></i> Buscar
-                </a>
-            </li>
+
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">

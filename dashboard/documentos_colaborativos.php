@@ -99,19 +99,19 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
         }
         
         .badge-estado {
-            font-size: 0.75rem;
-            padding: 0.35em 0.65em;
+            font-size: 0.7rem;
+            padding: 0.3em 0.6em;
         }
-        
+
         .folio-badge {
             font-family: 'Courier New', monospace;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }
-        
+
         .comentarios-count {
             color: #6c757d;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
         
         .comentarios-count i {
@@ -123,18 +123,18 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
     <?php include __DIR__ . '/../includes/sidebar_colaborativo.php'; ?>
     
     <div class="main-content">
-        
-        <div class="container-fluid p-4">
+
+        <div class="container-fluid p-2">
             <!-- Header -->
-            <div class="row mb-4">
+            <div class="row mb-3">
                 <div class="col-12">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h2 class="mb-1">
+                            <h3 class="mb-1">
                                 <i class="bi bi-file-earmark-text text-primary"></i>
                                 Documentos Colaborativos
-                            </h2>
-                            <p class="text-muted mb-0">Solicitudes de Servicio a Clientes (SSC)</p>
+                            </h3>
+                            <p class="text-muted mb-0 small">Solicitudes de Servicio a Clientes (SSC)</p>
                         </div>
                         
                         <?php if ($puede_crear): ?>
@@ -147,7 +147,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
             </div>
             
             <!-- Tabs: Base Local / Base Global -->
-            <ul class="nav nav-tabs mb-4" role="tablist">
+            <ul class="nav nav-tabs mb-3" role="tablist">
                 <li class="nav-item" role="presentation">
                     <a class="nav-link <?= $filtro_ubicacion == 'local' ? 'active' : '' ?>" 
                        href="?ubicacion=local">
@@ -166,8 +166,8 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
             </ul>
             
             <!-- Filtros -->
-            <div class="card mb-4">
-                <div class="card-body">
+            <div class="card mb-3">
+                <div class="card-body p-3">
                     <form method="GET" class="row g-3">
                         <input type="hidden" name="ubicacion" value="<?= htmlspecialchars($filtro_ubicacion) ?>">
                         
@@ -208,7 +208,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
             <div class="row">
                 <?php if (empty($documentos)): ?>
                     <div class="col-12">
-                        <div class="alert alert-info">
+                        <div class="alert alert-info small">
                             <i class="bi bi-info-circle"></i>
                             No hay documentos para mostrar con los filtros seleccionados.
                         </div>
@@ -224,16 +224,16 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                             'completado' => 'success'
                         ];
                         $badge_color = $estado_badge[$doc['estado']] ?? 'secondary';
-                        
+
                         // Obtener número de comentarios
                         $num_comentarios = contar_comentarios_documento($doc['id']);
                         ?>
-                        
-                        <div class="col-md-6 col-lg-4 mb-4">
+
+                        <div class="col-md-4 col-lg-3 mb-3">
                             <div class="card documento-card <?= $prioridad_class ?> h-100">
-                                <div class="card-body">
+                                <div class="card-body p-3">
                                     <!-- Folio y Estado -->
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
                                         <span class="folio-badge text-primary">
                                             <?= htmlspecialchars($doc['folio']) ?>
                                         </span>
@@ -241,23 +241,23 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                                             <?= ucfirst(str_replace('_', ' ', $doc['estado'])) ?>
                                         </span>
                                     </div>
-                                    
+
                                     <!-- Prioridad -->
-                                    <div class="mb-2">
+                                    <div class="mb-1">
                                         <span class="badge bg-<?= $doc['prioridad'] == 'alta' ? 'danger' : ($doc['prioridad'] == 'media' ? 'warning' : 'success') ?>">
                                             <?= strtoupper($doc['prioridad']) ?>
                                         </span>
                                     </div>
-                                    
+
                                     <!-- Información principal -->
-                                    <h6 class="card-title mb-2"><?= htmlspecialchars($doc['solicitado_por']) ?></h6>
-                                    <p class="card-text text-muted small mb-2">
+                                    <h6 class="card-title mb-1 small"><?= htmlspecialchars($doc['solicitado_por']) ?></h6>
+                                    <p class="card-text text-muted small mb-1">
                                         <i class="bi bi-building"></i>
                                         <?= htmlspecialchars($doc['area_proceso_solicitante']) ?>
                                     </p>
-                                    
+
                                     <!-- Servicio -->
-                                    <p class="card-text small mb-2">
+                                    <p class="card-text small mb-1">
                                         <strong>Servicio:</strong>
                                         <?php
                                         $servicios = [
@@ -269,28 +269,28 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                                         echo htmlspecialchars($servicios[$doc['servicio_solicitado']] ?? 'N/A');
                                         ?>
                                     </p>
-                                    
+
                                     <!-- Descripción (truncada) -->
                                     <p class="card-text small text-muted">
-                                        <?= htmlspecialchars(mb_substr($doc['descripcion_servicio'], 0, 100)) ?>
-                                        <?= mb_strlen($doc['descripcion_servicio']) > 100 ? '...' : '' ?>
+                                        <?= htmlspecialchars(mb_substr($doc['descripcion_servicio'], 0, 80)) ?>
+                                        <?= mb_strlen($doc['descripcion_servicio']) > 80 ? '...' : '' ?>
                                     </p>
-                                    
+
                                     <!-- Fechas -->
-                                    <div class="small text-muted mb-3">
+                                    <div class="small text-muted mb-2">
                                         <div><i class="bi bi-calendar"></i> <?= date('d/m/Y', strtotime($doc['fecha_solicitud'])) ?></div>
                                         <?php if ($doc['fecha_completado']): ?>
                                         <div><i class="bi bi-check-circle"></i> Completado: <?= date('d/m/Y', strtotime($doc['fecha_completado'])) ?></div>
                                         <?php endif; ?>
                                     </div>
-                                    
+
                                     <!-- Comentarios y acciones -->
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="comentarios-count">
                                             <i class="bi bi-chat-dots"></i>
                                             <?= $num_comentarios ?> comentario<?= $num_comentarios != 1 ? 's' : '' ?>
                                         </span>
-                                        
+
                                         <a href="ver_documento.php?id=<?= $doc['id'] ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i> Ver
                                         </a>
