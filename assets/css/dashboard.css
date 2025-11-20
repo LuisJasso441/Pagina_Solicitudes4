@@ -9,7 +9,7 @@
 :root {
   --primary-color: #4158d0;
   --secondary-color: #c850c0;
-  --gradient: linear-gradient(-135deg, #c850c0, #4158d0);
+  --gradient: linear-gradient(-135deg, #04CF85, #1B3321);
   --gradient-hover: linear-gradient(-135deg, #b040b0, #3048c0);
   --sidebar-width: 260px;
   --navbar-height: 60px;

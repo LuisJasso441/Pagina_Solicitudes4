@@ -1,0 +1,155 @@
+<?php
+/**
+ * Procesador: Crear Nueva Orden de Servicio
+ * Usuario crea Apartado 1
+ */
+
+session_start();
+header('Content-Type: application/json; charset=utf-8');
+
+require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+
+// Verificar sesión
+if (!sesion_activa()) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Sesión no válida'
+    ]);
+    exit;
+}
+
+// Verificar que NO sea departamento de Mantenimiento
+$departamento_codigo = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+if ($departamento_codigo === 'mantenimiento') {
+    echo json_encode([
+        'success' => false,
+        'error' => 'El departamento de Mantenimiento no puede crear órdenes'
+    ]);
+    exit;
+}
+
+// Obtener datos JSON
+$input = file_get_contents('php://input');
+$datos = json_decode($input, true);
+
+if (!$datos) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'Datos inválidos'
+    ]);
+    exit;
+}
+
+// Validar campos obligatorios
+$campos_requeridos = ['empresa', 'folio', 'unidad_equipo', 'prioridad', 'descripcion_falla'];
+foreach ($campos_requeridos as $campo) {
+    if (empty($datos[$campo])) {
+        echo json_encode([
+            'success' => false,
+            'error' => "El campo {$campo} es obligatorio"
+        ]);
+        exit;
+    }
+}
+
+// Validar folio (no debe contener caracteres especiales peligrosos)
+if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $datos['folio'])) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'El folio solo puede contener letras, números, guiones y guiones bajos'
+    ]);
+    exit;
+}
+
+try {
+    $pdo = conectarDB();
+    $pdo->beginTransaction();
+    
+    // Verificar que el folio no exista
+    $stmt = $pdo->prepare("SELECT id FROM ordenes_servicio_mantenimiento WHERE folio = :folio");
+    $stmt->execute([':folio' => $datos['folio']]);
+    
+    if ($stmt->fetch()) {
+        throw new Exception("El folio '{$datos['folio']}' ya existe. Por favor, use otro folio.");
+    }
+    
+    // Preparar datos del Apartado 1
+    $apartado1_data = [
+        'empresa' => $datos['empresa'],
+        'folio' => $datos['folio'],
+        'area_solicitante' => $datos['area_solicitante'] ?? $_SESSION['departamento_nombre'],
+        'fecha_entrada' => $datos['fecha_entrada'] ?? date('Y-m-d'),
+        'hora_entrada' => $datos['hora_entrada'] ?? date('H:i:s'),
+        'unidad_equipo' => trim($datos['unidad_equipo']),
+        'nombre_solicitante' => $datos['nombre_solicitante'] ?? $_SESSION['nombre_completo'],
+        'prioridad' => $datos['prioridad'],
+        'descripcion_falla' => trim($datos['descripcion_falla']),
+        'evidencia_archivos' => $datos['evidencia_archivos'] ?? []
+    ];
+    
+    // Insertar orden
+    $stmt = $pdo->prepare("
+        INSERT INTO ordenes_servicio_mantenimiento (
+            folio,
+            usuario_id,
+            usuario_nombre,
+            departamento,
+            empresa,
+            estado,
+            apartado1_data,
+            fecha_creacion
+        ) VALUES (
+            :folio,
+            :usuario_id,
+            :usuario_nombre,
+            :departamento,
+            :empresa,
+            'pendiente_mantenimiento',
+            :apartado1_data,
+            NOW()
+        )
+    ");
+    
+    $stmt->execute([
+        ':folio' => $datos['folio'],
+        ':usuario_id' => $_SESSION['usuario_id'],
+        ':usuario_nombre' => $_SESSION['nombre_completo'],
+        ':departamento' => $_SESSION['departamento_nombre'],
+        ':empresa' => $datos['empresa'],
+        ':apartado1_data' => json_encode($apartado1_data, JSON_UNESCAPED_UNICODE)
+    ]);
+    
+    $orden_id = $pdo->lastInsertId();
+    
+    $pdo->commit();
+    
+    // Registrar en log
+    error_log("Nueva orden de servicio creada - ID: {$orden_id}, Folio: {$datos['folio']}, Usuario: {$_SESSION['nombre_completo']}, Departamento: {$_SESSION['departamento_nombre']}");
+    
+    // Notificar a Mantenimiento
+    if (function_exists('notificar_nueva_orden')) {
+        notificar_nueva_orden($orden_id, $datos['folio'], $_SESSION['nombre_completo'], $_SESSION['departamento_nombre']);
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'orden_id' => $orden_id,
+        'folio' => $datos['folio'],
+        'message' => 'Orden creada exitosamente'
+    ]);
+    
+} catch (Exception $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    
+    error_log("Error al crear orden de servicio: " . $e->getMessage());
+    
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+}

@@ -3,6 +3,9 @@
  * Sidebar para usuarios colaborativos
  */
 $current_page = basename($_SERVER['PHP_SELF']);
+
+// ⭐ IMPORTANTE: Incluir database.php ANTES de usar conectarDB()
+require_once __DIR__ . '/../config/database.php';
 ?>
 
 <aside class="sidebar">
@@ -23,7 +26,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">MIS SOLICITUDES</small>
+            <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
             
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
@@ -32,14 +35,14 @@ $current_page = basename($_SERVER['PHP_SELF']);
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'crear_mantenimiento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/crear_mantenimiento.php">
+                   href="<?php echo URL_BASE; ?>ti_sistemas/registrar_mantenimiento.php">
                     <i class="bi bi-tools"></i> Solicitar Mantenimiento
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                    <i class="bi bi-list-ul"></i> Mis Solicitudes
+                    <i class="bi bi-list-ul"></i> SOLICITUDES PARA SISTEMAS
                 </a>
             </li>
             <li class="nav-item">
@@ -48,11 +51,17 @@ $current_page = basename($_SERVER['PHP_SELF']);
                     <i class="bi bi-wrench"></i> Mis Mantenimientos
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
+                    <i class="bi bi-search"></i> Buscar
+                </a>
+            </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ÁREA COLABORATIVA</small>
+            <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>
             
-            <!-- NUEVO: Documentos Colaborativos SSC -->
+            <!-- Documentos Colaborativos SSC -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php">
@@ -60,7 +69,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
                 </a>
             </li>
             
-
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
+            
+            <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                    <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                </a>
+            </li>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">

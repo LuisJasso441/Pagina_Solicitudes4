@@ -78,10 +78,11 @@ function iniciar_sesion_usuario($usuario) {
     $_SESSION['usuario_id'] = $usuario['id'];
     $_SESSION['usuario'] = $usuario['usuario'];
     $_SESSION['nombre_completo'] = $usuario['nombre_completo'];
-    $_SESSION['departamento'] = $usuario['departamento'];
-    $_SESSION['departamento_nombre'] = obtener_nombre_departamento($usuario['departamento']);
-    $_SESSION['es_ti'] = es_departamento_ti($usuario['departamento']);
-    $_SESSION['es_colaborativo'] = es_departamento_colaborativo($usuario['departamento']);
+    $_SESSION['departamento'] = $usuario['departamento']; // Texto original (legacy)
+    $_SESSION['departamento_codigo'] = $usuario['departamento_codigo'] ?? strtolower(trim($usuario['departamento']));
+    $_SESSION['departamento_nombre'] = $usuario['departamento_nombre'] ?? ucfirst($usuario['departamento']);
+    $_SESSION['es_ti'] = (strtolower($_SESSION['departamento_codigo']) === 'sistemas');
+    $_SESSION['es_colaborativo'] = es_departamento_colaborativo($_SESSION['departamento_codigo']);
     $_SESSION['ultimo_acceso'] = time();
     $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
 }
@@ -167,12 +168,16 @@ function redirigir_login() {
  * Redirigir al dashboard según tipo de usuario
  */
 function redirigir_dashboard() {
-    if (es_usuario_ti()) {
+    $depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']));
+    
+    if ($depto_codigo === 'sistemas') {
         redirigir(URL_BASE . 'dashboard/ti_sistemas.php');
+    } elseif ($depto_codigo === 'mantenimiento') {
+        redirigir(URL_BASE . 'dashboard/mantenimiento.php');
     } elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo.php');
     } else {
-        redirigir(URL_BASE . 'dashboard/departamento.php');
+        redirigir(URL_BASE . 'dashboard/mis_ordenes_servicio.php');
     }
 }
 

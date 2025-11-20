@@ -156,7 +156,7 @@ function obtener_badge_prioridad($prioridad) {
                     </li>
                     
                     <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">MIS SOLICITUDES</small>
+                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
                     
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
@@ -165,7 +165,7 @@ function obtener_badge_prioridad($prioridad) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                            <i class="bi bi-list-ul"></i> Mis Solicitudes
+                            <i class="bi bi-list-ul"></i> SOLICITUDES PARA SISTEMAS
                         </a>
                     </li>
                     

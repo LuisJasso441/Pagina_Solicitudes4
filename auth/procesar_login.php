@@ -1,7 +1,7 @@
 <?php
 /**
  * Procesar inicio de sesión
- * VERSIÓN CON BASE DE DATOS
+ * VERSIÓN CON BASE DE DATOS - CON REDIRECCIÓN ESPECÍFICA PARA MANTENIMIENTO
  */
 
 session_start();
@@ -84,6 +84,26 @@ try {
     $stmt = $pdo->prepare("UPDATE usuarios SET ultimo_acceso = NOW() WHERE id = ?");
     $stmt->execute([$usuario_db['id']]);
     
+    // Obtener datos del departamento normalizado (si existe la tabla)
+    $stmt_depto = $pdo->prepare("
+        SELECT d.codigo, d.nombre 
+        FROM departamentos d 
+        INNER JOIN usuarios u ON u.departamento_id = d.id 
+        WHERE u.id = ?
+    ");
+    $stmt_depto->execute([$usuario_db['id']]);
+    $departamento_data = $stmt_depto->fetch();
+    
+    // Si existe la tabla departamentos, usar código normalizado
+    if ($departamento_data) {
+        $usuario_db['departamento_codigo'] = $departamento_data['codigo'];
+        $usuario_db['departamento_nombre'] = $departamento_data['nombre'];
+    } else {
+        // Fallback: usar el valor actual y normalizarlo
+        $usuario_db['departamento_codigo'] = strtolower(trim($usuario_db['departamento']));
+        $usuario_db['departamento_nombre'] = ucfirst($usuario_db['departamento']);
+    }
+    
     // Iniciar sesión del usuario
     iniciar_sesion_usuario($usuario_db);
     
@@ -95,8 +115,26 @@ try {
     // Establecer mensaje de bienvenida
     establecer_alerta('success', '¡Bienvenido, ' . $usuario_db['nombre_completo'] . '!');
     
-    // Redirigir al dashboard correspondiente
-    redirigir_dashboard();
+    // ⭐ REDIRIGIR AL DASHBOARD CORRESPONDIENTE CON DETECCIÓN DE MANTENIMIENTO
+    $departamento_lower = strtolower($usuario_db['departamento']);
+    
+    // Determinar el dashboard según el tipo de usuario
+    if ($departamento_lower === 'sistemas' || $departamento_lower === 'ti') {
+        // Usuario de TI/Sistemas
+        redirigir(URL_BASE . 'dashboard/ti_sistemas.php');
+    } 
+    elseif ($departamento_lower === 'mantenimiento') {
+        // ⭐ USUARIO DE MANTENIMIENTO - DASHBOARD ESPECÍFICO
+        redirigir(URL_BASE . 'dashboard/mantenimiento.php');
+    }
+    elseif (es_usuario_colaborativo()) {
+        // Usuario colaborativo (Normatividad, Ventas, Laboratorio)
+        redirigir(URL_BASE . 'dashboard/colaborativo.php');
+    } 
+    else {
+        // Usuario normal
+        redirigir(URL_BASE . 'dashboard/departamento.php');
+    }
     
 } catch (Exception $e) {
     // Error de conexión o consulta

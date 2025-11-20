@@ -8,7 +8,7 @@
 html, body {
   height: 100%;
   width: 100%;
-  background: #333;
+  background: #3F5745;
   overflow-x: hidden;
 }
 ::selection {
@@ -97,7 +97,7 @@ html, body {
   color: #fff;
   user-select: none;
   border-radius: 15px 15px 0 0;
-  background: linear-gradient(-135deg, #c850c0, #4158d0);
+  background: linear-gradient(-135deg, #04CF85, #1B3321);
 }
 .wrapper form {
   padding: 10px 30px 50px 30px;
@@ -179,7 +179,7 @@ form .field input[type="submit"] {
   font-size: 20px;
   font-weight: 500;
   cursor: pointer;
-  background: linear-gradient(-135deg, #c850c0, #4158d0);
+  background: linear-gradient(-135deg, #04CF85, #1B3321);
   border-radius: 25px;
   width: 100%;
   height: 50px;

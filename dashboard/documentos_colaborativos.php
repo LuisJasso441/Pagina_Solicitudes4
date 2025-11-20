@@ -134,7 +134,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                                 <i class="bi bi-file-earmark-text text-primary"></i>
                                 Documentos Colaborativos
                             </h3>
-                            <p class="text-muted mb-0 small">Solicitudes de Servicio a Clientes (SSC)</p>
+                            <p class="text-muted mb-0 small">SOLICITUDES DE SERVICIO A CLIENTES a Clientes (SSC)</p>
                         </div>
                         
                         <?php if ($puede_crear): ?>

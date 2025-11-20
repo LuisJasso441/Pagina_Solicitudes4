@@ -26,10 +26,9 @@
   <!-- Contenido principal -->
   <main class="main-content">
     <h1 class="main-title">¡Bienvenido al Portal de Solicitudes!</h1>
-    <p class="main-description">Este portal web es exclusivo para la generación de solicitudes de atención al departamento de Sistemas.</p>
+    <h1 class="main-title">¡FELIZ NAVIDAD!</h1>
+    <p class="main-description">En este portal web encontrarán aquellas solicitudes que manejan todos los departamentos
+      de la empresa.</p>
     <p class="main-description">Por favor, inicia sesión o regístrate para continuar.</p>
-    <p class="main-description">PRUEBA PARA VERIFICAR REPOSITORIO.</p>
-    <p class="main-description">Comprobación de repositorio exitoso</p>
-  </main>
 </body>
 </html>

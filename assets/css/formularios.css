@@ -14,7 +14,7 @@
 }
 
 .modal-custom .modal-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #04CF85 0%, #1B3321 100%);
   color: white;
   border-radius: 15px 15px 0 0;
   padding: 1.5rem;
@@ -84,7 +84,7 @@
    ==================================== */
 
 .btn-form-submit {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #04CF85 0%, #1B3321 100%);
   border: none;
   padding: 0.75rem 2rem;
   font-weight: 600;
@@ -126,12 +126,12 @@
 }
 
 .modal-body::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #04CF85 0%, #1B3321 100%);
   border-radius: 10px;
 }
 
 .modal-body::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #5568d3 0%, #653a8f 100%);
+  background: linear-gradient(135deg, #04CF85 0%, #1B3321 100%);
 }
 
 /* ====================================

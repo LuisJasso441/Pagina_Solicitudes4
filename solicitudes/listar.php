@@ -119,7 +119,7 @@ function obtener_texto_prioridad($prioridad) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Solicitudes - <?php echo htmlspecialchars($departamento); ?></title>
+    <title>SOLICITUDES PARA SISTEMAS - <?php echo htmlspecialchars($departamento); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -147,7 +147,7 @@ function obtener_texto_prioridad($prioridad) {
                     </li>
                     
                     <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">MIS SOLICITUDES</small>
+                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
                     
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
@@ -161,7 +161,7 @@ function obtener_texto_prioridad($prioridad) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                            <i class="bi bi-list-ul"></i> Mis Solicitudes
+                            <i class="bi bi-list-ul"></i> SOLICITUDES PARA SISTEMAS
                         </a>
                     </li>
                     <li class="nav-item">
@@ -171,7 +171,7 @@ function obtener_texto_prioridad($prioridad) {
                     </li>
                     
                     <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">ÁREA COLABORATIVA</small>
+                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO A CLIENTES</small>
                     
 
                     
@@ -192,7 +192,7 @@ function obtener_texto_prioridad($prioridad) {
                 <!-- Header -->
                 <div class="top-navbar d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="welcome-text">Mis Solicitudes de Atención</h2>
+                        <h2 class="welcome-text">SOLICITUDES PARA SISTEMAS de Atención</h2>
                         <p class="text-muted mb-0">
                             <i class="bi bi-person-circle"></i> 
                             <?php echo htmlspecialchars($nombre_usuario); ?>

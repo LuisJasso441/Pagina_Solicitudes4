@@ -7,6 +7,13 @@
 // Obtener página actual para marcar como activa
 $current_page = basename($_SERVER['PHP_SELF']);
 
+// Determinar si está en sección de órdenes de servicio
+$en_mis_ordenes = in_array($current_page, [
+    'mis_ordenes_servicio.php',
+    'mis_ordenes_servicio_finalizadas.php',
+    'ver_orden_servicio.php'
+]);
+
 // Obtener estadísticas para badges (opcional)
 try {
     if (!isset($pdo)) {
@@ -21,8 +28,19 @@ try {
         FROM solicitudes_atencion
     ");
     $stats_sidebar = $stmt->fetch();
+    
+    // Obtener órdenes pendientes de validación
+    $stmt_ordenes = $pdo->prepare("
+        SELECT COUNT(*) as total 
+        FROM ordenes_servicio_mantenimiento 
+        WHERE usuario_id = :usuario_id 
+        AND estado = 'pendiente_usuario'
+    ");
+    $stmt_ordenes->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $ordenes_pendientes_validar = $stmt_ordenes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 } catch (Exception $e) {
     $stats_sidebar = ['pendientes' => 0, 'en_proceso' => 0];
+    $ordenes_pendientes_validar = 0;
 }
 ?>
 
@@ -48,7 +66,7 @@ try {
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'todas_solicitudes.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/todas_solicitudes.php">
+                   href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php">
                     <i class="bi bi-folder"></i> Todas las Solicitudes
                 </a>
             </li>
@@ -94,6 +112,17 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
+            
+            <!-- ⭐ NUEVA SECCIÓN INDEPENDIENTE AGREGADA -->
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                    <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                </a>
+            </li>
+            
+            <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">HERRAMIENTAS</small>
             
             <li class="nav-item">
@@ -118,3 +147,6 @@ try {
         </ul>
     </nav>
 </aside>
+
+<!-- Modal para crear nueva orden de servicio -->
+<?php include __DIR__ . '/modal_crear_orden_servicio.php'; ?>

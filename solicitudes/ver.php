@@ -191,7 +191,7 @@ function obtener_icono_tipo($tipo) {
                         </p>
                     </div>
                     <div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/ti_sistemas.php" class="btn btn-outline-secondary">
+                        <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Volver a la lista
                         </a>
                     </div>

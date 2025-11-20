@@ -89,60 +89,8 @@ try {
     
     <div class="dashboard-container">
         
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <i class="bi bi-building text-white fs-1 mb-2"></i>
-                <h4><?php echo htmlspecialchars($departamento); ?></h4>
-                <small class="text-white-50"><?php echo htmlspecialchars($nombre_usuario); ?></small>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="<?php echo URL_BASE; ?>dashboard/departamento.php">
-                            <i class="bi bi-house-door"></i> Inicio
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">MIS SOLICITUDES</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
-                            <i class="bi bi-plus-circle"></i> Nueva Solicitud
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/crear_mantenimiento.php">
-                            <i class="bi bi-tools"></i> Solicitar Mantenimiento
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                            <i class="bi bi-list-ul"></i> Mis Solicitudes
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/listar_mantenimientos.php">
-                            <i class="bi bi-wrench"></i> Mis Mantenimientos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                            <i class="bi bi-search"></i> Buscar
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-3">
-                    <li class="nav-item">
-                        <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+        <!-- SIDEBAR - ⭐ AHORA INCLUYE sidebar_normal.php -->
+        <?php include __DIR__ . '/../includes/sidebar_normal.php'; ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
@@ -168,11 +116,10 @@ try {
                     </div>
                 </div>
 
-                <!-- Alertas -->
                 <?php echo mostrar_alerta(); ?>
 
-                <!-- Estadísticas -->
-                <div class="row mb-4 fade-in">
+                <!-- Tarjetas de estadísticas -->
+                <div class="row">
                     <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
@@ -238,7 +185,7 @@ try {
                                         <i class="bi bi-tools"></i> Solicitar Mantenimiento
                                     </a>
                                     <a href="<?php echo URL_BASE; ?>solicitudes/listar.php" class="btn btn-outline-info">
-                                        <i class="bi bi-list-ul"></i> Ver Mis Solicitudes
+                                        <i class="bi bi-list-ul"></i> Ver SOLICITUDES PARA SISTEMAS
                                     </a>
                                     <a href="<?php echo URL_BASE; ?>solicitudes/buscar.php" class="btn btn-outline-secondary">
                                         <i class="bi bi-search"></i> Buscar
@@ -254,7 +201,7 @@ try {
                     <div class="col-12 mb-4">
                         <div class="card card-custom">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-file-earmark-text"></i> Mis Solicitudes Recientes</span>
+                                <span><i class="bi bi-file-earmark-text"></i> SOLICITUDES PARA SISTEMAS Recientes</span>
                                 <a href="<?php echo URL_BASE; ?>solicitudes/listar.php" class="btn btn-sm btn-light">
                                     Ver todas <i class="bi bi-arrow-right"></i>
                                 </a>

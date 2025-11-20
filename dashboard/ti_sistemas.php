@@ -162,6 +162,15 @@ try {
                     </li>
                     
                     <hr class="text-white-50 my-2">
+                    <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                            <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                        </a>
+                    </li>
+                    
+                    <hr class="text-white-50 my-2">
                     <small class="text-white-50 px-3 fw-bold">HERRAMIENTAS</small>
                     
                     <li class="nav-item">
@@ -366,7 +375,7 @@ try {
                         </div>
                     </div>
 
-                    <!-- Mis solicitudes asignadas -->
+                    <!-- SOLICITUDES PARA SISTEMAS asignadas -->
                     <div class="col-lg-5 mb-4">
                         <div class="card card-custom">
                             <div class="card-header d-flex justify-content-between align-items-center">
