@@ -12,6 +12,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -136,10 +137,8 @@ try {
     // Registrar en log
     error_log("Mantenimiento guardó Apartado 2 (borrador) - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}, Primera vez: " . ($es_primera_vez ? 'Sí' : 'No'));
     
-    // Notificar al usuario SOLO la primera vez
-    if ($es_primera_vez) {
-        notificar_orden_en_proceso($orden_id, $orden['folio'], $orden['usuario_id']);
-    }
+    // ✅ NOTIFICAR AL USUARIO CADA VEZ QUE SE GUARDA
+    notificar_orden_en_proceso($orden_id, $orden['folio'], $orden['usuario_id']);
     
     echo json_encode([
         'success' => true,

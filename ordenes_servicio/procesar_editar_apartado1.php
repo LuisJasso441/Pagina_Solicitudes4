@@ -11,6 +11,7 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -101,7 +102,7 @@ try {
     // Registrar en log
     error_log("Usuario editó Apartado 1 - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}");
     
-    // Notificar a Mantenimiento que hubo cambios
+    // ✅ NOTIFICAR A MANTENIMIENTO
     notificar_edicion_usuario($orden_id, $orden['folio'], $_SESSION['nombre_completo']);
     
     // Si viene de formulario HTML, redirigir

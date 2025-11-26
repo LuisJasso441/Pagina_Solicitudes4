@@ -83,6 +83,74 @@ function verificar_permiso_orden($orden_id, $usuario_id, $departamento) {
 }
 
 /**
+ * ⭐ FUNCIÓN AUXILIAR: Obtener usuarios de Mantenimiento
+ * Busca usuarios del departamento de Mantenimiento
+ */
+function obtener_usuarios_mantenimiento() {
+    try {
+        $pdo = conectarDB();
+        
+        error_log("🔍 Buscando usuarios de Mantenimiento...");
+        
+        // Buscar con LOWER y TRIM para asegurar coincidencia
+        $stmt = $pdo->prepare("
+            SELECT id, nombre_completo, departamento 
+            FROM usuarios 
+            WHERE LOWER(TRIM(departamento)) = 'mantenimiento' 
+            AND activo = 1
+        ");
+        $stmt->execute();
+        $usuarios_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (!empty($usuarios_data)) {
+            $usuarios = array_column($usuarios_data, 'id');
+            error_log("✅ Encontrados " . count($usuarios) . " usuarios de Mantenimiento");
+            foreach ($usuarios_data as $user) {
+                error_log("  - Usuario ID {$user['id']}: {$user['nombre_completo']} (dept: '{$user['departamento']}')");
+            }
+            return $usuarios;
+        }
+        
+        error_log("⚠️ No se encontraron usuarios con departamento='mantenimiento' (exacto)");
+        
+        // OPCIÓN 2: Buscar con LIKE por si tiene variaciones
+        $stmt = $pdo->prepare("
+            SELECT id, nombre_completo, departamento 
+            FROM usuarios 
+            WHERE LOWER(departamento) LIKE '%mantenimiento%'
+            AND activo = 1
+        ");
+        $stmt->execute();
+        $usuarios_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (!empty($usuarios_data)) {
+            $usuarios = array_column($usuarios_data, 'id');
+            error_log("✅ Encontrados " . count($usuarios) . " usuarios con LIKE '%mantenimiento%'");
+            foreach ($usuarios_data as $user) {
+                error_log("  - Usuario ID {$user['id']}: {$user['nombre_completo']} (dept: '{$user['departamento']}')");
+            }
+            return $usuarios;
+        }
+        
+        // Si llegamos aquí, no hay usuarios de Mantenimiento
+        error_log("❌ ERROR CRÍTICO: No se encontró NINGÚN usuario de Mantenimiento en la BD");
+        
+        // Debug: Mostrar todos los departamentos únicos
+        $stmt = $pdo->query("SELECT DISTINCT departamento FROM usuarios WHERE activo = 1 ORDER BY departamento");
+        $deptos = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        error_log("📋 Departamentos disponibles en la BD:");
+        foreach ($deptos as $depto) {
+            error_log("  - '{$depto}'");
+        }
+        
+        return [];
+        
+    } catch (Exception $e) {
+        error_log("❌ Error al obtener usuarios de Mantenimiento: " . $e->getMessage());
+        return [];
+    }
+}
+/**
  * Crear nueva orden (Apartado 1)
  */
 function crear_orden($datos_apartado1, $usuario_id, $usuario_nombre, $departamento, $empresa) {
@@ -450,31 +518,349 @@ function contar_ordenes_por_estado($departamento = null, $usuario_id = null) {
 }
 
 // ============================================
-// FUNCIONES DE NOTIFICACIONES (Placeholder)
+// SISTEMA DE NOTIFICACIONES SSE
 // ============================================
 
+/**
+ * Notificar a Mantenimiento sobre nueva orden creada
+
+/**
+ * Notificar a Mantenimiento sobre nueva orden
+ */
 function notificar_nueva_orden($orden_id, $folio, $usuario_nombre, $departamento) {
-    // TODO: Implementar sistema de notificaciones SSE
-    // Por ahora, solo logging
-    error_log("Notificación: Nueva orden {$folio} de {$usuario_nombre} ({$departamento})");
+    try {
+        $pdo = conectarDB();
+        
+        // Obtener todos los usuarios de Mantenimiento
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+        
+        if (empty($usuarios_mantenimiento)) {
+            error_log("⚠️ No se encontraron usuarios de Mantenimiento para notificar nueva orden");
+            return false;
+        }
+        
+        // Crear notificación para cada usuario de Mantenimiento
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+            
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $folio,
+                'usuario_nombre' => $usuario_nombre,
+                'departamento' => $departamento,
+                'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+            
+            $stmt->execute([
+                'nueva_orden_mantenimiento',
+                '🔧 Nueva Orden de Servicio',
+                "$usuario_nombre ha creado una nueva orden de servicio",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar nueva orden: " . $e->getMessage());
+        return false;
+    }
 }
 
+/**
+ * Notificar a Mantenimiento cuando el Usuario edita el Apartado 1
+ */
 function notificar_edicion_usuario($orden_id, $folio, $usuario_nombre) {
-    error_log("Notificación: Usuario {$usuario_nombre} editó orden {$folio}");
+    try {
+        $pdo = conectarDB();
+        
+        // Obtener todos los usuarios de Mantenimiento
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+        
+        if (empty($usuarios_mantenimiento)) {
+            error_log("⚠️ No se encontraron usuarios de Mantenimiento para notificar edición");
+            return false;
+        }
+        
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+            
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $folio,
+                'usuario_nombre' => $usuario_nombre,
+                'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+            
+            $stmt->execute([
+                'orden_editada_usuario',
+                '📝 Orden Modificada',
+                "$usuario_nombre ha modificado la orden $folio",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar edición de usuario: " . $e->getMessage());
+        return false;
+    }
 }
 
+/**
+ * Notificar al usuario que Mantenimiento está trabajando en su orden
+ * Se ejecuta SOLO la primera vez que Mantenimiento guarda el Apartado 2
+ */
 function notificar_orden_en_proceso($orden_id, $folio, $usuario_id) {
-    error_log("Notificación: Orden {$folio} en proceso");
+    try {
+        $pdo = conectarDB();
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $folio,
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt->execute([
+            'orden_en_proceso',
+            '⚙️ Orden en Proceso',
+            "Mantenimiento está trabajando en tu orden de servicio $folio",
+            $usuario_id,
+            $datos_json
+        ]);
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar orden en proceso: " . $e->getMessage());
+        return false;
+    }
 }
 
+/**
+ * Notificar al usuario que Mantenimiento terminó y envió la orden
+ */
 function notificar_orden_finalizada_mantenimiento($orden_id, $folio, $usuario_id) {
-    error_log("Notificación: Mantenimiento finalizó orden {$folio}");
+    try {
+        $pdo = conectarDB();
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $folio,
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt->execute([
+            'orden_lista_validacion',
+            '✅ Orden Lista para Validación',
+            "Mantenimiento ha finalizado el trabajo en la orden $folio. Por favor revisa y valida",
+            $usuario_id,
+            $datos_json
+        ]);
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar orden finalizada por mantenimiento: " . $e->getMessage());
+        return false;
+    }
 }
 
+
+/**
+ * Notificar a Mantenimiento cuando el Usuario devuelve la orden
+ */
 function notificar_orden_devuelta($orden_id, $folio, $usuario_nombre) {
-    error_log("Notificación: Usuario {$usuario_nombre} devolvió orden {$folio}");
+    try {
+        $pdo = conectarDB();
+        
+        // Obtener todos los usuarios de Mantenimiento
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+        
+        if (empty($usuarios_mantenimiento)) {
+            error_log("⚠️ No se encontraron usuarios de Mantenimiento para notificar devolución");
+            return false;
+        }
+        
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+            
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $folio,
+                'usuario_nombre' => $usuario_nombre,
+                'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+            
+            $stmt->execute([
+                'orden_devuelta',
+                '🔄 Orden Devuelta',
+                "$usuario_nombre ha devuelto la orden $folio para corrección",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar orden devuelta: " . $e->getMessage());
+        return false;
+    }
 }
 
+/**
+ * Notificar a Mantenimiento cuando el Usuario finaliza la orden
+ */
 function notificar_orden_completada($orden_id, $folio, $usuario_id, $usuario_nombre) {
-    error_log("Notificación: Orden {$folio} completada por {$usuario_nombre}");
+    try {
+        $pdo = conectarDB();
+        
+        // Obtener todos los usuarios de Mantenimiento
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+        
+        if (empty($usuarios_mantenimiento)) {
+            error_log("⚠️ No se encontraron usuarios de Mantenimiento para notificar finalización");
+            return false;
+        }
+        
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+            
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $folio,
+                'usuario_nombre' => $usuario_nombre,
+                'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+            
+            $stmt->execute([
+                'orden_completada',
+                '🎉 Orden Completada',
+                "$usuario_nombre ha finalizado la orden $folio",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar orden completada: " . $e->getMessage());
+        return false;
+    }
 }
+
+/**
+ * Notificar cuando el Usuario firma su parte
+ */
+function notificar_firma_usuario($orden_id, $folio, $usuario_nombre) {
+    try {
+        $pdo = conectarDB();
+        
+        // Obtener todos los usuarios de Mantenimiento
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+        
+        if (empty($usuarios_mantenimiento)) {
+            error_log("⚠️ No se encontraron usuarios de Mantenimiento para notificar firma de usuario");
+            return false;
+        }
+        
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+            
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $folio,
+                'usuario_nombre' => $usuario_nombre,
+                'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+            
+            $stmt->execute([
+                'firma_orden_usuario',
+                '✍️ Firma de Usuario',
+                "$usuario_nombre ha firmado la orden de servicio $folio",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar firma de usuario: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Notificar cuando Mantenimiento firma su parte
+ */
+function notificar_firma_mantenimiento($orden_id, $folio, $usuario_id, $nombre_responsable) {
+    try {
+        $pdo = conectarDB();
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $folio,
+            'nombre_responsable' => $nombre_responsable,
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt->execute([
+            'firma_orden_mantenimiento',
+            '✍️ Firma de Mantenimiento',
+            "$nombre_responsable ha firmado la orden de servicio $folio",
+            $usuario_id,
+            $datos_json
+        ]);
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Error al notificar firma de mantenimiento: " . $e->getMessage());
+        return false;
+    }
+}
+?>

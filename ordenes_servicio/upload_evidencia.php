@@ -2,16 +2,26 @@
 /**
  * Procesador: Subir Archivos de Evidencia
  * Maneja la subida de archivos (fotos, documentos) para evidencia de fallas
+ * Versión corregida para devolver SIEMPRE JSON válido
  */
 
 session_start();
+
+// ⭐ CRÍTICO: Asegurar que SIEMPRE se devuelva JSON
 header('Content-Type: application/json; charset=utf-8');
+
+// Capturar y limpiar cualquier output inesperado
+ob_start();
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 
+// Limpiar buffer de salida para evitar HTML/text antes del JSON
+ob_clean();
+
 // Verificar sesión
 if (!sesion_activa()) {
+    ob_end_clean();
     echo json_encode([
         'success' => false,
         'error' => 'Sesión no válida'
@@ -26,6 +36,7 @@ define('MAX_FILES', 5);
 define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx']);
 define('ALLOWED_MIMES', [
     'image/jpeg',
+    'image/jpg',
     'image/png',
     'image/gif',
     'application/pdf',
@@ -40,6 +51,18 @@ try {
     }
     
     $archivos = $_FILES['archivos'];
+    
+    // Si es un solo archivo, convertir a array
+    if (!is_array($archivos['name'])) {
+        $archivos = [
+            'name' => [$archivos['name']],
+            'type' => [$archivos['type']],
+            'tmp_name' => [$archivos['tmp_name']],
+            'error' => [$archivos['error']],
+            'size' => [$archivos['size']]
+        ];
+    }
+    
     $total_archivos = count($archivos['name']);
     
     // Validar cantidad de archivos
@@ -56,6 +79,11 @@ try {
         if (!mkdir($dir_destino, 0755, true)) {
             throw new Exception("No se pudo crear el directorio de destino");
         }
+    }
+    
+    // Verificar permisos de escritura
+    if (!is_writable($dir_destino)) {
+        throw new Exception("El directorio no tiene permisos de escritura");
     }
     
     $archivos_subidos = [];
@@ -93,12 +121,20 @@ try {
             }
             
             // Validar MIME type (doble verificación)
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime_real = finfo_file($finfo, $nombre_temporal);
-            finfo_close($finfo);
-            
-            if (!in_array($mime_real, ALLOWED_MIMES)) {
-                throw new Exception("Tipo de archivo no permitido para '{$nombre_original}'");
+            if (function_exists('finfo_open')) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime_real = finfo_file($finfo, $nombre_temporal);
+                finfo_close($finfo);
+                
+                if (!in_array($mime_real, ALLOWED_MIMES)) {
+                    // Permitir también image/jpg que algunos navegadores usan
+                    if ($mime_real !== 'image/jpg') {
+                        throw new Exception("Tipo de archivo no permitido para '{$nombre_original}'");
+                    }
+                }
+            } else {
+                // Si finfo no está disponible, usar el tipo MIME del navegador
+                $mime_real = $tipo_mime;
             }
             
             // Generar nombre único y seguro
@@ -116,15 +152,17 @@ try {
             }
             
             // Establecer permisos
-            chmod($ruta_completa, 0644);
+            @chmod($ruta_completa, 0644);
             
             // Agregar a lista de archivos subidos
             $archivos_subidos[] = [
                 'nombre_original' => $nombre_original,
                 'nombre_guardado' => $nombre_guardado,
                 'ruta' => $ruta_relativa,
+                'ruta_relativa' => $ruta_relativa, // Alias para compatibilidad
                 'tipo' => $mime_real,
-                'tamano' => $tamaño,
+                'size' => $tamaño,
+                'tamano' => $tamaño, // Alias para compatibilidad
                 'fecha_subida' => date('Y-m-d H:i:s')
             ];
             
@@ -133,7 +171,7 @@ try {
             
         } catch (Exception $e) {
             $errores[] = $e->getMessage();
-            error_log("Error al subir archivo: " . $e->getMessage());
+            error_log("Error al subir archivo individual: " . $e->getMessage());
         }
     }
     
@@ -146,23 +184,29 @@ try {
     $response = [
         'success' => true,
         'archivos' => $archivos_subidos,
-        'total' => count($archivos_subidos)
+        'total' => count($archivos_subidos),
+        'mensaje' => 'Archivos subidos correctamente'
     ];
     
     if (!empty($errores)) {
         $response['errores'] = $errores;
         $response['mensaje'] = 'Algunos archivos se subieron con errores';
-    } else {
-        $response['mensaje'] = 'Todos los archivos se subieron correctamente';
     }
     
-    echo json_encode($response);
+    // Limpiar buffer y enviar JSON
+    ob_end_clean();
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
     error_log("Error general al subir archivos: " . $e->getMessage());
     
+    // Limpiar buffer y enviar error en JSON
+    ob_end_clean();
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
 }
+
+// Terminar ejecución limpiamente
+exit;

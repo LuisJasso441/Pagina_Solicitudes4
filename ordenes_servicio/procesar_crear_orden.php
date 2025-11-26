@@ -5,12 +5,19 @@
  */
 
 session_start();
-header('Content-Type: application/json; charset=utf-8');
+
+// CRÍTICO: Limpiar cualquier output buffer
+ob_start();
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
+
+// Limpiar output buffer y establecer header JSON
+ob_end_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -55,11 +62,23 @@ foreach ($campos_requeridos as $campo) {
     }
 }
 
-// Validar folio (no debe contener caracteres especiales peligrosos)
-if (!preg_match('/^[a-zA-Z0-9\-_]+$/', $datos['folio'])) {
+// VALIDACIÓN MEJORADA DEL FOLIO
+$folio = trim($datos['folio']);
+
+// Verificar que el folio no esté vacío DESPUÉS del trim
+if (empty($folio)) {
     echo json_encode([
         'success' => false,
-        'error' => 'El folio solo puede contener letras, números, guiones y guiones bajos'
+        'error' => 'El folio no puede estar vacío. Por favor, genera un folio válido.'
+    ]);
+    exit;
+}
+
+// Validar formato del folio (no debe contener caracteres especiales peligrosos)
+if (!preg_match('/^[a-zA-Z0-9\-_\/]+$/', $folio)) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'El folio solo puede contener letras, números, guiones, guiones bajos y barras'
     ]);
     exit;
 }
@@ -69,17 +88,21 @@ try {
     $pdo->beginTransaction();
     
     // Verificar que el folio no exista
-    $stmt = $pdo->prepare("SELECT id FROM ordenes_servicio_mantenimiento WHERE folio = :folio");
-    $stmt->execute([':folio' => $datos['folio']]);
+    $stmt = $pdo->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento WHERE folio = :folio");
+    $stmt->execute([':folio' => $folio]);
+    $existe = $stmt->fetch();
     
-    if ($stmt->fetch()) {
-        throw new Exception("El folio '{$datos['folio']}' ya existe. Por favor, use otro folio.");
+    if ($existe) {
+        // Log detallado para debugging
+        error_log("⚠️ FOLIO DUPLICADO - Folio: '$folio', ID existente: {$existe['id']}, Nuevo intento por: {$_SESSION['nombre_completo']}");
+        
+        throw new Exception("El folio '{$folio}' ya existe. Por favor, use otro folio o regenere uno nuevo.");
     }
     
     // Preparar datos del Apartado 1
     $apartado1_data = [
         'empresa' => $datos['empresa'],
-        'folio' => $datos['folio'],
+        'folio' => $folio,
         'area_solicitante' => $datos['area_solicitante'] ?? $_SESSION['departamento_nombre'],
         'fecha_entrada' => $datos['fecha_entrada'] ?? date('Y-m-d'),
         'hora_entrada' => $datos['hora_entrada'] ?? date('H:i:s'),
@@ -114,7 +137,7 @@ try {
     ");
     
     $stmt->execute([
-        ':folio' => $datos['folio'],
+        ':folio' => $folio,
         ':usuario_id' => $_SESSION['usuario_id'],
         ':usuario_nombre' => $_SESSION['nombre_completo'],
         ':departamento' => $_SESSION['departamento_nombre'],
@@ -127,17 +150,15 @@ try {
     $pdo->commit();
     
     // Registrar en log
-    error_log("Nueva orden de servicio creada - ID: {$orden_id}, Folio: {$datos['folio']}, Usuario: {$_SESSION['nombre_completo']}, Departamento: {$_SESSION['departamento_nombre']}");
+    error_log("✅ Nueva orden creada - ID: {$orden_id}, Folio: {$folio}, Usuario: {$_SESSION['nombre_completo']}, Depto: {$_SESSION['departamento_nombre']}");
     
-    // Notificar a Mantenimiento
-    if (function_exists('notificar_nueva_orden')) {
-        notificar_nueva_orden($orden_id, $datos['folio'], $_SESSION['nombre_completo'], $_SESSION['departamento_nombre']);
-    }
+    // ✅ NOTIFICAR A MANTENIMIENTO
+    notificar_nueva_orden($orden_id, $folio, $_SESSION['nombre_completo'], $_SESSION['departamento_nombre']);
     
     echo json_encode([
         'success' => true,
         'orden_id' => $orden_id,
-        'folio' => $datos['folio'],
+        'folio' => $folio,
         'message' => 'Orden creada exitosamente'
     ]);
     
@@ -146,7 +167,7 @@ try {
         $pdo->rollBack();
     }
     
-    error_log("Error al crear orden de servicio: " . $e->getMessage());
+    error_log("❌ Error al crear orden: " . $e->getMessage());
     
     echo json_encode([
         'success' => false,

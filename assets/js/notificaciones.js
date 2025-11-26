@@ -1,5 +1,5 @@
 /**
- * Sistema de notificaciones - VERSIÓN DEBUG
+ * Sistema de notificaciones - VERSIÓN COMPLETA
  */
 
 console.log('🔔 Script notificaciones.js cargado');
@@ -228,12 +228,68 @@ class SistemaNotificaciones {
     }
     
     agregarNotificacionUI(notificacion) {
-        console.log('→ Agregando a UI...');
+        console.log('→ Agregando a UI...', notificacion);
+        
         const lista = document.getElementById('notificaciones-lista');
         if (!lista) {
             console.warn('⚠️ No se encontró #notificaciones-lista');
             return;
         }
+        
+        // Si la lista está vacía (mensaje "No hay notificaciones"), limpiarla
+        const mensajeVacio = lista.querySelector('.text-center.py-5');
+        if (mensajeVacio) {
+            lista.innerHTML = '';
+        }
+        
+        // Determinar el color del badge según el tipo
+        let badgeColor = 'primary';
+        if (notificacion.tipo.includes('orden')) badgeColor = 'info';
+        if (notificacion.tipo.includes('firma')) badgeColor = 'warning';
+        if (notificacion.tipo.includes('completada')) badgeColor = 'success';
+        if (notificacion.tipo.includes('devuelta')) badgeColor = 'danger';
+        
+        // Crear elemento de notificación
+        const notifElement = document.createElement('div');
+        notifElement.className = 'notificacion-item nueva';
+        notifElement.dataset.id = notificacion.id;
+        
+        const url = notificacion.datos?.url || '#';
+        const timeAgo = 'Ahora mismo';
+        
+        notifElement.innerHTML = `
+            <div class="notificacion-content" style="padding-right: 30px;">
+                <div class="notificacion-header">
+                    <span class="badge bg-${badgeColor}">
+                        ${notificacion.titulo}
+                    </span>
+                    <small class="text-muted">${timeAgo}</small>
+                </div>
+                <p class="notificacion-mensaje mb-2">
+                    ${notificacion.mensaje}
+                </p>
+                ${url !== '#' ? `
+                <a href="${url}" 
+                   class="btn btn-sm btn-outline-primary"
+                   onclick="sistemaNotificaciones.marcarComoLeida(${notificacion.id})">
+                    <i class="bi bi-eye"></i> Ver detalles
+                </a>
+                ` : ''}
+            </div>
+            <button class="btn btn-sm btn-link notificacion-cerrar" 
+                    onclick="event.stopPropagation(); sistemaNotificaciones.marcarComoLeida(${notificacion.id})">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+        
+        // Insertar al inicio de la lista
+        lista.insertBefore(notifElement, lista.firstChild);
+        
+        // Quitar clase 'nueva' después de 3 segundos
+        setTimeout(() => {
+            notifElement.classList.remove('nueva');
+        }, 3000);
+        
         console.log('✅ Notificación agregada a UI');
     }
     
@@ -261,8 +317,33 @@ class SistemaNotificaciones {
         }
     }
     
-    marcarComoLeida(id) {
+    async marcarComoLeida(id) {
         console.log('→ Marcando como leída:', id);
+        
+        try {
+            const response = await fetch('/Pagina_Solicitudes4/notificaciones/marcar_leida.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id: id })
+            });
+            
+            if (response.ok) {
+                // Remover de UI
+                const elemento = document.querySelector(`.notificacion-item[data-id="${id}"]`);
+                if (elemento) {
+                    elemento.style.transition = 'opacity 0.3s';
+                    elemento.style.opacity = '0';
+                    setTimeout(() => elemento.remove(), 300);
+                }
+                
+                // Actualizar contador
+                this.actualizarContador();
+            }
+        } catch (error) {
+            console.error('Error al marcar como leída:', error);
+        }
     }
     
     destruir() {

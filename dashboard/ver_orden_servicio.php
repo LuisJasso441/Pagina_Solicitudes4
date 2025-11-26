@@ -52,6 +52,17 @@ $apartado1 = $orden['apartado1'] ?? [];
 $apartado2 = $orden['apartado2'] ?? [];
 $apartado3 = $orden['apartado3'] ?? [];
 
+// Obtener nombre del usuario creador de la orden
+try {
+    $db = conectarDB();
+    $stmt_creador = $db->prepare("SELECT nombre_completo FROM usuarios WHERE id = ?");
+    $stmt_creador->execute([$orden['usuario_id']]);
+    $nombre_usuario_creador = $stmt_creador->fetchColumn();
+} catch (Exception $e) {
+    $nombre_usuario_creador = 'Usuario no encontrado';
+    error_log("Error obteniendo usuario creador: " . $e->getMessage());
+}
+
 $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']))) === 'mantenimiento';
 ?>
 <!DOCTYPE html>
@@ -99,11 +110,26 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
             font-size: 1.05rem;
         }
         .firma-container {
-            border: 2px dashed #dee2e6;
+            border: 2px dashed #6c757d;
             border-radius: 8px;
-            padding: 10px;
+            padding: 15px;
             text-align: center;
-            background: #f8f9fa;
+            background: #ffffff;
+            margin-top: 10px;
+        }
+        .firma-container > div {
+            border: 2px solid #667eea !important;
+            border-radius: 5px;
+            background: white !important;
+            cursor: crosshair;
+            margin: 10px auto;
+        }
+        .firma-container canvas {
+            border: 2px solid #667eea !important;
+            border-radius: 5px;
+            background: white !important;
+            cursor: crosshair;
+            display: block;
         }
         .firma-imagen {
             max-width: 100%;
@@ -493,8 +519,8 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                     <div class="mb-3">
                                         <label class="form-label">Nombre del Solicitante</label>
                                         <input type="text" id="nombre_solicitante" class="form-control" 
-                                               value="<?php echo htmlspecialchars($apartado3['nombre_solicitante'] ?? $_SESSION['nombre_completo']); ?>" 
-                                               <?php echo !$permisos['es_propietario'] ? 'readonly' : ''; ?>>
+                                               value="<?php echo htmlspecialchars($apartado3['nombre_solicitante'] ?? $nombre_usuario_creador); ?>" 
+                                               readonly>
                                     </div>
                                     <div class="firma-container">
                                         <label class="form-label">Firma del Solicitante</label>
@@ -516,7 +542,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                     <div class="mb-3">
                                         <label class="form-label">Nombre del Responsable</label>
                                         <input type="text" id="nombre_responsable_mant" class="form-control" 
-                                               value="<?php echo htmlspecialchars($apartado3['nombre_responsable_mantenimiento'] ?? ($es_mantenimiento ? $_SESSION['nombre_completo'] : '')); ?>"
+                                               value="<?php echo htmlspecialchars($apartado3['nombre_responsable_mantenimiento'] ?? ''); ?>"
                                                <?php echo !$es_mantenimiento ? 'readonly' : ''; ?>>
                                     </div>
                                     <div class="firma-container">
@@ -589,26 +615,53 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
         </div>
     </div>
     
+    <!-- jQuery (necesario para jSignature) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- jSignature para firmas digitales -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jSignature/2.1.3/jSignature.min.js"></script>
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        console.log('jQuery cargado:', typeof jQuery !== 'undefined');
+        console.log('jSignature cargado:', typeof $.fn.jSignature !== 'undefined');
+        
         // Inicializar firmas digitales
         <?php if ($modo_edicion_apartado3): ?>
             let firmaSolicitante, firmaMantenimiento;
             
             $(document).ready(function() {
-                firmaSolicitante = $('#firma_solicitante').jSignature({
-                    color: '#000',
-                    lineWidth: 2,
-                    background: '#fff'
-                });
+                console.log('DOM ready, inicializando firmas...');
                 
-                firmaMantenimiento = $('#firma_mantenimiento').jSignature({
-                    color: '#000',
-                    lineWidth: 2,
-                    background: '#fff'
-                });
+                // Inicializar firma del solicitante
+                try {
+                    firmaSolicitante = $('#firma_solicitante').jSignature({
+                        color: '#000000',
+                        lineWidth: 3,
+                        background: '#ffffff',
+                        width: '100%',
+                        height: 150,
+                        'decor-color': '#667eea'
+                    });
+                    console.log('Firma solicitante inicializada');
+                } catch(e) {
+                    console.error('Error inicializando firma solicitante:', e);
+                }
+                
+                // Inicializar firma del responsable
+                try {
+                    firmaMantenimiento = $('#firma_mantenimiento').jSignature({
+                        color: '#000000',
+                        lineWidth: 3,
+                        background: '#ffffff',
+                        width: '100%',
+                        height: 150,
+                        'decor-color': '#667eea'
+                    });
+                    console.log('Firma responsable inicializada');
+                } catch(e) {
+                    console.error('Error inicializando firma responsable:', e);
+                }
                 
                 // Cargar firmas existentes si las hay
                 <?php if (!empty($apartado3['firma_solicitante'])): ?>
@@ -712,7 +765,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                 .then(data => {
                     if (data.success) {
                         alert('¡Orden finalizada correctamente!');
-                        window.location = '<?php echo URL_BASE; ?>dashboard/mis_ordenes_servicio.php';
+                        window.location = '<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php';
                     } else {
                         alert('Error: ' + data.error);
                     }
