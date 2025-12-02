@@ -6,15 +6,6 @@
  */
 ?>
 
-<!-- Logo y encabezado del formulario -->
-<div class="text-center mb-4 pb-3 border-bottom">
-    <h4 class="text-success fw-bold mb-2">
-        <i class="bi bi-building"></i> GrupoVerden
-    </h4>
-    <h5 class="text-primary">SOLICITUD DE SERVICIO A CLIENTES</h5>
-    <p class="text-muted mb-0">Folio: <strong><?= htmlspecialchars($documento['folio']) ?></strong></p>
-</div>
-
 <!-- APARTADO 1: Creación (Normatividad/Ventas) -->
 <div class="apartado-section <?= $permisos['apartado1'] ? 'editable' : 'bloqueado' ?>">
     <div class="d-flex justify-content-between align-items-center mb-3">

@@ -59,7 +59,7 @@ $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total']
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                    <i class="bi bi-list-ul"></i> SOLICITUDES PARA SISTEMAS
+                    <i class="bi bi-list-ul"></i> Mis Solicitudes
                 </a>
             </li>
             <li class="nav-item">

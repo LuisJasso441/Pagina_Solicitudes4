@@ -82,7 +82,10 @@ $departamento = $_SESSION['departamento_nombre'];
                                         <i class="bi bi-plus-circle"></i> Nueva Solicitud
                                     </a>
                                     <a href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php" class="btn btn-success">
-                                        <i class="bi bi-file-earmark-text"></i> Documentos SSC
+                                        <i class="bi bi-file-earmark-text"></i> Solicitud de Servicio a Clientes
+                                    </a>
+                                    <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php" class="btn btn-success">
+                                        <i class="bi bi-file-earmark-text"></i> Ordenes de Servicio
                                     </a>
                                 </div>
                             </div>

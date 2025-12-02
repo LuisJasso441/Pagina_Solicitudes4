@@ -70,12 +70,21 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     <link rel="stylesheet" href="/Pagina_Solicitudes4/assets/css/dashboard.css">
     
     <style>
+        /* ====== ESTILOS COMPACTOS ====== */
         .documento-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 2rem;
-            border-radius: 10px;
-            margin-bottom: 2rem;
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        .documento-header h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+        .documento-header p {
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
         }
         
         .campo-bloqueado {
@@ -85,10 +94,10 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
         }
         
         .apartado-section {
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
         }
         
         .apartado-section.editable {
@@ -101,11 +110,12 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
         }
         
         .comentario-item {
-            border-left: 4px solid #dee2e6;
-            padding: 1rem;
-            margin-bottom: 1rem;
+            border-left: 3px solid #dee2e6;
+            padding: 0.6rem;
+            margin-bottom: 0.6rem;
             background-color: white;
             border-radius: 4px;
+            font-size: 0.85rem;
         }
         
         .comentario-item.tipo-normal {
@@ -125,13 +135,58 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
         }
         
         .comentarios-panel {
-            max-height: 500px;
+            max-height: 400px;
             overflow-y: auto;
         }
         
         .badge-prioridad {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.6rem;
+        }
+        
+        /* Cards compactas */
+        .card {
+            margin-bottom: 0.75rem;
+        }
+        .card-body {
+            padding: 0.75rem;
+        }
+        .card-subtitle {
+            font-size: 0.7rem;
+            margin-bottom: 0.5rem !important;
+        }
+        .card-body p {
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        /* Tabs compactos */
+        .nav-tabs .nav-link {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        .nav-tabs .badge {
+            font-size: 0.65rem;
+        }
+        
+        /* Botones compactos */
+        .btn {
+            font-size: 0.8rem;
+            padding: 0.35rem 0.75rem;
+        }
+        .btn-sm {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+        
+        /* Permisos compactos */
+        .card-body p i {
             font-size: 0.9rem;
-            padding: 0.5rem 1rem;
+        }
+        
+        /* Container padding */
+        .container-fluid.p-4 {
+            padding: 1rem !important;
         }
         
         @media print {
@@ -158,23 +213,23 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             <div class="documento-header">
                 <div class="row align-items-center">
                     <div class="col-md-8">
-                        <h3 class="mb-2">
+                        <h3>
                             <i class="bi bi-file-earmark-text"></i>
                             <?= htmlspecialchars($documento['folio']) ?>
                         </h3>
-                        <p class="mb-1">Solicitud de Servicio a Clientes</p>
+                        <p>Solicitud de Servicio a Clientes</p>
                         <span class="badge bg-<?= $documento['prioridad'] == 'alta' ? 'danger' : ($documento['prioridad'] == 'media' ? 'warning' : 'success') ?> badge-prioridad">
-                            Prioridad: <?= strtoupper($documento['prioridad']) ?>
+                            <?= strtoupper($documento['prioridad']) ?>
                         </span>
-                        <span class="badge bg-light text-dark badge-prioridad ms-2">
-                            Estado: <?= ucfirst(str_replace('_', ' ', $documento['estado'])) ?>
+                        <span class="badge bg-light text-dark badge-prioridad ms-1">
+                            <?= ucfirst(str_replace('_', ' ', $documento['estado'])) ?>
                         </span>
                     </div>
                     <div class="col-md-4 text-end no-print">
-                        <button class="btn btn-light" onclick="window.print()">
+                        <button class="btn btn-light btn-sm" onclick="window.print()">
                             <i class="bi bi-printer"></i> Imprimir
                         </button>
-                        <a href="documentos_colaborativos.php" class="btn btn-outline-light">
+                        <a href="documentos_colaborativos.php" class="btn btn-outline-light btn-sm">
                             <i class="bi bi-arrow-left"></i> Volver
                         </a>
                     </div>
@@ -182,33 +237,33 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             </div>
             
             <!-- Información general -->
-            <div class="row mb-4">
+            <div class="row mb-3">
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Información del documento</h6>
-                            <p class="mb-1"><strong>Folio:</strong> <?= htmlspecialchars($documento['folio']) ?></p>
-                            <p class="mb-1"><strong>Creado por:</strong> <?= htmlspecialchars($documento['departamento_creador']) ?></p>
-                            <p class="mb-1"><strong>Fecha creación:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_creacion'])) ?></p>
-                            <p class="mb-0"><strong>Última actualización:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_ultima_edicion'])) ?></p>
+                            <h6 class="card-subtitle text-muted">Información del documento</h6>
+                            <p><strong>Folio:</strong> <?= htmlspecialchars($documento['folio']) ?></p>
+                            <p><strong>Creado por:</strong> <?= htmlspecialchars($documento['departamento_creador']) ?></p>
+                            <p><strong>Fecha:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_creacion'])) ?></p>
+                            <p class="mb-0"><strong>Actualizado:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_ultima_edicion'])) ?></p>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-subtitle mb-2 text-muted">Permisos</h6>
-                            <p class="mb-1">
+                            <h6 class="card-subtitle text-muted">Permisos</h6>
+                            <p>
                                 <i class="bi bi-<?= $permisos['apartado1'] ? 'check-circle-fill text-success' : 'x-circle-fill text-danger' ?>"></i>
-                                Editar Apartado 1: <?= $permisos['apartado1'] ? 'Sí' : 'No' ?>
+                                Apartado 1: <?= $permisos['apartado1'] ? 'Sí' : 'No' ?>
                             </p>
-                            <p class="mb-1">
+                            <p>
                                 <i class="bi bi-<?= $permisos['apartado2'] ? 'check-circle-fill text-success' : 'x-circle-fill text-danger' ?>"></i>
-                                Editar Apartado 2: <?= $permisos['apartado2'] ? 'Sí' : 'No' ?>
+                                Apartado 2: <?= $permisos['apartado2'] ? 'Sí' : 'No' ?>
                             </p>
                             <p class="mb-0">
                                 <i class="bi bi-<?= $permisos['puede_comentar'] ? 'check-circle-fill text-success' : 'x-circle-fill text-danger' ?>"></i>
-                                Agregar comentarios: <?= $permisos['puede_comentar'] ? 'Sí' : 'No' ?>
+                                Comentarios: <?= $permisos['puede_comentar'] ? 'Sí' : 'No' ?>
                             </p>
                         </div>
                     </div>
@@ -216,7 +271,7 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             </div>
             
             <!-- Tabs: Documento / Comentarios -->
-            <ul class="nav nav-tabs mb-4" id="documentoTabs" role="tablist">
+            <ul class="nav nav-tabs mb-3" id="documentoTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="documento-tab" data-bs-toggle="tab" data-bs-target="#documento" type="button">
                         <i class="bi bi-file-text"></i> Documento

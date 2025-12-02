@@ -161,7 +161,7 @@ function obtener_texto_prioridad($prioridad) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link active" href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                            <i class="bi bi-list-ul"></i> SOLICITUDES PARA SISTEMAS
+                            <i class="bi bi-list-ul"></i> Mis Solicitudes
                         </a>
                     </li>
                     <li class="nav-item">
@@ -169,10 +169,34 @@ function obtener_texto_prioridad($prioridad) {
                             <i class="bi bi-wrench"></i> Mis Mantenimientos
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
+                        href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
+                            <i class="bi bi-search"></i> Buscar
+                        </a>
+                    </li>
                     
                     <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO A CLIENTES</small>
+                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>
                     
+                    <!-- Documentos Colaborativos SSC -->
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
+                        href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php">
+                            <i class="bi bi-file-earmark-text"></i> Documentos SSC
+                        </a>
+                    </li>
+
+                    <hr class="text-white-50 my-2">
+                    <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
+                    
+                    <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
+                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                            <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                        </a>
+                    </li>
 
                     
                     <hr class="text-white-50 my-3">

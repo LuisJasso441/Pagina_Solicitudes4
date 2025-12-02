@@ -12,7 +12,7 @@ require_once __DIR__ . '/../config/database.php';
     <div class="sidebar-header">
         <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
         <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
-        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
+        <small><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
         <span class="badge bg-info mt-2">Colaborativo</span>
     </div>
     
@@ -42,7 +42,7 @@ require_once __DIR__ . '/../config/database.php';
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                    <i class="bi bi-list-ul"></i> SOLICITUDES PARA SISTEMAS
+                    <i class="bi bi-list-ul"></i> Mis Solicitudes
                 </a>
             </li>
             <li class="nav-item">

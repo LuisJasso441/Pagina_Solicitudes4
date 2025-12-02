@@ -181,85 +181,14 @@ try {
                                     <a href="#" class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
                                         <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atención
                                     </a>
-                                    <a href="<?php echo URL_BASE; ?>solicitudes/crear_mantenimiento.php" class="btn btn-outline-primary">
-                                        <i class="bi bi-tools"></i> Solicitar Mantenimiento
-                                    </a>
-                                    <a href="<?php echo URL_BASE; ?>solicitudes/listar.php" class="btn btn-outline-info">
-                                        <i class="bi bi-list-ul"></i> Ver SOLICITUDES PARA SISTEMAS
-                                    </a>
-                                    <a href="<?php echo URL_BASE; ?>solicitudes/buscar.php" class="btn btn-outline-secondary">
-                                        <i class="bi bi-search"></i> Buscar
+                                    <a href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php" class="btn btn-success">
+                                        <i class="bi bi-file-earmark-text"></i> Documentos SSC
                                     </a>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Solicitudes recientes -->
-                <div class="row">
-                    <div class="col-12 mb-4">
-                        <div class="card card-custom">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-file-earmark-text"></i> SOLICITUDES PARA SISTEMAS Recientes</span>
-                                <a href="<?php echo URL_BASE; ?>solicitudes/listar.php" class="btn btn-sm btn-light">
-                                    Ver todas <i class="bi bi-arrow-right"></i>
-                                </a>
-                            </div>
-                            <div class="card-body p-0">
-                                <?php if (empty($solicitudes_recientes)): ?>
-                                <div class="text-center py-5">
-                                    <i class="bi bi-inbox fs-1 text-muted"></i>
-                                    <p class="text-muted mt-3 mb-0">No tienes solicitudes</p>
-                                    <a href="#" class="btn btn-gradient mt-3" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
-                                        <i class="bi bi-plus-circle"></i> Crear primera solicitud
-                                    </a>
-                                </div>
-                                <?php else: ?>
-                                <div class="list-group list-group-flush">
-                                    <?php foreach ($solicitudes_recientes as $solicitud): ?>
-                                    <a href="<?php echo URL_BASE; ?>solicitudes/ver.php?folio=<?php echo urlencode($solicitud['folio']); ?>" 
-                                       class="list-group-item list-group-item-action">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="flex-grow-1">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <strong class="me-3"><?php echo htmlspecialchars($solicitud['folio']); ?></strong>
-                                                    <span class="badge badge-<?php echo $solicitud['estado']; ?>">
-                                                        <?php echo obtener_texto_estado($solicitud['estado']); ?>
-                                                    </span>
-                                                    <span class="badge ms-2 <?php 
-                                                        if ($solicitud['prioridad'] == 'critica') echo 'bg-danger';
-                                                        elseif ($solicitud['prioridad'] == 'alta') echo 'bg-warning text-dark';
-                                                        elseif ($solicitud['prioridad'] == 'media') echo 'bg-info text-dark';
-                                                        else echo 'bg-secondary';
-                                                    ?>">
-                                                        <?php echo ucfirst($solicitud['prioridad']); ?>
-                                                    </span>
-                                                </div>
-                                                <p class="mb-1 text-muted small">
-                                                    <?php 
-                                                    $desc = htmlspecialchars($solicitud['descripcion']);
-                                                    echo strlen($desc) > 100 ? substr($desc, 0, 100) . '...' : $desc;
-                                                    ?>
-                                                </p>
-                                                <small class="text-muted">
-                                                    <i class="bi bi-clock"></i> 
-                                                    <?php echo formatear_fecha($solicitud['fecha_creacion'], true); ?>
-                                                </small>
-                                            </div>
-                                            <div>
-                                                <i class="bi bi-chevron-right"></i>
-                                            </div>
-                                        </div>
-                                    </a>
-                                    <?php endforeach; ?>
-                                </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </main>
 

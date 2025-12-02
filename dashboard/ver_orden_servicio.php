@@ -78,70 +78,138 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     
     <style>
+        /* ====== ESTILOS COMPACTOS ====== */
         .apartado-section {
-            border: 2px solid #dee2e6;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
             background: #fff;
         }
         .apartado-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 20px;
-            border-radius: 8px 8px 0 0;
-            margin: -20px -20px 20px -20px;
+            padding: 8px 12px;
+            border-radius: 5px 5px 0 0;
+            margin: -12px -12px 12px -12px;
+        }
+        .apartado-header h4 {
+            font-size: 0.9rem;
+            margin: 0;
         }
         .campo-visualizacion {
             background: #f8f9fa;
-            padding: 10px 15px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            border-left: 4px solid #667eea;
+            padding: 6px 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
         }
         .campo-visualizacion label {
             font-weight: 600;
             color: #495057;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
             display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
         .campo-visualizacion .valor {
             color: #212529;
-            font-size: 1.05rem;
+            font-size: 0.85rem;
         }
         .firma-container {
-            border: 2px dashed #6c757d;
-            border-radius: 8px;
-            padding: 15px;
+            border: 1px dashed #6c757d;
+            border-radius: 5px;
+            padding: 8px;
             text-align: center;
             background: #ffffff;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         .firma-container > div {
-            border: 2px solid #667eea !important;
-            border-radius: 5px;
+            border: 1px solid #667eea !important;
+            border-radius: 4px;
             background: white !important;
             cursor: crosshair;
-            margin: 10px auto;
+            margin: 5px auto;
         }
         .firma-container canvas {
-            border: 2px solid #667eea !important;
-            border-radius: 5px;
+            border: 1px solid #667eea !important;
+            border-radius: 4px;
             background: white !important;
             cursor: crosshair;
             display: block;
         }
         .firma-imagen {
             max-width: 100%;
+            max-height: 80px;
             border: 1px solid #dee2e6;
             background: white;
         }
         .btn-group-acciones {
             background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.08);
+            margin-bottom: 15px;
+        }
+        
+        /* Formularios compactos */
+        .form-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #495057;
+        }
+        .form-control, .form-select {
+            font-size: 0.85rem;
+            padding: 0.35rem 0.6rem;
+        }
+        textarea.form-control {
+            min-height: 60px;
+        }
+        .row.g-3 {
+            --bs-gutter-y: 0.5rem;
+            --bs-gutter-x: 0.75rem;
+        }
+        .row.g-4 {
+            --bs-gutter-y: 0.75rem;
+        }
+        
+        /* Encabezado compacto */
+        .btn-group-acciones h2 {
+            font-size: 1.1rem;
+        }
+        .btn-group-acciones .badge {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.5rem;
+        }
+        
+        /* Botones más pequeños */
+        .btn {
+            font-size: 0.8rem;
+            padding: 0.35rem 0.75rem;
+        }
+        .btn-sm {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+        .btn-lg {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        
+        /* Títulos de sección */
+        h5 {
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Alerts compactos */
+        .alert {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
         }
         
         /* Responsive para botones en móvil */
@@ -151,17 +219,17 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
             }
             .btn-group-acciones .col-md-6 {
                 width: 100%;
-                margin-bottom: 15px;
+                margin-bottom: 10px;
             }
             .btn-group-acciones .text-end {
                 text-align: center !important;
             }
             .btn-group-acciones .btn {
                 width: 100%;
-                margin-bottom: 10px;
+                margin-bottom: 8px;
             }
             .btn-group-acciones h2 {
-                font-size: 1.5rem;
+                font-size: 1rem;
                 text-align: center;
             }
         }
@@ -191,18 +259,18 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
         
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
-            <div class="content-wrapper">
+            <div class="content-wrapper" style="padding: 1rem;">
                     
                     <!-- Encabezado con botones de acción -->
-                    <div class="card shadow-sm mb-4 btn-group-acciones">
-                        <div class="card-body">
+                    <div class="card shadow-sm mb-3 btn-group-acciones">
+                        <div class="card-body py-2">
                             <div class="row align-items-center">
                                 <div class="col-md-6">
                                     <h2 class="mb-0">
                                         <i class="bi bi-file-earmark-text text-primary"></i> 
-                                        Orden: <strong><?php echo htmlspecialchars($orden['folio']); ?></strong>
+                                        <strong><?php echo htmlspecialchars($orden['folio']); ?></strong>
                                     </h2>
-                                    <p class="text-muted mb-0">
+                                    <span class="text-muted" style="font-size: 0.8rem;">
                                         <?php
                                         $estado_badges = [
                                             'pendiente_mantenimiento' => ['class' => 'warning', 'text' => 'Pendiente de Mantenimiento'],
@@ -213,26 +281,26 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                         ];
                                         $badge = $estado_badges[$orden['estado']];
                                         ?>
-                                        <span class="badge bg-<?php echo $badge['class']; ?> mt-2"><?php echo $badge['text']; ?></span>
-                                    </p>
+                                        <span class="badge bg-<?php echo $badge['class']; ?>"><?php echo $badge['text']; ?></span>
+                                    </span>
                                 </div>
                                 <div class="col-md-6 text-end">
                                     <!-- Botón Volver -->
-                                    <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                                    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
                                         <i class="bi bi-arrow-left"></i> Volver
                                     </a>
                                     
                                     <!-- Botón Editar (solo si puede editar y no está en modo edición) -->
                                     <?php if ($permisos['puede_editar'] && !$modo_edicion && $orden['estado'] !== 'pendiente_usuario'): ?>
-                                        <a href="?id=<?php echo $orden_id; ?>&modo=editar" class="btn btn-primary">
+                                        <a href="?id=<?php echo $orden_id; ?>&modo=editar" class="btn btn-primary btn-sm">
                                             <i class="bi bi-pencil-square"></i> Editar
                                         </a>
                                     <?php endif; ?>
                                     
                                     <!-- Botón Cancelar Edición -->
                                     <?php if ($modo_edicion): ?>
-                                        <a href="?id=<?php echo $orden_id; ?>" class="btn btn-secondary">
-                                            <i class="bi bi-x-circle"></i> Cancelar Edición
+                                        <a href="?id=<?php echo $orden_id; ?>" class="btn btn-secondary btn-sm">
+                                            <i class="bi bi-x-circle"></i> Cancelar
                                         </a>
                                     <?php endif; ?>
                                 </div>
@@ -243,14 +311,14 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                     <?php if (isset($_SESSION['success'])): ?>
                         <div class="alert alert-success alert-dismissible fade show">
                             <?php echo $_SESSION['success']; unset($_SESSION['success']); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
                         </div>
                     <?php endif; ?>
                     
                     <?php if (isset($_SESSION['error'])): ?>
                         <div class="alert alert-danger alert-dismissible fade show">
                             <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
                         </div>
                     <?php endif; ?>
                     
@@ -259,7 +327,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                     <!-- ============================================ -->
                     <div class="apartado-section">
                         <div class="apartado-header">
-                            <h4 class="mb-0"><i class="bi bi-person-fill"></i> APARTADO 1: Información del Solicitante</h4>
+                            <h4><i class="bi bi-person-fill"></i> APARTADO 1: Información del Solicitante</h4>
                         </div>
                         
                         <?php if ($modo_edicion && isset($permisos['puede_editar_apartado1']) && $permisos['puede_editar_apartado1']): ?>
@@ -297,10 +365,10 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label">Descripción de la Falla *</label>
-                                        <textarea name="descripcion_falla" class="form-control" rows="4" required><?php echo htmlspecialchars($apartado1['descripcion_falla'] ?? ''); ?></textarea>
+                                        <textarea name="descripcion_falla" class="form-control" rows="3" required><?php echo htmlspecialchars($apartado1['descripcion_falla'] ?? ''); ?></textarea>
                                     </div>
                                     <div class="col-12">
-                                        <button type="submit" class="btn btn-primary">
+                                        <button type="submit" class="btn btn-primary btn-sm">
                                             <i class="bi bi-save"></i> Guardar Cambios
                                         </button>
                                     </div>
@@ -309,40 +377,46 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                         <?php else: ?>
                             <!-- MODO VISUALIZACIÓN -->
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4 col-6">
                                     <div class="campo-visualizacion">
                                         <label>Empresa</label>
                                         <div class="valor"><?php echo htmlspecialchars($apartado1['empresa'] ?? '-'); ?></div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4 col-6">
                                     <div class="campo-visualizacion">
                                         <label>Folio de Mantenimiento</label>
                                         <div class="valor"><?php echo htmlspecialchars($apartado1['folio'] ?? '-'); ?></div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4 col-6">
                                     <div class="campo-visualizacion">
                                         <label>Área Solicitante</label>
                                         <div class="valor"><?php echo htmlspecialchars($apartado1['area_solicitante'] ?? '-'); ?></div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 col-6">
                                     <div class="campo-visualizacion">
                                         <label>Fecha de Entrada</label>
                                         <div class="valor"><?php echo htmlspecialchars($apartado1['fecha_entrada'] ?? '-'); ?></div>
                                     </div>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-3 col-6">
                                     <div class="campo-visualizacion">
                                         <label>Hora de Entrada</label>
                                         <div class="valor"><?php echo htmlspecialchars($apartado1['hora_entrada'] ?? '-'); ?></div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-3 col-6">
                                     <div class="campo-visualizacion">
                                         <label>Unidad/Equipo</label>
                                         <div class="valor"><?php echo htmlspecialchars($apartado1['unidad_equipo'] ?? '-'); ?></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="campo-visualizacion">
+                                        <label>Prioridad</label>
+                                        <div class="valor"><?php echo htmlspecialchars($apartado1['prioridad'] ?? '-'); ?></div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -352,12 +426,6 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                     </div>
                                 </div>
                                 <div class="col-md-6">
-                                    <div class="campo-visualizacion">
-                                        <label>Prioridad</label>
-                                        <div class="valor"><?php echo htmlspecialchars($apartado1['prioridad'] ?? '-'); ?></div>
-                                    </div>
-                                </div>
-                                <div class="col-12">
                                     <div class="campo-visualizacion">
                                         <label>Descripción de la Falla</label>
                                         <div class="valor"><?php echo nl2br(htmlspecialchars($apartado1['descripcion_falla'] ?? '-')); ?></div>
@@ -369,7 +437,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                             <label>Evidencia de la Falla</label>
                                             <div class="valor">
                                                 <?php foreach ($apartado1['evidencia_archivos'] as $archivo): ?>
-                                                    <a href="<?php echo URL_BASE . $archivo['ruta']; ?>" target="_blank" class="btn btn-sm btn-outline-primary me-2 mb-2">
+                                                    <a href="<?php echo URL_BASE . $archivo['ruta']; ?>" target="_blank" class="btn btn-sm btn-outline-primary me-1 mb-1">
                                                         <i class="bi bi-file-earmark"></i> <?php echo htmlspecialchars($archivo['nombre_original']); ?>
                                                     </a>
                                                 <?php endforeach; ?>
@@ -387,7 +455,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                     <?php if (in_array($orden['estado'], ['en_proceso', 'pendiente_usuario', 'devuelto', 'completado']) || ($es_mantenimiento && $modo_edicion)): ?>
                         <div class="apartado-section">
                             <div class="apartado-header">
-                                <h4 class="mb-0"><i class="bi bi-tools"></i> APARTADO 2: Área de Mantenimiento</h4>
+                                <h4><i class="bi bi-tools"></i> APARTADO 2: Área de Mantenimiento</h4>
                             </div>
                             
                             <?php if ($modo_edicion && $es_mantenimiento): ?>
@@ -396,34 +464,34 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                     <input type="hidden" name="orden_id" value="<?php echo $orden_id; ?>">
                                     
                                     <div class="row g-3">
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 col-6">
                                             <label class="form-label">Fecha de Atención *</label>
                                             <input type="date" name="fecha_atencion" class="form-control" 
                                                    value="<?php echo $apartado2['fecha_atencion'] ?? date('Y-m-d'); ?>" required>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 col-6">
                                             <label class="form-label">Hora de Inicio *</label>
                                             <input type="time" name="hora_inicio" class="form-control" 
                                                    value="<?php echo $apartado2['hora_inicio'] ?? ''; ?>" required>
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 col-6">
                                             <label class="form-label">Fecha de Término</label>
                                             <input type="date" name="fecha_termino" class="form-control" 
                                                    value="<?php echo $apartado2['fecha_termino'] ?? ''; ?>">
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-md-3 col-6">
                                             <label class="form-label">Hora de Término</label>
                                             <input type="time" name="hora_termino" class="form-control" 
                                                    value="<?php echo $apartado2['hora_termino'] ?? ''; ?>">
                                         </div>
                                         <div class="col-12">
                                             <label class="form-label">Descripción de Reparación de Falla *</label>
-                                            <textarea name="descripcion_reparacion" class="form-control" rows="4" required><?php echo htmlspecialchars($apartado2['descripcion_reparacion'] ?? ''); ?></textarea>
+                                            <textarea name="descripcion_reparacion" class="form-control" rows="3" required><?php echo htmlspecialchars($apartado2['descripcion_reparacion'] ?? ''); ?></textarea>
                                         </div>
                                         
                                         <!-- Personal Asignado -->
                                         <div class="col-12">
-                                            <h5 class="mt-3">Personal Asignado para Realizar el Servicio</h5>
+                                            <label class="form-label">Personal Asignado</label>
                                         </div>
                                         <?php 
                                         $personal = $apartado2['personal_asignado'] ?? [
@@ -434,17 +502,17 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                         for ($i = 0; $i < 3; $i++): 
                                         ?>
                                             <div class="col-md-4">
-                                                <label class="form-label">Nombre <?php echo $i+1; ?></label>
                                                 <input type="text" name="personal_nombre[]" class="form-control" 
+                                                       placeholder="Nombre <?php echo $i+1; ?>"
                                                        value="<?php echo htmlspecialchars($personal[$i]['nombre'] ?? ''); ?>">
                                             </div>
                                         <?php endfor; ?>
                                         
-                                        <div class="col-12 mt-4">
-                                            <button type="button" class="btn btn-success me-2" onclick="guardarApartado2('guardar')">
+                                        <div class="col-12 mt-2">
+                                            <button type="button" class="btn btn-success btn-sm me-2" onclick="guardarApartado2('guardar')">
                                                 <i class="bi bi-save"></i> Guardar
                                             </button>
-                                            <button type="button" class="btn btn-primary" onclick="guardarApartado2('enviar')">
+                                            <button type="button" class="btn btn-primary btn-sm" onclick="guardarApartado2('enviar')">
                                                 <i class="bi bi-send"></i> Enviar a Usuario
                                             </button>
                                         </div>
@@ -453,25 +521,25 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                             <?php else: ?>
                                 <!-- MODO VISUALIZACIÓN -->
                                 <div class="row g-3">
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 col-6">
                                         <div class="campo-visualizacion">
                                             <label>Fecha de Atención</label>
                                             <div class="valor"><?php echo htmlspecialchars($apartado2['fecha_atencion'] ?? '-'); ?></div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 col-6">
                                         <div class="campo-visualizacion">
                                             <label>Hora de Inicio</label>
                                             <div class="valor"><?php echo htmlspecialchars($apartado2['hora_inicio'] ?? '-'); ?></div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 col-6">
                                         <div class="campo-visualizacion">
                                             <label>Fecha de Término</label>
                                             <div class="valor"><?php echo htmlspecialchars($apartado2['fecha_termino'] ?? '-'); ?></div>
                                         </div>
                                     </div>
-                                    <div class="col-md-3">
+                                    <div class="col-md-3 col-6">
                                         <div class="campo-visualizacion">
                                             <label>Hora de Término</label>
                                             <div class="valor"><?php echo htmlspecialchars($apartado2['hora_termino'] ?? '-'); ?></div>
@@ -485,18 +553,15 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                     </div>
                                     <?php if (!empty($apartado2['personal_asignado'])): ?>
                                         <div class="col-12">
-                                            <h5>Personal Asignado</h5>
+                                            <label class="form-label" style="font-size: 0.75rem;">Personal Asignado</label>
+                                            <div class="d-flex flex-wrap gap-2">
+                                            <?php foreach ($apartado2['personal_asignado'] as $persona): ?>
+                                                <?php if (!empty($persona['nombre'])): ?>
+                                                    <span class="badge bg-secondary"><?php echo htmlspecialchars($persona['nombre']); ?></span>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                            </div>
                                         </div>
-                                        <?php foreach ($apartado2['personal_asignado'] as $persona): ?>
-                                            <?php if (!empty($persona['nombre'])): ?>
-                                                <div class="col-md-4">
-                                                    <div class="campo-visualizacion">
-                                                        <label>Nombre</label>
-                                                        <div class="valor"><?php echo htmlspecialchars($persona['nombre']); ?></div>
-                                                    </div>
-                                                </div>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
@@ -509,28 +574,28 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                     <?php if ($modo_edicion_apartado3): ?>
                         <div class="apartado-section">
                             <div class="apartado-header">
-                                <h4 class="mb-0"><i class="bi bi-check-circle"></i> APARTADO 3: Cierre de Orden de Servicio</h4>
+                                <h4><i class="bi bi-check-circle"></i> APARTADO 3: Cierre de Orden de Servicio</h4>
                             </div>
                             
-                            <div class="row g-4">
+                            <div class="row g-3">
                                 <!-- Firma del Solicitante -->
                                 <div class="col-md-6">
                                     <h5>Solicitante</h5>
-                                    <div class="mb-3">
-                                        <label class="form-label">Nombre del Solicitante</label>
+                                    <div class="mb-2">
+                                        <label class="form-label">Nombre</label>
                                         <input type="text" id="nombre_solicitante" class="form-control" 
                                                value="<?php echo htmlspecialchars($apartado3['nombre_solicitante'] ?? $nombre_usuario_creador); ?>" 
                                                readonly>
                                     </div>
                                     <div class="firma-container">
-                                        <label class="form-label">Firma del Solicitante</label>
-                                        <div id="firma_solicitante" style="width: 100%; height: 150px;"></div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="limpiarFirma('solicitante')">
+                                        <label class="form-label" style="font-size: 0.7rem;">Firma del Solicitante</label>
+                                        <div id="firma_solicitante" style="width: 100%; height: 100px;"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="limpiarFirma('solicitante')">
                                             <i class="bi bi-trash"></i> Limpiar
                                         </button>
                                         <?php if ($permisos['es_propietario']): ?>
-                                            <button type="button" class="btn btn-sm btn-primary mt-2" onclick="guardarFirma('solicitante')">
-                                                <i class="bi bi-save"></i> Guardar Firma
+                                            <button type="button" class="btn btn-sm btn-primary mt-1" onclick="guardarFirma('solicitante')">
+                                                <i class="bi bi-save"></i> Guardar
                                             </button>
                                         <?php endif; ?>
                                     </div>
@@ -539,21 +604,21 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                 <!-- Firma de Mantenimiento -->
                                 <div class="col-md-6">
                                     <h5>Responsable de Mantenimiento</h5>
-                                    <div class="mb-3">
-                                        <label class="form-label">Nombre del Responsable</label>
+                                    <div class="mb-2">
+                                        <label class="form-label">Nombre</label>
                                         <input type="text" id="nombre_responsable_mant" class="form-control" 
                                                value="<?php echo htmlspecialchars($apartado3['nombre_responsable_mantenimiento'] ?? ''); ?>"
                                                <?php echo !$es_mantenimiento ? 'readonly' : ''; ?>>
                                     </div>
                                     <div class="firma-container">
-                                        <label class="form-label">Firma del Responsable</label>
-                                        <div id="firma_mantenimiento" style="width: 100%; height: 150px;"></div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="limpiarFirma('mantenimiento')">
+                                        <label class="form-label" style="font-size: 0.7rem;">Firma del Responsable</label>
+                                        <div id="firma_mantenimiento" style="width: 100%; height: 100px;"></div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" onclick="limpiarFirma('mantenimiento')">
                                             <i class="bi bi-trash"></i> Limpiar
                                         </button>
                                         <?php if ($es_mantenimiento): ?>
-                                            <button type="button" class="btn btn-sm btn-primary mt-2" onclick="guardarFirma('mantenimiento')">
-                                                <i class="bi bi-save"></i> Guardar Firma
+                                            <button type="button" class="btn btn-sm btn-primary mt-1" onclick="guardarFirma('mantenimiento')">
+                                                <i class="bi bi-save"></i> Guardar
                                             </button>
                                         <?php endif; ?>
                                     </div>
@@ -561,12 +626,12 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                 
                                 <!-- Botones de acción del usuario -->
                                 <?php if ($permisos['es_propietario']): ?>
-                                    <div class="col-12 text-center mt-4">
-                                        <button type="button" class="btn btn-warning btn-lg me-3" onclick="devolverOrden()">
-                                            <i class="bi bi-arrow-return-left"></i> Devolver para Corrección
+                                    <div class="col-12 text-center mt-3">
+                                        <button type="button" class="btn btn-warning me-2" onclick="devolverOrden()">
+                                            <i class="bi bi-arrow-return-left"></i> Devolver
                                         </button>
-                                        <button type="button" class="btn btn-success btn-lg" onclick="finalizarOrden()">
-                                            <i class="bi bi-check-circle"></i> Finalizar Orden
+                                        <button type="button" class="btn btn-success" onclick="finalizarOrden()">
+                                            <i class="bi bi-check-circle"></i> Finalizar
                                         </button>
                                     </div>
                                 <?php endif; ?>
@@ -576,9 +641,9 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                         <!-- Mostrar firmas en modo visualización -->
                         <div class="apartado-section">
                             <div class="apartado-header">
-                                <h4 class="mb-0"><i class="bi bi-check-circle"></i> APARTADO 3: Cierre de Orden de Servicio</h4>
+                                <h4><i class="bi bi-check-circle"></i> APARTADO 3: Cierre de Orden de Servicio</h4>
                             </div>
-                            <div class="row g-4">
+                            <div class="row g-3">
                                 <div class="col-md-6">
                                     <h5>Solicitante</h5>
                                     <div class="campo-visualizacion">
@@ -586,8 +651,8 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                         <div class="valor"><?php echo htmlspecialchars($apartado3['nombre_solicitante'] ?? '-'); ?></div>
                                     </div>
                                     <?php if (!empty($apartado3['firma_solicitante'])): ?>
-                                        <div class="firma-container mt-3">
-                                            <label>Firma</label>
+                                        <div class="firma-container mt-2">
+                                            <label style="font-size: 0.7rem;">Firma</label>
                                             <img src="<?php echo $apartado3['firma_solicitante']; ?>" class="firma-imagen" alt="Firma Solicitante">
                                         </div>
                                     <?php endif; ?>
@@ -599,8 +664,8 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                         <div class="valor"><?php echo htmlspecialchars($apartado3['nombre_responsable_mantenimiento'] ?? '-'); ?></div>
                                     </div>
                                     <?php if (!empty($apartado3['firma_responsable_mantenimiento'])): ?>
-                                        <div class="firma-container mt-3">
-                                            <label>Firma</label>
+                                        <div class="firma-container mt-2">
+                                            <label style="font-size: 0.7rem;">Firma</label>
                                             <img src="<?php echo $apartado3['firma_responsable_mantenimiento']; ?>" class="firma-imagen" alt="Firma Mantenimiento">
                                         </div>
                                     <?php endif; ?>
@@ -637,10 +702,10 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                 try {
                     firmaSolicitante = $('#firma_solicitante').jSignature({
                         color: '#000000',
-                        lineWidth: 3,
+                        lineWidth: 2,
                         background: '#ffffff',
                         width: '100%',
-                        height: 150,
+                        height: 100,
                         'decor-color': '#667eea'
                     });
                     console.log('Firma solicitante inicializada');
@@ -652,10 +717,10 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                 try {
                     firmaMantenimiento = $('#firma_mantenimiento').jSignature({
                         color: '#000000',
-                        lineWidth: 3,
+                        lineWidth: 2,
                         background: '#ffffff',
                         width: '100%',
-                        height: 150,
+                        height: 100,
                         'decor-color': '#667eea'
                     });
                     console.log('Firma responsable inicializada');
