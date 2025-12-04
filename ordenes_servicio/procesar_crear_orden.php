@@ -13,7 +13,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Limpiar output buffer y establecer header JSON
 ob_end_clean();
@@ -151,9 +150,6 @@ try {
     
     // Registrar en log
     error_log("✅ Nueva orden creada - ID: {$orden_id}, Folio: {$folio}, Usuario: {$_SESSION['nombre_completo']}, Depto: {$_SESSION['departamento_nombre']}");
-    
-    // ✅ NOTIFICAR A MANTENIMIENTO
-    notificar_nueva_orden($orden_id, $folio, $_SESSION['nombre_completo'], $_SESSION['departamento_nombre']);
     
     echo json_encode([
         'success' => true,

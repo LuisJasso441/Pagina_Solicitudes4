@@ -11,7 +11,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -125,15 +124,6 @@ try {
     
     // Registrar en log
     error_log("Firma guardada - Tipo: {$tipo_firma}, Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}");
-    
-    // ✅ NOTIFICAR SEGÚN EL TIPO DE FIRMA
-    if ($tipo_firma === 'solicitante') {
-        // Usuario firmó → Notificar a Mantenimiento
-        notificar_firma_usuario($orden_id, $orden['folio'], $_SESSION['nombre_completo']);
-    } elseif ($tipo_firma === 'mantenimiento') {
-        // Mantenimiento firmó → Notificar al Usuario
-        notificar_firma_mantenimiento($orden_id, $orden['folio'], $orden['usuario_id'], $nombre);
-    }
     
     echo json_encode([
         'success' => true,

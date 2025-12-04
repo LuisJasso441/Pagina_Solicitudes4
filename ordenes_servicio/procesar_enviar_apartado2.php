@@ -11,7 +11,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -23,7 +22,8 @@ if (!sesion_activa()) {
 }
 
 // Verificar que sea departamento de Mantenimiento
-if (strtolower($_SESSION['departamento']) !== 'mantenimiento') {
+$depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']));
+if ($depto_actual !== 'mantenimiento') {
     echo json_encode([
         'success' => false,
         'error' => 'Solo el departamento de Mantenimiento puede realizar esta acción'
@@ -132,9 +132,6 @@ try {
     
     // Registrar en log
     error_log("Mantenimiento envió Apartado 2 al usuario - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario Mant: {$_SESSION['nombre_completo']}");
-    
-    // ✅ NOTIFICAR AL USUARIO
-    notificar_orden_finalizada_mantenimiento($orden_id, $orden['folio'], $orden['usuario_id']);
     
     echo json_encode([
         'success' => true,

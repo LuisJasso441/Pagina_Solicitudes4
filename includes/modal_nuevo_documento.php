@@ -28,12 +28,6 @@ require_once __DIR__ . '/csrf.php';
                 <?php echo campo_csrf(); ?>
                 
                 <div class="modal-body">
-                    <!-- Logo y título del formulario -->
-                    <div class="text-center mb-4 pb-3 border-bottom">
-                        <h5 class="text-success fw-bold">GrupoVerden</h5>
-                        <p class="text-muted mb-0">SOLICITUD DE SERVICIO A CLIENTES</p>
-                    </div>
-                    
                     <!-- APARTADO 1: Creación -->
                     <div class="bg-light p-3 mb-3">
                         <h6 class="text-primary mb-3">

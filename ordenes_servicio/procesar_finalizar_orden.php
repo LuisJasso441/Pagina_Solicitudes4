@@ -11,7 +11,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -123,9 +122,6 @@ try {
     
     // Registrar en log
     error_log("Orden finalizada - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario: {$_SESSION['nombre_completo']}");
-    
-    // ✅ NOTIFICAR A MANTENIMIENTO
-    notificar_orden_completada($orden_id, $orden['folio'], $orden['usuario_id'], $_SESSION['nombre_completo']);
     
     echo json_encode([
         'success' => true,

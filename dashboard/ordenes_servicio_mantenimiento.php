@@ -653,7 +653,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                                     $badges_estados = [
                                                         'pendiente_mantenimiento' => ['bg-warning', 'Pendiente'],
                                                         'en_proceso' => ['bg-info', 'En Proceso'],
-                                                        'pendiente_usuario' => ['bg-purple', 'A Validar'],
+                                                        'pendiente_usuario' => ['bg-primary', 'A Validar'],
                                                         'devuelto' => ['bg-danger', 'Devuelto']
                                                     ];
                                                     $badge = $badges_estados[$orden['estado']] ?? ['bg-secondary', $orden['estado']];

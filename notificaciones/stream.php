@@ -1,7 +1,6 @@
 <?php
 /**
  * Server-Sent Events (SSE) para notificaciones en tiempo real
- * VERSIÓN OPTIMIZADA
  */
 
 session_start();
@@ -22,10 +21,8 @@ if (!isset($_SESSION['usuario_id'])) {
 
 $usuario_id = $_SESSION['usuario_id'];
 
-// ============================================
 // CRÍTICO: Cerrar la sesión inmediatamente
 // Esto permite que otras peticiones no queden bloqueadas
-// ============================================
 session_write_close();
 
 // Configurar headers para SSE
@@ -39,7 +36,7 @@ while (ob_get_level()) {
     ob_end_clean();
 }
 
-// Función para enviar evento SSE (OPTIMIZADA)
+// Función para enviar evento SSE
 function enviar_evento_sse($evento, $datos) {
     echo "event: $evento\n";
     echo "data: " . json_encode($datos, JSON_UNESCAPED_UNICODE) . "\n\n";
@@ -52,7 +49,7 @@ function enviar_evento_sse($evento, $datos) {
 // Enviar conexión exitosa
 enviar_evento_sse('connected', ['message' => 'Conectado al servidor de notificaciones']);
 
-// ⭐ CORRECCIÓN CRÍTICA: Obtener el último ID AHORA (al momento de conectar)
+// Obtener el último ID al momento de conectar
 // Esto evita mostrar notificaciones viejas
 $ultima_notificacion_id = 0;
 
@@ -79,7 +76,6 @@ try {
 
 // Loop infinito para mantener conexión
 $contador_heartbeat = 0;
-$tiempo_ultimo_check = microtime(true);
 
 while (true) {
     // Verificar si la conexión sigue activa
@@ -92,14 +88,13 @@ while (true) {
         require_once __DIR__ . '/../config/database.php';
         $pdo = conectarDB();
         
-        // ⭐ OPTIMIZACIÓN: Solo buscar notificaciones MUY recientes (últimos 5 minutos como máximo)
-        // Esto evita enviar notificaciones viejas acumuladas
+        // Solo buscar notificaciones con ID mayor al último procesado
+        // Sin filtro de tiempo para no perder notificaciones
         $stmt = $pdo->prepare("
             SELECT * FROM notificaciones 
             WHERE usuario_destino = ? 
             AND id > ? 
             AND leida = 0
-            AND fecha_creacion >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
             ORDER BY id ASC
             LIMIT 10
         ");
@@ -130,14 +125,14 @@ while (true) {
         error_log("❌ [SSE] Error en stream: " . $e->getMessage());
     }
     
-    // ⭐ OPTIMIZACIÓN: Heartbeat cada 15 segundos (antes era 30)
+    // Heartbeat cada 15 segundos
     $contador_heartbeat++;
-    if ($contador_heartbeat >= 15) { // 15 iteraciones × 1 segundo = 15 segundos
+    if ($contador_heartbeat >= 15) {
         enviar_evento_sse('heartbeat', ['timestamp' => time()]);
         $contador_heartbeat = 0;
     }
     
-    // ⭐ OPTIMIZACIÓN CRÍTICA: Reducir sleep a 1 segundo para respuesta más rápida
+    // Esperar 1 segundo antes de la siguiente verificación
     sleep(1);
     
     // Forzar flush después de cada iteración

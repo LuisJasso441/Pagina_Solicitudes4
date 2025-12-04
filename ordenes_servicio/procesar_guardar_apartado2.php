@@ -2,7 +2,6 @@
 /**
  * Procesador: Guardar Apartado 2 (Borrador)
  * Mantenimiento guarda sin enviar al usuario
- * Notifica SOLO la primera vez
  */
 
 session_start();
@@ -12,7 +11,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -78,10 +76,13 @@ try {
         throw new Exception("Esta orden no puede ser editada en su estado actual");
     }
     
+    // Guardar estado anterior
+    $estado_anterior = $orden['estado'];
+    
     $pdo->beginTransaction();
     
     // Verificar si es la primera vez que se guarda el Apartado 2
-    $es_primera_vez = empty($orden['apartado2_data']);
+    $es_primera_vez = empty($orden['apartado2_data']) || $orden['apartado2_data'] === 'null' || $orden['apartado2_data'] === '[]';
     
     // Preparar datos del Apartado 2
     $apartado2_data = [
@@ -135,10 +136,7 @@ try {
     $pdo->commit();
     
     // Registrar en log
-    error_log("Mantenimiento guardó Apartado 2 (borrador) - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}, Primera vez: " . ($es_primera_vez ? 'Sí' : 'No'));
-    
-    // ✅ NOTIFICAR AL USUARIO CADA VEZ QUE SE GUARDA
-    notificar_orden_en_proceso($orden_id, $orden['folio'], $orden['usuario_id']);
+    error_log("Mantenimiento guardó Apartado 2 (borrador) - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}, Estado anterior: {$estado_anterior}, Es primera vez: " . ($es_primera_vez ? 'SI' : 'NO'));
     
     echo json_encode([
         'success' => true,

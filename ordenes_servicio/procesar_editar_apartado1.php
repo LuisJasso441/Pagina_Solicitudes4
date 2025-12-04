@@ -1,7 +1,7 @@
 <?php
 /**
  * Procesador: Editar Apartado 1
- * Usuario edita su propia orden (notifica a Mantenimiento)
+ * Usuario edita su propia orden
  */
 
 session_start();
@@ -11,7 +11,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -101,9 +100,6 @@ try {
     
     // Registrar en log
     error_log("Usuario editó Apartado 1 - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}");
-    
-    // ✅ NOTIFICAR A MANTENIMIENTO
-    notificar_edicion_usuario($orden_id, $orden['folio'], $_SESSION['nombre_completo']);
     
     // Si viene de formulario HTML, redirigir
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_SERVER['HTTP_CONTENT_TYPE'])) {
