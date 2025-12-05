@@ -26,9 +26,14 @@
   <!-- Contenido principal -->
   <main class="main-content">
     <h1 class="main-title">¡Bienvenido al Portal de Solicitudes!</h1>
-    <h1 class="main-title">¡FELIZ NAVIDAD!</h1>
     <p class="main-description">En este portal web encontrarán aquellas solicitudes que manejan todos los departamentos
       de la empresa.</p>
     <p class="main-description">Por favor, inicia sesión o regístrate para continuar.</p>
+    <h3>Este espacio está destinado a comunicados internos. Si desea publicar un aviso, puede solicitar su inclusión aquí.</h3>
+    <p>Ejemplo:</p>
+    <video width="320" height="500" controls style="background-color: #000;">
+      <source src="assets/img/video.mp4" type="video/mp4">
+      Tu navegador no soporta la etiqueta de video.
+    </video>
 </body>
 </html>

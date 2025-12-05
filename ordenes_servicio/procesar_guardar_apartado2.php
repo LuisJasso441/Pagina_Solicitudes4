@@ -2,6 +2,8 @@
 /**
  * Procesador: Guardar Apartado 2 (Borrador)
  * Mantenimiento guarda sin enviar al usuario
+ * 
+ * NOTIFICACIÓN: Solo cuando es orden devuelta y es la primera vez que guarda → Usuario original
  */
 
 session_start();
@@ -76,7 +78,7 @@ try {
         throw new Exception("Esta orden no puede ser editada en su estado actual");
     }
     
-    // Guardar estado anterior
+    // Guardar estado anterior para notificaciones
     $estado_anterior = $orden['estado'];
     
     $pdo->beginTransaction();
@@ -133,10 +135,52 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     
+    // ========================================
+    // NOTIFICACIONES
+    // ========================================
+    $datos_json = json_encode([
+        'orden_id' => $orden_id,
+        'folio' => $orden['folio'],
+        'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+    ]);
+    
+    // Primera vez en orden ORIGINAL (no devuelta)
+    if ($es_primera_vez && $estado_anterior === 'pendiente_mantenimiento') {
+        $stmt_notif = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $stmt_notif->execute([
+            'orden_en_proceso',
+            '⚙️ Orden en Proceso',
+            "Mantenimiento está trabajando en tu orden {$orden['folio']}",
+            $orden['usuario_id'],
+            $datos_json
+        ]);
+    }
+    
+    // Primera vez en orden DEVUELTA
+    if ($estado_anterior === 'devuelto') {
+        $stmt_notif = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $stmt_notif->execute([
+            'orden_corrigiendose',
+            '🔄 Orden en Corrección',
+            "Mantenimiento está corrigiendo tu orden {$orden['folio']}",
+            $orden['usuario_id'],
+            $datos_json
+        ]);
+    }
+    
     $pdo->commit();
     
-    // Registrar en log
-    error_log("Mantenimiento guardó Apartado 2 (borrador) - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}, Estado anterior: {$estado_anterior}, Es primera vez: " . ($es_primera_vez ? 'SI' : 'NO'));
+    error_log("Mantenimiento guardó Apartado 2 (borrador) - Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}, Estado anterior: {$estado_anterior}");
     
     echo json_encode([
         'success' => true,

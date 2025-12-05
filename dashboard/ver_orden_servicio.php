@@ -882,5 +882,8 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
             });
         }
     </script>
+    
+    <!-- Sistema de notificaciones en tiempo real -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
 </body>
 </html>

@@ -2,6 +2,8 @@
 /**
  * Procesador: Enviar Apartado 2 al Usuario
  * Mantenimiento envía la orden completa al usuario para validación
+ * 
+ * NOTIFICACIÓN: Siempre al enviar → Usuario original
  */
 
 session_start();
@@ -128,9 +130,31 @@ try {
         ':orden_id' => $orden_id
     ]);
     
+    // ========================================
+    // NOTIFICACIÓN: Enviar orden → Usuario original
+    // ========================================
+    $stmt_notif = $pdo->prepare("
+        INSERT INTO notificaciones 
+        (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+        VALUES (?, ?, ?, ?, ?, 0, NOW())
+    ");
+    
+    $datos_json = json_encode([
+        'orden_id' => $orden_id,
+        'folio' => $orden['folio'],
+        'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+    ]);
+    
+    $stmt_notif->execute([
+        'orden_lista_validacion',
+        '✅ Orden Lista para Validación',
+        "Mantenimiento ha enviado la orden {$orden['folio']} para tu revisión",
+        $orden['usuario_id'],
+        $datos_json
+    ]);
+    
     $pdo->commit();
     
-    // Registrar en log
     error_log("Mantenimiento envió Apartado 2 al usuario - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario Mant: {$_SESSION['nombre_completo']}");
     
     echo json_encode([

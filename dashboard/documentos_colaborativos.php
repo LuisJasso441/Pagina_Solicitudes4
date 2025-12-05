@@ -302,35 +302,11 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
             </div>
         </div>
     </div>
-
-    <!-- Botón flotante de cambio de tema -->
-    <button class="theme-toggle-float" id="themeToggle" aria-label="Cambiar tema">
-        <span class="icon-sun"><i class="bi bi-sun-fill"></i></span>
-        <span class="icon-moon"><i class="bi bi-moon-fill"></i></span>
-    </button>
     
     <?php if ($puede_crear): ?>
     <!-- Modal Nuevo Documento -->
     <?php include __DIR__ . '/../includes/modal_nuevo_documento.php'; ?>
     <?php endif; ?>
-
-    <script>
-        const themeToggle = document.getElementById('themeToggle');
-        const bodyElement = document.body;
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        bodyElement.setAttribute('data-theme', currentTheme);
-        
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = bodyElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            themeToggle.classList.add('rotating');
-            setTimeout(() => {
-                themeToggle.classList.remove('rotating');
-            }, 500);
-            bodyElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-    </script>
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -2,6 +2,10 @@
 /**
  * Procesador: Guardar Firma en Apartado 3
  * Guarda firma del solicitante o del responsable de mantenimiento
+ * 
+ * NOTIFICACIONES:
+ * - Usuario firma → Mantenimiento
+ * - Mantenimiento firma → Usuario original
  */
 
 session_start();
@@ -120,9 +124,59 @@ try {
         ':orden_id' => $orden_id
     ]);
     
+    // ========================================
+    // NOTIFICACIONES según tipo de firma
+    // ========================================
+    if ($tipo_firma === 'solicitante') {
+        // Usuario firma → Notificar a Mantenimiento
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+        
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt_notif = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+            
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $orden['folio'],
+                'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+            
+            $stmt_notif->execute([
+                'firma_usuario',
+                '✍️ Firma de Usuario',
+                "{$_SESSION['nombre_completo']} ha firmado la orden {$orden['folio']}",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+    } elseif ($tipo_firma === 'mantenimiento') {
+        // Mantenimiento firma → Notificar a Usuario original
+        $stmt_notif = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $orden['folio'],
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt_notif->execute([
+            'firma_mantenimiento',
+            '✍️ Firma de Mantenimiento',
+            "{$_SESSION['nombre_completo']} ha firmado la orden {$orden['folio']}",
+            $orden['usuario_id'],
+            $datos_json
+        ]);
+    }
+    
     $pdo->commit();
     
-    // Registrar en log
     error_log("Firma guardada - Tipo: {$tipo_firma}, Orden ID: {$orden_id}, Usuario: {$_SESSION['nombre_completo']}");
     
     echo json_encode([

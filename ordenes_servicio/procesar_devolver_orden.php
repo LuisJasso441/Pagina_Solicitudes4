@@ -2,6 +2,8 @@
 /**
  * Procesador: Devolver Orden para Corrección
  * Usuario devuelve la orden a Mantenimiento para que corrijan algo
+ * 
+ * NOTIFICACIÓN: Devolver orden → Mantenimiento
  */
 
 session_start();
@@ -11,7 +13,6 @@ require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
-require_once __DIR__ . '/../includes/notificaciones.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -111,14 +112,37 @@ try {
         ]);
     }
     
+    // ========================================
+    // NOTIFICACIÓN: Devolver orden → Mantenimiento
+    // ========================================
+    $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+    
+    foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+        $stmt_notif = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $orden['folio'],
+            'motivo' => $motivo_devolucion,
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt_notif->execute([
+            'orden_devuelta',
+            '🔄 Orden Devuelta',
+            "{$_SESSION['nombre_completo']} ha devuelto la orden {$orden['folio']}",
+            $usuario_mant_id,
+            $datos_json
+        ]);
+    }
+    
     $pdo->commit();
     
-    // Registrar en log
     error_log("Usuario devolvió orden para corrección - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario: {$_SESSION['nombre_completo']}");
-    
-    // NOTIFICAR A MANTENIMIENTO
-    error_log("📬 Enviando notificación: orden_devuelta para usuarios de Mantenimiento");
-    notificar_orden_devuelta($orden_id, $orden['folio'], $_SESSION['nombre_completo']);
     
     echo json_encode([
         'success' => true,

@@ -2,6 +2,8 @@
 /**
  * Procesador: Finalizar Orden de Servicio
  * Usuario finaliza la orden después de validar el trabajo de Mantenimiento
+ * 
+ * NOTIFICACIÓN: Finalizar orden → Mantenimiento
  */
 
 session_start();
@@ -118,9 +120,35 @@ try {
         ':orden_id' => $orden_id
     ]);
     
+    // ========================================
+    // NOTIFICACIÓN: Finalizar orden → Mantenimiento
+    // ========================================
+    $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+    
+    foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+        $stmt_notif = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $orden['folio'],
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt_notif->execute([
+            'orden_completada',
+            '🎉 Orden Completada',
+            "{$_SESSION['nombre_completo']} ha finalizado la orden {$orden['folio']}",
+            $usuario_mant_id,
+            $datos_json
+        ]);
+    }
+    
     $pdo->commit();
     
-    // Registrar en log
     error_log("Orden finalizada - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario: {$_SESSION['nombre_completo']}");
     
     echo json_encode([

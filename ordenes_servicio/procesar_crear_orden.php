@@ -2,6 +2,8 @@
 /**
  * Procesador: Crear Nueva Orden de Servicio
  * Usuario crea Apartado 1
+ * 
+ * NOTIFICACIÓN: Al crear orden → Mantenimiento
  */
 
 session_start();
@@ -92,9 +94,7 @@ try {
     $existe = $stmt->fetch();
     
     if ($existe) {
-        // Log detallado para debugging
         error_log("⚠️ FOLIO DUPLICADO - Folio: '$folio', ID existente: {$existe['id']}, Nuevo intento por: {$_SESSION['nombre_completo']}");
-        
         throw new Exception("El folio '{$folio}' ya existe. Por favor, use otro folio o regenere uno nuevo.");
     }
     
@@ -146,9 +146,35 @@ try {
     
     $orden_id = $pdo->lastInsertId();
     
+    // ========================================
+    // NOTIFICACIÓN: Nueva orden → Mantenimiento
+    // ========================================
+    $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+    
+    foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+        $stmt_notif = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'orden_id' => $orden_id,
+            'folio' => $folio,
+            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        ]);
+        
+        $stmt_notif->execute([
+            'nueva_orden_mantenimiento',
+            '🔧 Nueva Orden de Servicio',
+            "{$_SESSION['nombre_completo']} ha creado la orden $folio",
+            $usuario_mant_id,
+            $datos_json
+        ]);
+    }
+    
     $pdo->commit();
     
-    // Registrar en log
     error_log("✅ Nueva orden creada - ID: {$orden_id}, Folio: {$folio}, Usuario: {$_SESSION['nombre_completo']}, Depto: {$_SESSION['departamento_nombre']}");
     
     echo json_encode([
