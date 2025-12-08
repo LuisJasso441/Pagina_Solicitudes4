@@ -84,6 +84,14 @@ try {
     
     $pdo->beginTransaction();
     
+    // Procesar código de equipo (si está vacío, guardar "NA")
+    $codigo_equipo = trim($datos['codigo_equipo'] ?? '');
+    $codigo_equipo = $codigo_equipo !== '' ? $codigo_equipo : 'NA';
+
+    // Procesar horómetro (si está vacío, guardar "NA")
+    $horometro = $datos['horometro'] ?? '';
+    $horometro = ($horometro !== '' && $horometro !== null) ? $horometro : 'NA';
+    
     // Preparar datos completos del Apartado 2
     $apartado2_data = [
         'fecha_atencion' => $datos['fecha_atencion'],
@@ -91,6 +99,8 @@ try {
         'fecha_termino' => $datos['fecha_termino'] ?? null,
         'hora_termino' => $datos['hora_termino'] ?? null,
         'descripcion_reparacion' => trim($datos['descripcion_reparacion']),
+        'codigo_equipo' => $codigo_equipo,
+        'horometro' => $horometro,
         'personal_asignado' => []
     ];
     

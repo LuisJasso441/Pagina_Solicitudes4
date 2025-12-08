@@ -489,6 +489,21 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                             <textarea name="descripcion_reparacion" class="form-control" rows="3" required><?php echo htmlspecialchars($apartado2['descripcion_reparacion'] ?? ''); ?></textarea>
                                         </div>
                                         
+                                        <!-- Código de Equipo y Horómetro (Campos opcionales) -->
+                                        <div class="col-md-6">
+                                            <label class="form-label">Código de Equipo <small class="text-muted">(Opcional)</small></label>
+                                            <input type="text" name="codigo_equipo" class="form-control" 
+                                                   placeholder="Ingrese el código del equipo"
+                                                   value="<?php $ce = $apartado2['codigo_equipo'] ?? ''; echo htmlspecialchars($ce === 'NA' ? '' : $ce); ?>">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Horómetro <small class="text-muted">(Opcional)</small></label>
+                                            <input type="number" name="horometro" class="form-control" 
+                                                   placeholder="Ingrese el horómetro"
+                                                   step="0.01" min="0"
+                                                   value="<?php $hr = $apartado2['horometro'] ?? ''; echo htmlspecialchars($hr === 'NA' ? '' : $hr); ?>">
+                                        </div>
+                                        
                                         <!-- Personal Asignado -->
                                         <div class="col-12">
                                             <label class="form-label">Personal Asignado</label>
@@ -549,6 +564,24 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                         <div class="campo-visualizacion">
                                             <label>Descripción de Reparación</label>
                                             <div class="valor"><?php echo nl2br(htmlspecialchars($apartado2['descripcion_reparacion'] ?? '-')); ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="campo-visualizacion">
+                                            <label>Código de Equipo</label>
+                                            <div class="valor"><?php 
+                                                $codigo_equipo = $apartado2['codigo_equipo'] ?? '';
+                                                echo htmlspecialchars($codigo_equipo !== '' ? $codigo_equipo : 'NA'); 
+                                            ?></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="campo-visualizacion">
+                                            <label>Horómetro</label>
+                                            <div class="valor"><?php 
+                                                $horometro = $apartado2['horometro'] ?? '';
+                                                echo htmlspecialchars($horometro !== '' ? $horometro : 'NA'); 
+                                            ?></div>
                                         </div>
                                     </div>
                                     <?php if (!empty($apartado2['personal_asignado'])): ?>
@@ -851,6 +884,8 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                 fecha_termino: formData.get('fecha_termino'),
                 hora_termino: formData.get('hora_termino'),
                 descripcion_reparacion: formData.get('descripcion_reparacion'),
+                codigo_equipo: formData.get('codigo_equipo'),
+                horometro: formData.get('horometro'),
                 personal_asignado: []
             };
             

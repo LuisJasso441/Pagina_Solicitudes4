@@ -590,6 +590,15 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                     <i class="bi bi-search"></i> Filtrar
                                 </button>
                             </div>
+                            
+                            <?php if ($es_mantenimiento): ?>
+                            <!-- Botón Descargar Registros (EXCLUSIVO Mantenimiento) -->
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="button" class="btn btn-success btn-sm w-100" onclick="descargarExcel()">
+                                    <i class="bi bi-file-earmark-excel"></i> Descargar registros
+                                </button>
+                            </div>
+                            <?php endif; ?>
                         </form>
                     </div>
                 </div>
@@ -765,6 +774,32 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
         <?php include __DIR__ . '/../includes/modal_crear_orden_servicio.php'; ?>
     <?php endif; ?>
     
+    <!-- Modal de Procesamiento de Descarga (EXCLUSIVO Mantenimiento) -->
+    <?php if ($es_mantenimiento): ?>
+    <div class="modal fade" id="modalProcesandoDescarga" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-5">
+                    <div class="spinner-border text-success mb-4" role="status" style="width: 4rem; height: 4rem;">
+                        <span class="visually-hidden">Procesando...</span>
+                    </div>
+                    <h4 class="mb-3" style="color: #495057;">
+                        <i class="bi bi-file-earmark-excel text-success"></i> Generando archivo Excel
+                    </h4>
+                    <p class="text-muted mb-2">Su archivo se está procesando para descargarse.</p>
+                    <p class="text-muted mb-0" style="font-size: 0.85rem;">
+                        <i class="bi bi-clock-history"></i> Esto puede tardar unos segundos dependiendo de la cantidad de registros...
+                    </p>
+                    <div class="progress mt-4" style="height: 6px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- ⭐ AGREGADO: Script de notificaciones SSE -->
@@ -776,6 +811,30 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
         setTimeout(function() {
             location.reload();
         }, 120000);
+        <?php endif; ?>
+        
+        <?php if ($es_mantenimiento): ?>
+        // Función para descargar Excel con modal de procesamiento
+        function descargarExcel() {
+            // Mostrar modal de procesamiento
+            const modal = new bootstrap.Modal(document.getElementById('modalProcesandoDescarga'));
+            modal.show();
+            
+            // Crear un iframe oculto para la descarga
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = '<?php echo URL_BASE; ?>ordenes_servicio/descargar_ordenes_excel.php';
+            document.body.appendChild(iframe);
+            
+            // Cerrar modal después de un tiempo prudente (la descarga debería haber iniciado)
+            setTimeout(function() {
+                modal.hide();
+                // Limpiar el iframe después de cerrar el modal
+                setTimeout(function() {
+                    document.body.removeChild(iframe);
+                }, 1000);
+            }, 3000); // 3 segundos para dar tiempo a que inicie la descarga
+        }
         <?php endif; ?>
     </script>
 </body>
