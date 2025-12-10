@@ -30,6 +30,7 @@
       de la empresa.</p>
     <p class="main-description">Por favor, inicia sesión o regístrate para continuar.</p>
     <h3>Este espacio está destinado a comunicados internos. Si desea publicar un aviso, puede solicitar su inclusión aquí.</h3>
+    <p>NOTA: NO VIDEOS DE MAS DE 1 MINUTO DE DURACIÓN.</p>
     <p>Ejemplo:</p>
     <video width="320" height="500" controls style="background-color: #000;">
       <source src="assets/img/video.mp4" type="video/mp4">

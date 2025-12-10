@@ -45,7 +45,7 @@ $comentarios = obtener_comentarios_documento($documento_id);
 // Obtener servicios para mostrar
 $servicios_nombres = [
     'tratamiento_agua' => 'Tratamiento de agua',
-    'evaluacion_productos' => 'Evaluación de productos químicos',
+    'revision_productos' => 'Revisión de productos químicos',
     'calibracion_equipos' => 'Calibración y/o verificación de equipos',
     'otro' => 'Otro'
 ];
@@ -243,6 +243,7 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                         <div class="card-body">
                             <h6 class="card-subtitle text-muted">Información del documento</h6>
                             <p><strong>Folio:</strong> <?= htmlspecialchars($documento['folio']) ?></p>
+                            <p><strong>Nombre del Cliente:</strong> <?= htmlspecialchars($documento['nombre_cliente']) ?></p>
                             <p><strong>Creado por:</strong> <?= htmlspecialchars($documento['departamento_creador']) ?></p>
                             <p><strong>Fecha:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_creacion'])) ?></p>
                             <p class="mb-0"><strong>Actualizado:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_ultima_edicion'])) ?></p>

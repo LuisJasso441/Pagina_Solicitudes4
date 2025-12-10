@@ -48,8 +48,21 @@ require_once __DIR__ . '/../csrf.php';
                                        required>
                             </div>
                             
-                            <!-- Fecha de solicitud (automática) -->
+                            <!-- Nombre del Cliente -->
                             <div class="col-md-6 mb-3">
+                                <label for="nombre_cliente" class="form-label">
+                                    Nombre del Cliente <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="nombre_cliente" 
+                                       name="nombre_cliente" 
+                                       placeholder="Ingrese el nombre del cliente"
+                                       required>
+                            </div>
+                            
+                            <!-- Fecha de solicitud (automática) -->
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">Fecha de solicitud</label>
                                 <input type="text" 
                                        class="form-control" 
@@ -98,10 +111,10 @@ require_once __DIR__ . '/../csrf.php';
                                         <input class="form-check-input" 
                                                type="radio" 
                                                name="servicio_solicitado" 
-                                               id="servicio_evaluacion" 
-                                               value="evaluacion_productos">
-                                        <label class="form-check-label" for="servicio_evaluacion">
-                                            Evaluación de productos químicos
+                                               id="servicio_revision" 
+                                               value="revision_productos">
+                                        <label class="form-check-label" for="servicio_revision">
+                                            Revisión de productos químicos
                                         </label>
                                     </div>
                                 </div>

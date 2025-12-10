@@ -42,6 +42,7 @@ if (!in_array($dept_lower, ['normatividad', 'ventas'])) {
 // Validar campos requeridos
 $campos_requeridos = [
     'solicitado_por',
+    'nombre_cliente',
     'area_proceso_solicitante',
     'servicio_solicitado',
     'prioridad',
@@ -69,7 +70,7 @@ if (!in_array($_POST['prioridad'], $prioridades_validas)) {
 }
 
 // Validar servicio
-$servicios_validos = ['tratamiento_agua', 'evaluacion_productos', 'calibracion_equipos', 'otro'];
+$servicios_validos = ['tratamiento_agua', 'revision_productos', 'calibracion_equipos', 'otro'];
 if (!in_array($_POST['servicio_solicitado'], $servicios_validos)) {
     echo json_encode(['success' => false, 'message' => 'Servicio no válido']);
     exit;
@@ -78,6 +79,7 @@ if (!in_array($_POST['servicio_solicitado'], $servicios_validos)) {
 // Preparar datos
 $datos = [
     'solicitado_por' => $_POST['solicitado_por'],
+    'nombre_cliente' => $_POST['nombre_cliente'],
     'area_proceso_solicitante' => $_POST['area_proceso_solicitante'],
     'servicio_solicitado' => $_POST['servicio_solicitado'],
     'servicio_otro_especificar' => $_POST['servicio_otro_especificar'] ?? null,

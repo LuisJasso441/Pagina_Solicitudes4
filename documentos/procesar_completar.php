@@ -61,7 +61,8 @@ if ($documento['estado'] == 'completado') {
 $campos_apartado2 = [
     'recibe_solicitud' => 'Recibe solicitud',
     'resumen_resultados' => 'Resumen de resultados',
-    'fecha_hora_entrega' => 'Fecha y hora de entrega'
+    'fecha_recibido' => 'Fecha de recibido',
+    'hora_recibido' => 'Hora de recibido'
 ];
 
 $campos_faltantes = [];

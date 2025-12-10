@@ -3,7 +3,40 @@
  * Formulario del documento colaborativo
  * Muestra Apartado 1 y Apartado 2 con controles de edición según permisos
  * Variables disponibles: $documento, $permisos, $servicio_texto
+ * ⭐ CORREGIDO - Archivos adjuntos antes de los botones
  */
+
+// Función auxiliar para verificar si es imagen (solo si no existe)
+if (!function_exists('es_imagen_ssc')) {
+    function es_imagen_ssc($extension) {
+        $extensiones_imagen = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+        return in_array(strtolower($extension), $extensiones_imagen);
+    }
+}
+
+// Función para obtener icono según extensión (solo si no existe)
+if (!function_exists('obtener_icono_ssc')) {
+    function obtener_icono_ssc($extension) {
+        $iconos = [
+            'pdf' => 'bi-file-earmark-pdf text-danger',
+            'doc' => 'bi-file-earmark-word text-primary',
+            'docx' => 'bi-file-earmark-word text-primary',
+            'xls' => 'bi-file-earmark-excel text-success',
+            'xlsx' => 'bi-file-earmark-excel text-success',
+            'ppt' => 'bi-file-earmark-ppt text-warning',
+            'pptx' => 'bi-file-earmark-ppt text-warning',
+            'zip' => 'bi-file-earmark-zip text-secondary',
+            'rar' => 'bi-file-earmark-zip text-secondary',
+            'mp4' => 'bi-file-earmark-play text-info',
+            'avi' => 'bi-file-earmark-play text-info',
+            'mov' => 'bi-file-earmark-play text-info',
+            'mp3' => 'bi-file-earmark-music text-purple',
+            'wav' => 'bi-file-earmark-music text-purple',
+            'txt' => 'bi-file-earmark-text text-muted',
+        ];
+        return $iconos[strtolower($extension)] ?? 'bi-file-earmark text-secondary';
+    }
+}
 ?>
 
 <!-- APARTADO 1: Creación (Normatividad/Ventas) -->
@@ -34,7 +67,7 @@
         
         <div class="row">
             <!-- Solicitado por -->
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label fw-bold">Solicitado por:</label>
                 <input type="text" 
                        class="form-control <?= !$permisos['apartado1'] ? 'campo-bloqueado' : '' ?>" 
@@ -43,8 +76,18 @@
                        <?= !$permisos['apartado1'] ? 'readonly' : 'required' ?>>
             </div>
             
+            <!-- Nombre del Cliente -->
+            <div class="col-md-4 mb-3">
+                <label class="form-label fw-bold">Nombre del Cliente:</label>
+                <input type="text" 
+                       class="form-control <?= !$permisos['apartado1'] ? 'campo-bloqueado' : '' ?>" 
+                       name="nombre_cliente" 
+                       value="<?= htmlspecialchars($documento['nombre_cliente']) ?>"
+                       <?= !$permisos['apartado1'] ? 'readonly' : 'required' ?>>
+            </div>
+            
             <!-- Fecha de solicitud -->
-            <div class="col-md-6 mb-3">
+            <div class="col-md-4 mb-3">
                 <label class="form-label fw-bold">Fecha de solicitud:</label>
                 <input type="text" 
                        class="form-control campo-bloqueado" 
@@ -92,12 +135,12 @@
                             <input class="form-check-input" 
                                    type="radio" 
                                    name="servicio_solicitado" 
-                                   id="edit_servicio_evaluacion" 
-                                   value="evaluacion_productos"
-                                   <?= $documento['servicio_solicitado'] == 'evaluacion_productos' ? 'checked' : '' ?>
+                                   id="edit_servicio_revision" 
+                                   value="revision_productos"
+                                   <?= $documento['servicio_solicitado'] == 'revision_productos' ? 'checked' : '' ?>
                                    <?= !$permisos['apartado1'] ? 'disabled' : '' ?>>
-                            <label class="form-check-label" for="edit_servicio_evaluacion">
-                                Evaluación de productos químicos
+                            <label class="form-check-label" for="edit_servicio_revision">
+                                Revisión de productos químicos
                             </label>
                         </div>
                     </div>
@@ -226,27 +269,19 @@
             Este apartado será completado por el departamento de Laboratorio.
         </div>
     <?php else: ?>
-        <form id="formApartado2" <?= !$permisos['apartado2'] ? 'style="pointer-events: none;"' : '' ?>>
+        <!-- FORMULARIO PARA CAMPOS EDITABLES -->
+        <form id="formApartado2" enctype="multipart/form-data" <?= !$permisos['apartado2'] ? 'style="pointer-events: none;"' : '' ?>>
             <input type="hidden" name="documento_id" value="<?= $documento['id'] ?>">
             
             <div class="row">
                 <!-- Recibe solicitud -->
-                <div class="col-md-6 mb-3">
+                <div class="col-md-12 mb-3">
                     <label class="form-label fw-bold">Recibe solicitud:</label>
                     <input type="text" 
                            class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
                            name="recibe_solicitud" 
                            value="<?= htmlspecialchars($documento['recibe_solicitud'] ?? $nombre_usuario) ?>"
                            <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
-                </div>
-                
-                <!-- Fecha y hora de recibido -->
-                <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Fecha y hora de recibido:</label>
-                    <input type="text" 
-                           class="form-control campo-bloqueado" 
-                           value="<?= $documento['fecha_hora_recibido'] ? date('d/m/Y H:i', strtotime($documento['fecha_hora_recibido'])) : 'Se registrará automáticamente' ?>" 
-                           readonly>
                 </div>
                 
                 <!-- Resumen de resultados -->
@@ -259,32 +294,124 @@
                               <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>><?= htmlspecialchars($documento['resumen_resultados'] ?? '') ?></textarea>
                 </div>
                 
-                <!-- Fecha y hora de entrega -->
+                <!-- Fecha de recibido -->
                 <div class="col-md-6 mb-3">
-                    <label class="form-label fw-bold">Fecha y hora de entrega:</label>
-                    <input type="datetime-local" 
+                    <label class="form-label fw-bold">Fecha de recibido:</label>
+                    <input type="date" 
                            class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
-                           name="fecha_hora_entrega" 
-                           value="<?= $documento['fecha_hora_entrega'] ? date('Y-m-d\TH:i', strtotime($documento['fecha_hora_entrega'])) : '' ?>"
+                           name="fecha_recibido" 
+                           value="<?= $documento['fecha_recibido'] ?? '' ?>"
                            <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
                 </div>
-            </div>
-            
-            <!-- Botones Apartado 2 -->
-            <?php if ($permisos['apartado2'] && $documento['estado'] != 'completado'): ?>
-            <div class="text-end">
-                <button type="submit" class="btn btn-primary me-2" id="btnGuardarApartado2">
-                    <i class="bi bi-save"></i> Guardar Apartado 2
-                </button>
                 
-                <?php if (!empty($documento['resumen_resultados']) && !empty($documento['fecha_hora_entrega'])): ?>
-                <button type="button" class="btn btn-success" id="btnCompletarDocumento" data-documento-id="<?= $documento['id'] ?>">
-                    <i class="bi bi-check-circle"></i> Completar y Enviar a Base Global
-                </button>
+                <!-- Hora de recibido -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Hora de recibido:</label>
+                    <input type="time" 
+                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                           name="hora_recibido" 
+                           value="<?= $documento['hora_recibido'] ?? '' ?>"
+                           <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
+                </div>
+                
+                <!-- Campo para subir archivos (solo Laboratorio) -->
+                <?php if ($permisos['apartado2'] && $documento['estado'] != 'completado'): ?>
+                <div class="col-12 mb-3">
+                    <label class="form-label fw-bold">Subir archivos (opcional):</label>
+                    <input type="file" 
+                           class="form-control" 
+                           name="archivos_apartado2[]" 
+                           id="archivos_apartado2"
+                           multiple
+                           accept="*/*">
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle"></i>
+                        Puede seleccionar múltiples archivos (imágenes, videos, documentos, etc.)
+                    </small>
+                </div>
                 <?php endif; ?>
             </div>
-            <?php endif; ?>
         </form>
+        
+        <!-- ⭐ ARCHIVOS CARGADOS - ANTES DE LOS BOTONES -->
+        <?php if (!empty($documento['archivos_apartado2'])): ?>
+            <?php 
+            $archivos = json_decode($documento['archivos_apartado2'], true);
+            if (is_array($archivos) && count($archivos) > 0): 
+            ?>
+            <div class="mb-3">
+                <h6 class="fw-bold"><i class="bi bi-folder2-open"></i> Archivos adjuntos (<?= count($archivos) ?>)</h6>
+                
+                <div class="row mt-3">
+                    <?php foreach ($archivos as $archivo): ?>
+                        <?php 
+                        $es_img = es_imagen_ssc($archivo['extension']);
+                        $url_archivo = URL_BASE . 'Imagenes_SSC/' . htmlspecialchars($archivo['nombre_archivo']);
+                        ?>
+                        
+                        <div class="col-md-4 col-lg-3 mb-3">
+                            <div class="card h-100 shadow-sm archivo-card">
+                                <!-- Previsualización -->
+                                <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
+                                     style="height: 150px; overflow: hidden;">
+                                    <?php if ($es_img): ?>
+                                        <!-- Si es imagen, mostrar thumbnail -->
+                                        <a href="<?= $url_archivo ?>" target="_blank" class="w-100 h-100">
+                                            <img src="<?= $url_archivo ?>" 
+                                                 alt="<?= htmlspecialchars($archivo['nombre_original']) ?>"
+                                                 class="img-fluid"
+                                                 style="width: 100%; height: 150px; object-fit: cover;"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\'bi bi-image text-muted\' style=\'font-size: 4rem;\'></i>';">
+                                        </a>
+                                    <?php else: ?>
+                                        <!-- Si no es imagen, mostrar icono grande -->
+                                        <a href="<?= $url_archivo ?>" target="_blank" class="text-decoration-none text-center">
+                                            <i class="<?= obtener_icono_ssc($archivo['extension']) ?>" style="font-size: 4rem;"></i>
+                                            <div class="mt-2">
+                                                <span class="badge bg-secondary"><?= strtoupper($archivo['extension']) ?></span>
+                                            </div>
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <!-- Info del archivo (solo nombre) -->
+                                <div class="card-body p-2">
+                                    <p class="card-text small mb-0 text-truncate" title="<?= htmlspecialchars($archivo['nombre_original']) ?>">
+                                        <strong><?= htmlspecialchars($archivo['nombre_original']) ?></strong>
+                                    </p>
+                                </div>
+                                
+                                <!-- Botón de descarga/ver -->
+                                <div class="card-footer bg-transparent p-2">
+                                    <a href="<?= $url_archivo ?>" 
+                                       target="_blank" 
+                                       class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="bi bi-<?= $es_img ? 'eye' : 'download' ?>"></i>
+                                        <?= $es_img ? 'Ver imagen' : 'Descargar' ?>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+        <?php endif; ?>
+        
+        <!-- ⭐ BOTONES AL FINAL -->
+        <?php if ($permisos['apartado2'] && $documento['estado'] != 'completado'): ?>
+        <div class="text-end">
+            <button type="submit" form="formApartado2" class="btn btn-primary me-2" id="btnGuardarApartado2">
+                <i class="bi bi-save"></i> Guardar Apartado 2
+            </button>
+            
+            <?php if (!empty($documento['resumen_resultados']) && !empty($documento['fecha_recibido'])): ?>
+            <button type="button" class="btn btn-success" id="btnCompletarDocumento" data-documento-id="<?= $documento['id'] ?>">
+                <i class="bi bi-check-circle"></i> Completar y Enviar a Base Global
+            </button>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 
@@ -300,3 +427,25 @@
     </p>
 </div>
 <?php endif; ?>
+
+<!-- Estilos adicionales para los archivos -->
+<style>
+.archivo-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.archivo-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+.archivo-card .card-img-top a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.archivo-card .card-img-top img {
+    transition: transform 0.3s ease;
+}
+.archivo-card:hover .card-img-top img {
+    transform: scale(1.05);
+}
+</style>

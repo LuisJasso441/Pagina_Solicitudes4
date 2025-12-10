@@ -58,6 +58,7 @@ if ($documento['estado'] == 'completado') {
 // Validar campos requeridos
 $campos_requeridos = [
     'solicitado_por' => 'Solicitado por',
+    'nombre_cliente' => 'Nombre del Cliente',
     'area_proceso_solicitante' => 'Área o proceso solicitante',
     'servicio_solicitado' => 'Servicio solicitado',
     'prioridad' => 'Prioridad',
@@ -87,7 +88,7 @@ if (!in_array($_POST['prioridad'], $prioridades_validas)) {
 }
 
 // Validar servicio
-$servicios_validos = ['tratamiento_agua', 'evaluacion_productos', 'calibracion_equipos', 'otro'];
+$servicios_validos = ['tratamiento_agua', 'revision_productos', 'calibracion_equipos', 'otro'];
 if (!in_array($_POST['servicio_solicitado'], $servicios_validos)) {
     echo json_encode(['success' => false, 'message' => 'Servicio no válido']);
     exit;
@@ -96,6 +97,11 @@ if (!in_array($_POST['servicio_solicitado'], $servicios_validos)) {
 // Validar longitud de campos
 if (strlen($_POST['solicitado_por']) > 200) {
     echo json_encode(['success' => false, 'message' => 'El nombre es demasiado largo (máximo 200 caracteres)']);
+    exit;
+}
+
+if (strlen($_POST['nombre_cliente']) > 200) {
+    echo json_encode(['success' => false, 'message' => 'El nombre del cliente es demasiado largo (máximo 200 caracteres)']);
     exit;
 }
 
@@ -112,6 +118,7 @@ if (strlen($_POST['descripcion_servicio']) > 2000) {
 // Preparar datos
 $datos = [
     'solicitado_por' => trim($_POST['solicitado_por']),
+    'nombre_cliente' => trim($_POST['nombre_cliente']),
     'area_proceso_solicitante' => trim($_POST['area_proceso_solicitante']),
     'servicio_solicitado' => $_POST['servicio_solicitado'],
     'servicio_otro_especificar' => isset($_POST['servicio_otro_especificar']) ? trim($_POST['servicio_otro_especificar']) : null,

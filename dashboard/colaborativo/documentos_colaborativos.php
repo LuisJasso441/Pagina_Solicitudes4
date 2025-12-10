@@ -261,7 +261,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                                         <?php
                                         $servicios = [
                                             'tratamiento_agua' => 'Tratamiento de agua',
-                                            'evaluacion_productos' => 'Evaluación de productos químicos',
+                                            'revision_productos' => 'Revisión de productos químicos',
                                             'calibracion_equipos' => 'Calibración y/o verificación de equipos',
                                             'otro' => $doc['servicio_otro_especificar'] ?? 'Otro'
                                         ];

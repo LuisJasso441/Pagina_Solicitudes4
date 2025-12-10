@@ -3,8 +3,9 @@
  * Descargar Base de Datos de Órdenes de Servicio en Excel
  * EXCLUSIVO para el departamento de Mantenimiento
  * 
- * Genera un archivo Excel con todas las órdenes de servicio
+ * Genera un archivo Excel con las órdenes del mes actual
  * incluyendo cálculos de días y horas de mantenimiento
+ * y una hoja de Resultados con gráficos
  */
 
 session_start();
@@ -22,7 +23,7 @@ if (!sesion_activa()) {
 $departamento_codigo = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
 if ($departamento_codigo !== 'mantenimiento') {
     $_SESSION['error'] = "Solo el departamento de Mantenimiento puede descargar la base de datos.";
-    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio_mantenimiento.php');
+    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php');
     exit;
 }
 
@@ -35,6 +36,13 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Font;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Chart\Chart;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
+use PhpOffice\PhpSpreadsheet\Chart\Legend;
+use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
+use PhpOffice\PhpSpreadsheet\Chart\Title;
+use PhpOffice\PhpSpreadsheet\Chart\Layout;
 
 /**
  * Calcula los días de mantenimiento (excluyendo domingos)
@@ -57,8 +65,7 @@ function calcularDiasMantenimiento($fecha_inicio, $fecha_fin) {
         $current = clone $inicio;
         
         while ($current <= $fin) {
-            $diaSemana = (int)$current->format('w'); // 0=domingo, 1=lunes, ..., 6=sábado
-            // Contar solo lunes a sábado (1-6)
+            $diaSemana = (int)$current->format('w');
             if ($diaSemana >= 1 && $diaSemana <= 6) {
                 $dias++;
             }
@@ -93,44 +100,37 @@ function calcularHorasMantenimiento($fecha_inicio, $hora_inicio, $fecha_fin, $ho
         $horasTotales = 0;
         $current = clone $inicio;
         
-        // Horarios laborales
         $horaInicioLaboral = '08:30';
-        $horaFinLaboralLV = '17:00'; // Lunes a Viernes
-        $horaFinLaboralS = '14:00';  // Sábado
+        $horaFinLaboralLV = '17:00';
+        $horaFinLaboralS = '14:00';
         
         while ($current->format('Y-m-d') <= $fin->format('Y-m-d')) {
             $diaSemana = (int)$current->format('w');
             $fechaActual = $current->format('Y-m-d');
             
-            // Saltar domingos
             if ($diaSemana === 0) {
                 $current->modify('+1 day');
                 $current->setTime(8, 30, 0);
                 continue;
             }
             
-            // Determinar hora fin laboral según el día
             $horaFinLaboral = ($diaSemana === 6) ? $horaFinLaboralS : $horaFinLaboralLV;
             
-            // Crear objetos DateTime para inicio y fin del día laboral
             $inicioLaboral = new DateTime($fechaActual . ' ' . $horaInicioLaboral);
             $finLaboral = new DateTime($fechaActual . ' ' . $horaFinLaboral);
             
-            // Determinar hora de inicio efectiva para este día
             if ($fechaActual === $inicio->format('Y-m-d')) {
                 $horaEfectivaInicio = max($current, $inicioLaboral);
             } else {
                 $horaEfectivaInicio = $inicioLaboral;
             }
             
-            // Determinar hora de fin efectiva para este día
             if ($fechaActual === $fin->format('Y-m-d')) {
                 $horaEfectivaFin = min($fin, $finLaboral);
             } else {
                 $horaEfectivaFin = $finLaboral;
             }
             
-            // Asegurar que estemos dentro del horario laboral
             if ($horaEfectivaInicio < $inicioLaboral) {
                 $horaEfectivaInicio = $inicioLaboral;
             }
@@ -138,14 +138,12 @@ function calcularHorasMantenimiento($fecha_inicio, $hora_inicio, $fecha_fin, $ho
                 $horaEfectivaFin = $finLaboral;
             }
             
-            // Calcular horas de este día
             if ($horaEfectivaInicio < $horaEfectivaFin) {
                 $diff = $horaEfectivaInicio->diff($horaEfectivaFin);
                 $horasDelDia = $diff->h + ($diff->i / 60);
                 $horasTotales += $horasDelDia;
             }
             
-            // Avanzar al siguiente día
             $current->modify('+1 day');
             $current->setTime(8, 30, 0);
         }
@@ -170,26 +168,151 @@ function traducirEstado($estado) {
     return $estados[$estado] ?? $estado;
 }
 
+/**
+ * Crea un gráfico de pastel (Pie)
+ */
+function crearGraficoPastel($hoja, $titulo, $rangoLabels, $rangoValores, $posicionCelda, $anchoColumnas = 8, $altoFilas = 15) {
+    $dataSeriesLabels = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $hoja . '!' . $rangoLabels, null, 1)
+    ];
+    
+    $xAxisTickValues = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $hoja . '!' . $rangoLabels, null, 4)
+    ];
+    
+    $dataSeriesValues = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, $hoja . '!' . $rangoValores, null, 4)
+    ];
+    
+    $series = new DataSeries(
+        DataSeries::TYPE_PIECHART,
+        null,
+        range(0, count($dataSeriesValues) - 1),
+        $dataSeriesLabels,
+        $xAxisTickValues,
+        $dataSeriesValues
+    );
+    
+    $layout = new Layout();
+    $layout->setShowVal(true);
+    $layout->setShowPercent(true);
+    
+    $plotArea = new PlotArea($layout, [$series]);
+    $legend = new Legend(Legend::POSITION_RIGHT, null, false);
+    $title = new Title($titulo);
+    
+    $chart = new Chart(
+        'chart_' . str_replace(' ', '_', $titulo),
+        $title,
+        $legend,
+        $plotArea,
+        true,
+        DataSeries::EMPTY_AS_GAP,
+        null,
+        null
+    );
+    
+    $chart->setTopLeftPosition($posicionCelda);
+    $chart->setBottomRightPosition(
+        chr(ord(substr($posicionCelda, 0, 1)) + $anchoColumnas) . (intval(substr($posicionCelda, 1)) + $altoFilas)
+    );
+    
+    return $chart;
+}
+
+/**
+ * Crea un gráfico de barras
+ */
+function crearGraficoBarras($hoja, $titulo, $rangoLabels, $rangoValores, $posicionCelda, $anchoColumnas = 10, $altoFilas = 15, $horizontal = false) {
+    $dataSeriesLabels = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, null, $titulo, 1)
+    ];
+    
+    $xAxisTickValues = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, $hoja . '!' . $rangoLabels, null, 10)
+    ];
+    
+    $dataSeriesValues = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, $hoja . '!' . $rangoValores, null, 10)
+    ];
+    
+    $series = new DataSeries(
+        $horizontal ? DataSeries::TYPE_BARCHART : DataSeries::TYPE_BARCHART,
+        DataSeries::GROUPING_STANDARD,
+        range(0, count($dataSeriesValues) - 1),
+        $dataSeriesLabels,
+        $xAxisTickValues,
+        $dataSeriesValues
+    );
+    
+    if ($horizontal) {
+        $series->setPlotDirection(DataSeries::DIRECTION_BAR);
+    } else {
+        $series->setPlotDirection(DataSeries::DIRECTION_COL);
+    }
+    
+    $layout = new Layout();
+    $layout->setShowVal(true);
+    
+    $plotArea = new PlotArea($layout, [$series]);
+    $legend = new Legend(Legend::POSITION_BOTTOM, null, false);
+    $title = new Title($titulo);
+    
+    $chart = new Chart(
+        'chart_' . str_replace(' ', '_', $titulo),
+        $title,
+        $legend,
+        $plotArea,
+        true,
+        DataSeries::EMPTY_AS_GAP,
+        null,
+        null
+    );
+    
+    $chart->setTopLeftPosition($posicionCelda);
+    $chart->setBottomRightPosition(
+        chr(ord(substr($posicionCelda, 0, 1)) + $anchoColumnas) . (intval(substr($posicionCelda, 1)) + $altoFilas)
+    );
+    
+    return $chart;
+}
+
 try {
     $pdo = conectarDB();
     
-    // Obtener TODAS las órdenes de servicio
+    // Obtener el primer y último día del mes actual
+    $primerDiaMes = date('Y-m-01');
+    $ultimoDiaMes = date('Y-m-t');
+    $mesActual = date('F Y');
+    $mesActualCorto = date('m-Y');
+    
+    // Obtener órdenes del MES ACTUAL solamente
     $sql = "SELECT 
                 id, folio, empresa, departamento, estado,
                 apartado1_data, apartado2_data, apartado3_data,
                 fecha_creacion, fecha_enviado_usuario, fecha_completado
             FROM ordenes_servicio_mantenimiento
+            WHERE DATE(fecha_creacion) >= :primer_dia 
+              AND DATE(fecha_creacion) <= :ultimo_dia
             ORDER BY id ASC";
     
-    $stmt = $pdo->query($sql);
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        ':primer_dia' => $primerDiaMes,
+        ':ultimo_dia' => $ultimoDiaMes
+    ]);
     $ordenes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Crear el spreadsheet
     $spreadsheet = new Spreadsheet();
+    
+    // ==========================================
+    // HOJA 1: ÓRDENES DE SERVICIO
+    // ==========================================
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Órdenes de Servicio');
     
-    // Definir encabezados (21 columnas)
+    // Definir encabezados (23 columnas)
     $headers = [
         'A' => 'No. OS',
         'B' => 'Fecha de Entrada',
@@ -248,6 +371,13 @@ try {
     $sheet->getStyle('A1:W1')->applyFromArray($headerStyle);
     $sheet->getRowDimension(1)->setRowHeight(30);
     
+    // Variables para estadísticas
+    $conteoEmpresas = [];
+    $conteoAreas = [];
+    $conteoEmpleados = [];
+    $conteoEstatus = [];
+    $diasMttoArray = [];
+    
     // Escribir datos
     $row = 2;
     foreach ($ordenes as $orden) {
@@ -274,13 +404,42 @@ try {
             $apartado2['hora_termino'] ?? ''
         );
         
-        // Extraer fecha y hora de entrega (cuando Mantenimiento envió al usuario)
+        // Extraer fecha y hora de entrega
         $fechaEntrega = '';
         $horaEntrega = '';
         if (!empty($orden['fecha_enviado_usuario'])) {
             $fechaEnvio = new DateTime($orden['fecha_enviado_usuario']);
             $fechaEntrega = $fechaEnvio->format('Y-m-d');
             $horaEntrega = $fechaEnvio->format('H:i:s');
+        }
+        
+        // ===== RECOLECTAR ESTADÍSTICAS =====
+        // Empresa
+        $empresa = $orden['empresa'] ?? 'Sin especificar';
+        $conteoEmpresas[$empresa] = ($conteoEmpresas[$empresa] ?? 0) + 1;
+        
+        // Área solicitante
+        $area = $apartado1['area_solicitante'] ?? $orden['departamento'] ?? 'Sin especificar';
+        $conteoAreas[$area] = ($conteoAreas[$area] ?? 0) + 1;
+        
+        // Empleados (contar participaciones)
+        if (!empty($empleado1)) {
+            $conteoEmpleados[$empleado1] = ($conteoEmpleados[$empleado1] ?? 0) + 1;
+        }
+        if (!empty($empleado2)) {
+            $conteoEmpleados[$empleado2] = ($conteoEmpleados[$empleado2] ?? 0) + 1;
+        }
+        if (!empty($empleado3)) {
+            $conteoEmpleados[$empleado3] = ($conteoEmpleados[$empleado3] ?? 0) + 1;
+        }
+        
+        // Estatus
+        $estatusTexto = traducirEstado($orden['estado']);
+        $conteoEstatus[$estatusTexto] = ($conteoEstatus[$estatusTexto] ?? 0) + 1;
+        
+        // Días de mantenimiento (solo números válidos)
+        if (is_numeric($diasMtto) && $diasMtto > 0) {
+            $diasMttoArray[] = $diasMtto;
         }
         
         // Escribir fila
@@ -306,7 +465,7 @@ try {
         $sheet->setCellValue('T' . $row, $horaEntrega);
         $sheet->setCellValue('U' . $row, $diasMtto);
         $sheet->setCellValue('V' . $row, $horasMtto);
-        $sheet->setCellValue('W' . $row, traducirEstado($orden['estado']));
+        $sheet->setCellValue('W' . $row, $estatusTexto);
         
         $row++;
     }
@@ -343,43 +502,295 @@ try {
     
     // Ajustar anchos de columna
     $columnWidths = [
-        'A' => 8,   // No. OS
-        'B' => 12,  // Fecha de Entrada
-        'C' => 12,  // Hora de Entrada
-        'D' => 12,  // Empresa
-        'E' => 18,  // Área Solicitante
-        'F' => 15,  // Folio
-        'G' => 20,  // Equipo / Unidad
-        'H' => 35,  // Descripción de la Falla
-        'I' => 12,  // Fecha de Atención
-        'J' => 12,  // Hora de Atención
-        'K' => 12,  // Fecha de Término
-        'L' => 12,  // Hora de Término
-        'M' => 35,  // Descripción de Reparación
-        'N' => 18,  // Empleado 1
-        'O' => 18,  // Empleado 2
-        'P' => 18,  // Empleado 3
-        'Q' => 15,  // Código de Equipo
-        'R' => 12,  // Horómetro
-        'S' => 12,  // Fecha de Entrega
-        'T' => 12,  // Hora de Entrega
-        'U' => 12,  // Días de Mtto
-        'V' => 12,  // Horas de Mtto
-        'W' => 22   // Estatus
+        'A' => 8,   'B' => 12,  'C' => 12,  'D' => 12,  'E' => 18,
+        'F' => 15,  'G' => 20,  'H' => 35,  'I' => 12,  'J' => 12,
+        'K' => 12,  'L' => 12,  'M' => 35,  'N' => 18,  'O' => 18,
+        'P' => 18,  'Q' => 15,  'R' => 12,  'S' => 12,  'T' => 12,
+        'U' => 12,  'V' => 12,  'W' => 22
     ];
     
     foreach ($columnWidths as $col => $width) {
         $sheet->getColumnDimension($col)->setWidth($width);
     }
     
-    // Aplicar autofiltro a todas las columnas
-    $sheet->setAutoFilter('A1:W' . $lastRow);
+    // Aplicar autofiltro
+    if ($lastRow >= 2) {
+        $sheet->setAutoFilter('A1:W' . $lastRow);
+    }
     
     // Congelar primera fila
     $sheet->freezePane('A2');
     
+    // ==========================================
+    // HOJA 2: RESULTADOS (GRÁFICOS)
+    // ==========================================
+    $sheetResultados = $spreadsheet->createSheet();
+    $sheetResultados->setTitle('Resultados');
+    
+    // Calcular estadísticas de días de mtto
+    $promedioDias = count($diasMttoArray) > 0 ? round(array_sum($diasMttoArray) / count($diasMttoArray), 2) : 0;
+    $maximoDias = count($diasMttoArray) > 0 ? max($diasMttoArray) : 0;
+    $minimoDias = count($diasMttoArray) > 0 ? min($diasMttoArray) : 0;
+    
+    // Ordenar arrays por valor descendente
+    arsort($conteoAreas);
+    arsort($conteoEmpleados);
+    
+    // Estilo para títulos de sección
+    $tituloSeccionStyle = [
+        'font' => [
+            'bold' => true,
+            'size' => 12,
+            'color' => ['rgb' => 'FFFFFF']
+        ],
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '667EEA']
+        ],
+        'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_CENTER,
+            'vertical' => Alignment::VERTICAL_CENTER
+        ]
+    ];
+    
+    // Estilo para encabezados de tabla
+    $headerTablaStyle = [
+        'font' => [
+            'bold' => true,
+            'size' => 10
+        ],
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'startColor' => ['rgb' => 'E8E8E8']
+        ],
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => Border::BORDER_THIN,
+                'color' => ['rgb' => '000000']
+            ]
+        ],
+        'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_CENTER
+        ]
+    ];
+    
+    // Estilo para celdas de datos
+    $datosStyle = [
+        'borders' => [
+            'allBorders' => [
+                'borderStyle' => Border::BORDER_THIN,
+                'color' => ['rgb' => 'CCCCCC']
+            ]
+        ],
+        'alignment' => [
+            'horizontal' => Alignment::HORIZONTAL_CENTER
+        ]
+    ];
+    
+    // ===== TÍTULO PRINCIPAL =====
+    $nombreMes = [
+        '01' => 'Enero', '02' => 'Febrero', '03' => 'Marzo', '04' => 'Abril',
+        '05' => 'Mayo', '06' => 'Junio', '07' => 'Julio', '08' => 'Agosto',
+        '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre'
+    ];
+    $mesNombre = $nombreMes[date('m')] . ' ' . date('Y');
+    
+    $sheetResultados->setCellValue('A1', 'RESULTADOS - ÓRDENES DE SERVICIO - ' . strtoupper($mesNombre));
+    $sheetResultados->mergeCells('A1:L1');
+    $sheetResultados->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => '667EEA']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+    ]);
+    $sheetResultados->getRowDimension(1)->setRowHeight(30);
+    
+    $sheetResultados->setCellValue('A2', 'Total de órdenes en el período: ' . count($ordenes));
+    $sheetResultados->mergeCells('A2:L2');
+    $sheetResultados->getStyle('A2')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 11],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER]
+    ]);
+    
+    // ===== TABLA 1: EMPRESA (Columnas A-B, Fila 4) =====
+    $sheetResultados->setCellValue('A4', 'EMPRESA');
+    $sheetResultados->mergeCells('A4:B4');
+    $sheetResultados->getStyle('A4:B4')->applyFromArray($tituloSeccionStyle);
+    
+    $sheetResultados->setCellValue('A5', 'Empresa');
+    $sheetResultados->setCellValue('B5', 'Cantidad');
+    $sheetResultados->getStyle('A5:B5')->applyFromArray($headerTablaStyle);
+    
+    $filaEmpresa = 6;
+    foreach ($conteoEmpresas as $empresa => $cantidad) {
+        $sheetResultados->setCellValue('A' . $filaEmpresa, $empresa);
+        $sheetResultados->setCellValue('B' . $filaEmpresa, $cantidad);
+        $sheetResultados->getStyle('A' . $filaEmpresa . ':B' . $filaEmpresa)->applyFromArray($datosStyle);
+        $filaEmpresa++;
+    }
+    $ultimaFilaEmpresa = $filaEmpresa - 1;
+    
+    // ===== TABLA 2: ESTATUS (Columnas D-E, Fila 4) =====
+    $sheetResultados->setCellValue('D4', 'ESTATUS');
+    $sheetResultados->mergeCells('D4:E4');
+    $sheetResultados->getStyle('D4:E4')->applyFromArray($tituloSeccionStyle);
+    
+    $sheetResultados->setCellValue('D5', 'Estatus');
+    $sheetResultados->setCellValue('E5', 'Cantidad');
+    $sheetResultados->getStyle('D5:E5')->applyFromArray($headerTablaStyle);
+    
+    $filaEstatus = 6;
+    foreach ($conteoEstatus as $estatus => $cantidad) {
+        $sheetResultados->setCellValue('D' . $filaEstatus, $estatus);
+        $sheetResultados->setCellValue('E' . $filaEstatus, $cantidad);
+        $sheetResultados->getStyle('D' . $filaEstatus . ':E' . $filaEstatus)->applyFromArray($datosStyle);
+        $filaEstatus++;
+    }
+    $ultimaFilaEstatus = $filaEstatus - 1;
+    
+    // ===== TABLA 3: DÍAS DE MTTO (Columnas G-H, Fila 4) =====
+    $sheetResultados->setCellValue('G4', 'DÍAS DE MANTENIMIENTO');
+    $sheetResultados->mergeCells('G4:H4');
+    $sheetResultados->getStyle('G4:H4')->applyFromArray($tituloSeccionStyle);
+    
+    $sheetResultados->setCellValue('G5', 'Indicador');
+    $sheetResultados->setCellValue('H5', 'Días');
+    $sheetResultados->getStyle('G5:H5')->applyFromArray($headerTablaStyle);
+    
+    $sheetResultados->setCellValue('G6', 'Promedio');
+    $sheetResultados->setCellValue('H6', $promedioDias);
+    $sheetResultados->setCellValue('G7', 'Máximo');
+    $sheetResultados->setCellValue('H7', $maximoDias);
+    $sheetResultados->setCellValue('G8', 'Mínimo');
+    $sheetResultados->setCellValue('H8', $minimoDias);
+    $sheetResultados->getStyle('G6:H8')->applyFromArray($datosStyle);
+    
+    // ===== TABLA 4: ÁREA SOLICITANTE (Columnas A-B, después de Empresa) =====
+    $filaInicioArea = $ultimaFilaEmpresa + 3;
+    $sheetResultados->setCellValue('A' . $filaInicioArea, 'ÁREA SOLICITANTE');
+    $sheetResultados->mergeCells('A' . $filaInicioArea . ':B' . $filaInicioArea);
+    $sheetResultados->getStyle('A' . $filaInicioArea . ':B' . $filaInicioArea)->applyFromArray($tituloSeccionStyle);
+    
+    $sheetResultados->setCellValue('A' . ($filaInicioArea + 1), 'Área');
+    $sheetResultados->setCellValue('B' . ($filaInicioArea + 1), 'Cantidad');
+    $sheetResultados->getStyle('A' . ($filaInicioArea + 1) . ':B' . ($filaInicioArea + 1))->applyFromArray($headerTablaStyle);
+    
+    $filaArea = $filaInicioArea + 2;
+    foreach ($conteoAreas as $area => $cantidad) {
+        $sheetResultados->setCellValue('A' . $filaArea, $area);
+        $sheetResultados->setCellValue('B' . $filaArea, $cantidad);
+        $sheetResultados->getStyle('A' . $filaArea . ':B' . $filaArea)->applyFromArray($datosStyle);
+        $filaArea++;
+    }
+    $ultimaFilaArea = $filaArea - 1;
+    
+    // ===== TABLA 5: EMPLEADOS (Columnas D-E, después de Estatus) =====
+    $filaInicioEmpleado = max($ultimaFilaEstatus, 8) + 3;
+    $sheetResultados->setCellValue('D' . $filaInicioEmpleado, 'PARTICIPACIÓN DE EMPLEADOS');
+    $sheetResultados->mergeCells('D' . $filaInicioEmpleado . ':E' . $filaInicioEmpleado);
+    $sheetResultados->getStyle('D' . $filaInicioEmpleado . ':E' . $filaInicioEmpleado)->applyFromArray($tituloSeccionStyle);
+    
+    $sheetResultados->setCellValue('D' . ($filaInicioEmpleado + 1), 'Empleado');
+    $sheetResultados->setCellValue('E' . ($filaInicioEmpleado + 1), 'Participaciones');
+    $sheetResultados->getStyle('D' . ($filaInicioEmpleado + 1) . ':E' . ($filaInicioEmpleado + 1))->applyFromArray($headerTablaStyle);
+    
+    $filaEmpleado = $filaInicioEmpleado + 2;
+    foreach ($conteoEmpleados as $empleado => $cantidad) {
+        $sheetResultados->setCellValue('D' . $filaEmpleado, $empleado);
+        $sheetResultados->setCellValue('E' . $filaEmpleado, $cantidad);
+        $sheetResultados->getStyle('D' . $filaEmpleado . ':E' . $filaEmpleado)->applyFromArray($datosStyle);
+        $filaEmpleado++;
+    }
+    $ultimaFilaEmpleado = $filaEmpleado - 1;
+    
+    // ===== CREAR GRÁFICOS =====
+    
+    // Gráfico 1: Empresa (Pastel) - Posición J4
+    if (count($conteoEmpresas) > 0) {
+        $chartEmpresa = crearGraficoPastel(
+            "'Resultados'",
+            'Órdenes por Empresa',
+            '$A$6:$A$' . $ultimaFilaEmpresa,
+            '$B$6:$B$' . $ultimaFilaEmpresa,
+            'J4',
+            6,
+            12
+        );
+        $sheetResultados->addChart($chartEmpresa);
+    }
+    
+    // Gráfico 2: Estatus (Pastel) - Posición J17
+    if (count($conteoEstatus) > 0) {
+        $chartEstatus = crearGraficoPastel(
+            "'Resultados'",
+            'Órdenes por Estatus',
+            '$D$6:$D$' . $ultimaFilaEstatus,
+            '$E$6:$E$' . $ultimaFilaEstatus,
+            'J17',
+            6,
+            12
+        );
+        $sheetResultados->addChart($chartEstatus);
+    }
+    
+    // Gráfico 3: Días de Mantenimiento (Barras) - Posición J30
+    $chartDias = crearGraficoBarras(
+        "'Resultados'",
+        'Días de Mantenimiento',
+        '$G$6:$G$8',
+        '$H$6:$H$8',
+        'J30',
+        6,
+        12,
+        false
+    );
+    $sheetResultados->addChart($chartDias);
+    
+    // Gráfico 4: Área Solicitante (Barras Horizontales) - Posición A + offset
+    $posicionGraficoArea = max($ultimaFilaArea, $ultimaFilaEmpleado) + 3;
+    if (count($conteoAreas) > 0) {
+        $chartArea = crearGraficoBarras(
+            "'Resultados'",
+            'Órdenes por Área Solicitante',
+            '$A$' . ($filaInicioArea + 2) . ':$A$' . $ultimaFilaArea,
+            '$B$' . ($filaInicioArea + 2) . ':$B$' . $ultimaFilaArea,
+            'A' . $posicionGraficoArea,
+            6,
+            12,
+            true
+        );
+        $sheetResultados->addChart($chartArea);
+    }
+    
+    // Gráfico 5: Empleados (Barras) - Posición debajo de Área Solicitante
+    $posicionGraficoEmpleados = $posicionGraficoArea + 15; // 15 filas debajo del gráfico de área
+    if (count($conteoEmpleados) > 0) {
+        $chartEmpleados = crearGraficoBarras(
+            "'Resultados'",
+            'Participación de Empleados',
+            '$D$' . ($filaInicioEmpleado + 2) . ':$D$' . $ultimaFilaEmpleado,
+            '$E$' . ($filaInicioEmpleado + 2) . ':$E$' . $ultimaFilaEmpleado,
+            'A' . $posicionGraficoEmpleados,
+            6,
+            12,
+            false
+        );
+        $sheetResultados->addChart($chartEmpleados);
+    }
+    
+    // Ajustar anchos de columnas en Resultados
+    $sheetResultados->getColumnDimension('A')->setWidth(25);
+    $sheetResultados->getColumnDimension('B')->setWidth(12);
+    $sheetResultados->getColumnDimension('C')->setWidth(3);
+    $sheetResultados->getColumnDimension('D')->setWidth(28);
+    $sheetResultados->getColumnDimension('E')->setWidth(15);
+    $sheetResultados->getColumnDimension('F')->setWidth(3);
+    $sheetResultados->getColumnDimension('G')->setWidth(15);
+    $sheetResultados->getColumnDimension('H')->setWidth(10);
+    
+    // Establecer hoja activa como la primera (Órdenes de Servicio)
+    $spreadsheet->setActiveSheetIndex(0);
+    
     // Configurar headers para descarga
-    $filename = 'Ordenes_Servicio_Mantenimiento_' . date('Y-m-d_His') . '.xlsx';
+    $filename = 'Ordenes_Servicio_' . $mesActualCorto . '_' . date('Y-m-d_His') . '.xlsx';
     
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment;filename="' . $filename . '"');
@@ -390,18 +801,19 @@ try {
     header('Cache-Control: cache, must-revalidate');
     header('Pragma: public');
     
-    // Escribir archivo
+    // Escribir archivo CON gráficos
     $writer = new Xlsx($spreadsheet);
+    $writer->setIncludeCharts(true);
     $writer->save('php://output');
     
     // Log de descarga
-    error_log("Excel descargado por: {$_SESSION['nombre_completo']} - Total órdenes: " . count($ordenes));
+    error_log("Excel descargado por: {$_SESSION['nombre_completo']} - Órdenes del mes {$mesNombre}: " . count($ordenes));
     
     exit;
     
 } catch (Exception $e) {
     error_log("Error al generar Excel de órdenes: " . $e->getMessage());
     $_SESSION['error'] = "Error al generar el archivo Excel: " . $e->getMessage();
-    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio_mantenimiento.php');
+    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php');
     exit;
 }

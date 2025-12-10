@@ -2,6 +2,7 @@
 /**
  * Sistema de Documentos Colaborativos
  * Funciones para gestión de documentos SSC
+ * VERSIÓN CORREGIDA - Incluye: nombre_cliente, revision_productos, fecha/hora separados, archivos
  */
 
 require_once __DIR__ . '/../../config/database.php';
@@ -96,6 +97,7 @@ function verificar_permisos_edicion($usuario_id, $departamento, $documento) {
 
 /**
  * Crear nuevo documento colaborativo
+ * ⭐ CORREGIDO - Incluye nombre_cliente y revision_productos
  */
 function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
     try {
@@ -119,21 +121,28 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
             $servicio_otro = trim($datos['servicio_otro_especificar']);
         }
         
-        // Insertar documento
+        // Validar servicios válidos (incluyendo revision_productos)
+        $servicios_validos = ['tratamiento_agua', 'revision_productos', 'calibracion_equipos', 'otro'];
+        if (!in_array($datos['servicio_solicitado'], $servicios_validos)) {
+            return ['success' => false, 'message' => 'Servicio no válido'];
+        }
+        
+        // Insertar documento (⭐ INCLUYE nombre_cliente)
         $stmt = $pdo->prepare("
             INSERT INTO documentos_colaborativos (
-                folio, solicitado_por, fecha_solicitud, area_proceso_solicitante,
+                folio, solicitado_por, nombre_cliente, fecha_solicitud, area_proceso_solicitante,
                 servicio_solicitado, servicio_otro_especificar, prioridad, descripcion_servicio,
                 usuario_creador_id, departamento_creador, estado, ubicacion,
                 fecha_creacion, fecha_ultima_edicion
             ) VALUES (
-                ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, 'borrador', 'local', NOW(), NOW()
+                ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, 'borrador', 'local', NOW(), NOW()
             )
         ");
         
         $resultado = $stmt->execute([
             $folio,
             trim($datos['solicitado_por']),
+            trim($datos['nombre_cliente']),  // ⭐ NUEVO CAMPO
             trim($datos['area_proceso_solicitante']),
             $datos['servicio_solicitado'],
             $servicio_otro,
@@ -180,6 +189,7 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
 
 /**
  * Actualizar Apartado 1 (Normatividad/Ventas)
+ * ⭐ CORREGIDO - Incluye nombre_cliente y revision_productos
  */
 function actualizar_apartado1($documento_id, $datos, $usuario_id) {
     try {
@@ -205,10 +215,17 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
             $servicio_otro = trim($datos['servicio_otro_especificar']);
         }
         
-        // Actualizar
+        // Validar servicios válidos (incluyendo revision_productos)
+        $servicios_validos = ['tratamiento_agua', 'revision_productos', 'calibracion_equipos', 'otro'];
+        if (!in_array($datos['servicio_solicitado'], $servicios_validos)) {
+            return ['success' => false, 'message' => 'Servicio no válido'];
+        }
+        
+        // Actualizar (⭐ INCLUYE nombre_cliente)
         $stmt = $pdo->prepare("
             UPDATE documentos_colaborativos SET
                 solicitado_por = ?,
+                nombre_cliente = ?,
                 area_proceso_solicitante = ?,
                 servicio_solicitado = ?,
                 servicio_otro_especificar = ?,
@@ -221,6 +238,7 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
         
         $resultado = $stmt->execute([
             trim($datos['solicitado_por']),
+            trim($datos['nombre_cliente']),  // ⭐ NUEVO CAMPO
             trim($datos['area_proceso_solicitante']),
             $datos['servicio_solicitado'],
             $servicio_otro,
@@ -255,12 +273,12 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
 
 /**
  * Actualizar Apartado 2 (Laboratorio)
+ * ⭐ CORREGIDO - fecha_recibido + hora_recibido + archivos + SIN NOTIFICACIÓN SSE
  */
 function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuario) {
     try {
         $pdo = conectarDB();
         
-        // Verificar documento
         $documento = obtener_documento($documento_id);
         if (!$documento) {
             return ['success' => false, 'message' => 'Documento no encontrado'];
@@ -270,23 +288,47 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
             return ['success' => false, 'message' => 'El documento ya está completado'];
         }
         
-        // Actualizar
+        // ⭐ MANEJO DE ARCHIVOS - Combinar existentes con nuevos
+        $archivos_existentes = [];
+        if (!empty($documento['archivos_apartado2'])) {
+            $archivos_existentes = json_decode($documento['archivos_apartado2'], true);
+            if (!is_array($archivos_existentes)) {
+                $archivos_existentes = [];
+            }
+        }
+        
+        // Combinar con nuevos archivos si los hay
+        $archivos_nuevos = [];
+        if (!empty($datos['archivos_apartado2'])) {
+            $archivos_nuevos = json_decode($datos['archivos_apartado2'], true);
+            if (is_array($archivos_nuevos)) {
+                $archivos_existentes = array_merge($archivos_existentes, $archivos_nuevos);
+            }
+        }
+        
+        // Codificar todos los archivos
+        $archivos_json = !empty($archivos_existentes) ? json_encode($archivos_existentes) : null;
+        
+        // Actualizar (⭐ CAMPOS MODIFICADOS: fecha_recibido + hora_recibido + archivos)
         $stmt = $pdo->prepare("
             UPDATE documentos_colaborativos SET
                 recibe_solicitud = ?,
-                fecha_hora_recibido = NOW(),
                 resumen_resultados = ?,
-                fecha_hora_entrega = ?,
-                usuario_seguimiento_id = ?,
+                fecha_recibido = ?,
+                hora_recibido = ?,
+                archivos_apartado2 = ?,
                 estado = 'en_seguimiento',
+                usuario_seguimiento_id = ?,
                 fecha_ultima_edicion = NOW()
             WHERE id = ?
         ");
         
         $resultado = $stmt->execute([
-            $nombre_usuario,
+            trim($datos['recibe_solicitud']),
             trim($datos['resumen_resultados']),
-            $datos['fecha_hora_entrega'],
+            $datos['fecha_recibido'],      // ⭐ NUEVO CAMPO (antes era fecha_hora_entrega)
+            $datos['hora_recibido'],       // ⭐ NUEVO CAMPO
+            $archivos_json,                // ⭐ NUEVO CAMPO
             $usuario_id,
             $documento_id
         ]);
@@ -304,22 +346,27 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
                 'Apartado 2 actualizado'
             );
             
-            // Notificar al creador
-            notificar_creador_seguimiento($documento, $usuario_id);
+            // ⚠️ NOTIFICACIÓN SSE ELIMINADA (por solicitud del usuario)
+            // notificar_creador_seguimiento($documento, $usuario_id);
             
-            return ['success' => true, 'message' => 'Apartado 2 actualizado exitosamente'];
+            return [
+                'success' => true, 
+                'message' => 'Apartado 2 actualizado exitosamente',
+                'archivos_subidos' => count($archivos_nuevos)
+            ];
         }
         
         return ['success' => false, 'message' => 'Error al actualizar'];
         
     } catch (Exception $e) {
         error_log("Error al actualizar apartado 2: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Error del sistema'];
+        return ['success' => false, 'message' => 'Error del sistema: ' . $e->getMessage()];
     }
 }
 
 /**
  * Completar documento (Laboratorio)
+ * ⭐ CORREGIDO - Valida fecha_recibido y hora_recibido
  */
 function completar_documento($documento_id, $usuario_id) {
     try {
@@ -330,8 +377,10 @@ function completar_documento($documento_id, $usuario_id) {
             return ['success' => false, 'message' => 'Documento no encontrado'];
         }
         
-        // Verificar que el Apartado 2 esté completo
-        if (empty($documento['resumen_resultados']) || empty($documento['fecha_hora_entrega'])) {
+        // Verificar que el Apartado 2 esté completo (⭐ CAMPOS ACTUALIZADOS)
+        if (empty($documento['resumen_resultados']) || 
+            empty($documento['fecha_recibido']) || 
+            empty($documento['hora_recibido'])) {
             return ['success' => false, 'message' => 'Debe completar el Apartado 2 antes de finalizar'];
         }
         
