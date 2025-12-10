@@ -6,10 +6,10 @@
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -369,13 +369,13 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
         <?php 
         // Cargar sidebar según departamento
         if ($es_mantenimiento) {
-            include __DIR__ . '/../includes/sidebar_mantenimiento.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php';
         } elseif ($es_ti) {
-            include __DIR__ . '/../includes/sidebar_ti.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_ti.php';
         } elseif (es_usuario_colaborativo()) {
-            include __DIR__ . '/../includes/sidebar_colaborativo.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
         } else {
-            include __DIR__ . '/../includes/sidebar_normal.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
         }
         ?>
         
@@ -771,7 +771,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
     
     <!-- Modal para crear nueva orden (solo para usuarios NO-Mantenimiento) -->
     <?php if (!$es_mantenimiento): ?>
-        <?php include __DIR__ . '/../includes/modal_crear_orden_servicio.php'; ?>
+        <?php include __DIR__ . '/../../includes/ordenes_servicio/modal_crear_orden_servicio.php'; ?>
     <?php endif; ?>
     
     <!-- Modal de Procesamiento de Descarga (EXCLUSIVO Mantenimiento) -->

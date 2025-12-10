@@ -10,7 +10,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/../includes/documentos_colaborativos.php';
+require_once __DIR__ . '/../includes/colaborativo/documentos_colaborativos.php';
 
 // Verificar autenticación
 if (!sesion_activa()) {
@@ -95,7 +95,7 @@ $resultado = completar_documento($documento_id, $usuario_id);
 // Si fue exitoso, agregar información adicional
 if ($resultado['success']) {
     $resultado['folio'] = $documento['folio'];
-    $resultado['redirect'] = '/Pagina_Solicitudes4/dashboard/documentos_colaborativos.php?ubicacion=global';
+    $resultado['redirect'] = URL_BASE . 'dashboard/colaborativo/documentos_colaborativos.php?ubicacion=global';
 }
 
 // Liberar sesión para evitar bloqueo con SSE

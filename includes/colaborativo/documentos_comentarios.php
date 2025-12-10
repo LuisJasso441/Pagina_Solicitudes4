@@ -3,8 +3,8 @@
  * Sistema de Comentarios para Documentos Colaborativos
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/notificaciones.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../notificaciones.php';
 
 /**
  * Agregar comentario a un documento

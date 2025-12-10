@@ -14,7 +14,7 @@ ob_start();
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/ordenes_servicio/ordenes_servicio_funciones.php';
 
 // Limpiar output buffer y establecer header JSON
 ob_end_clean();
@@ -161,7 +161,7 @@ try {
         $datos_json = json_encode([
             'orden_id' => $orden_id,
             'folio' => $folio,
-            'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+            'url' => URL_BASE . 'dashboard/ordenes_servicio/ver_orden_servicio.php?id=' . $orden_id
         ]);
         
         $stmt_notif->execute([

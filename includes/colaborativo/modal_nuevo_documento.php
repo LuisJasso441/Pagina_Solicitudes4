@@ -9,7 +9,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Cargar funciones CSRF
-require_once __DIR__ . '/csrf.php';
+require_once __DIR__ . '/../csrf.php';
 ?>
 
 <!-- Modal: Nuevo Documento Colaborativo -->
@@ -24,7 +24,7 @@ require_once __DIR__ . '/csrf.php';
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
-            <form id="formNuevoDocumento" action="/Pagina_Solicitudes4/documentos/procesar_crear.php" method="POST">
+            <form id="formNuevoDocumento" action="<?php echo URL_BASE; ?>documentos/procesar_crear.php" method="POST">
                 <?php echo campo_csrf(); ?>
                 
                 <div class="modal-body">

@@ -6,9 +6,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -269,13 +269,13 @@ $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
                 <?php 
                 // Cargar sidebar según departamento
                 if ($es_mantenimiento) {
-                    include __DIR__ . '/../includes/sidebar_mantenimiento.php';
+                    include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php';
                 } elseif ($es_ti) {
-                    include __DIR__ . '/../includes/sidebar_ti.php';
+                    include __DIR__ . '/../../includes/sidebar/sidebar_ti.php';
                 } elseif (es_usuario_colaborativo()) {
-                    include __DIR__ . '/../includes/sidebar_colaborativo.php';
+                    include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
                 } else {
-                    include __DIR__ . '/../includes/sidebar_normal.php';
+                    include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
                 }
                 ?>
             </div>

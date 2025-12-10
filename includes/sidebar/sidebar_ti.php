@@ -17,7 +17,7 @@ $en_mis_ordenes = in_array($current_page, [
 // Obtener estadísticas para badges (opcional)
 try {
     if (!isset($pdo)) {
-        require_once __DIR__ . '/../config/database.php';
+        require_once __DIR__ . '/../../config/database.php';
         $pdo = conectarDB();
     }
     
@@ -56,7 +56,7 @@ try {
         <ul class="nav flex-column">
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ti_sistemas.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/ti_sistemas.php">
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php">
                     <i class="bi bi-house-door"></i> Inicio
                 </a>
             </li>
@@ -117,7 +117,7 @@ try {
             <!-- ⭐ NUEVA SECCIÓN INDEPENDIENTE AGREGADA -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
                     <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                 </a>
             </li>
@@ -149,4 +149,4 @@ try {
 </aside>
 
 <!-- Modal para crear nueva orden de servicio -->
-<?php include __DIR__ . '/modal_crear_orden_servicio.php'; ?>
+<?php include __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php'; ?>

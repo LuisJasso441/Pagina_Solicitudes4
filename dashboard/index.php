@@ -26,11 +26,11 @@ echo "<!-- /DEBUG INFO -->";
 if (es_usuario_ti()) {
     // Usuario de TI/Sistemas
     echo "<!-- Redirigiendo a TI/Sistemas -->";
-    redirigir(URL_BASE . 'dashboard/ti_sistemas.php');
+    redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
 } elseif (es_usuario_colaborativo()) {
     // Usuario de departamento colaborativo (Normatividad, Ventas, Laboratorio)
     echo "<!-- Redirigiendo a Colaborativo -->";
-    redirigir(URL_BASE . 'dashboard/colaborativo.php');
+    redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
 } else {
     // Usuario de departamento normal
     echo "<!-- Redirigiendo a Departamento Normal -->";

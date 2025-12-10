@@ -5,10 +5,10 @@
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/../includes/documentos_colaborativos.php';
-require_once __DIR__ . '/../includes/documentos_comentarios.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../includes/colaborativo/documentos_colaborativos.php';
+require_once __DIR__ . '/../../includes/colaborativo/documentos_comentarios.php';
 
 // Verificar autenticación
 if (!sesion_activa()) {
@@ -67,7 +67,7 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     
     <!-- Estilos personalizados -->
-    <link rel="stylesheet" href="/Pagina_Solicitudes4/assets/css/dashboard.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     
     <style>
         /* ====== ESTILOS COMPACTOS ====== */
@@ -203,10 +203,10 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     </style>
 </head>
 <body>
-    <?php include __DIR__ . '/../includes/sidebar_colaborativo.php'; ?>
+    <?php include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; ?>
     
     <div class="main-content">
-        <?php include __DIR__ . '/../includes/header.php'; ?>
+        <?php include __DIR__ . '/../../includes/header.php'; ?>
         
         <div class="container-fluid p-4">
             <!-- Header del documento -->
@@ -288,12 +288,12 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             <div class="tab-content" id="documentoTabsContent">
                 <!-- TAB: Documento -->
                 <div class="tab-pane fade show active" id="documento" role="tabpanel">
-                    <?php include __DIR__ . '/../includes/documento_formulario.php'; ?>
+                    <?php include __DIR__ . '/../../includes/colaborativo/documento_formulario.php'; ?>
                 </div>
                 
                 <!-- TAB: Comentarios -->
                 <div class="tab-pane fade" id="comentarios" role="tabpanel">
-                    <?php include __DIR__ . '/../includes/documento_comentarios_ui.php'; ?>
+                    <?php include __DIR__ . '/../../includes/colaborativo/documento_comentarios_ui.php'; ?>
                 </div>
             </div>
         </div>
@@ -301,7 +301,7 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/Pagina_Solicitudes4/assets/js/notificaciones.js"></script>
-    <script src="/Pagina_Solicitudes4/assets/js/documento_editar.js"></script>
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+    <script src="<?php echo URL_BASE; ?>assets/js/documento_editar.js"></script>
 </body>
 </html>

@@ -12,7 +12,7 @@ $en_mis_ordenes = in_array($current_page, [
 ]);
 
 // ⭐ IMPORTANTE: Incluir database.php ANTES de usar conectarDB()
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Obtener contador de órdenes pendientes de validación (solo del usuario actual)
 $pdo = conectarDB();
@@ -81,7 +81,7 @@ $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total']
             <!-- ⭐ NUEVA SECCIÓN INDEPENDIENTE AGREGADA -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
                     <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                 </a>
             </li>
@@ -97,4 +97,4 @@ $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total']
 </aside>
 
 <!-- Modal para crear nueva orden de servicio -->
-<?php include __DIR__ . '/modal_crear_orden_servicio.php'; ?>
+<?php include __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php'; ?>

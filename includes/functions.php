@@ -171,11 +171,11 @@ function redirigir_dashboard() {
     $depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']));
     
     if ($depto_codigo === 'sistemas') {
-        redirigir(URL_BASE . 'dashboard/ti_sistemas.php');
+        redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
     } elseif ($depto_codigo === 'mantenimiento') {
-        redirigir(URL_BASE . 'dashboard/mantenimiento.php');
+        redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     } elseif (es_usuario_colaborativo()) {
-        redirigir(URL_BASE . 'dashboard/colaborativo.php');
+        redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
     } else {
         redirigir(URL_BASE . 'dashboard/mis_ordenes_servicio.php');
     }

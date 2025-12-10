@@ -121,15 +121,15 @@ try {
     // Determinar el dashboard según el tipo de usuario
     if ($departamento_lower === 'sistemas' || $departamento_lower === 'ti') {
         // Usuario de TI/Sistemas
-        redirigir(URL_BASE . 'dashboard/ti_sistemas.php');
+        redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
     } 
     elseif ($departamento_lower === 'mantenimiento') {
         // ⭐ USUARIO DE MANTENIMIENTO - DASHBOARD ESPECÍFICO
-        redirigir(URL_BASE . 'dashboard/mantenimiento.php');
+        redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     }
     elseif (es_usuario_colaborativo()) {
         // Usuario colaborativo (Normatividad, Ventas, Laboratorio)
-        redirigir(URL_BASE . 'dashboard/colaborativo.php');
+        redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
     } 
     else {
         // Usuario normal

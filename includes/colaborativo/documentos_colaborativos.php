@@ -4,9 +4,9 @@
  * Funciones para gestión de documentos SSC
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/notificaciones.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../notificaciones.php';
 
 /**
  * Generar folio automático

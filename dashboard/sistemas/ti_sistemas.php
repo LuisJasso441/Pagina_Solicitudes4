@@ -5,9 +5,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Verificar que sea usuario de TI
 if (!es_usuario_ti()) {

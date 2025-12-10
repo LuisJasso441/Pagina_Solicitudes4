@@ -12,7 +12,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/ordenes_servicio/ordenes_servicio_funciones.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -152,7 +152,7 @@ try {
     $datos_json = json_encode([
         'orden_id' => $orden_id,
         'folio' => $orden['folio'],
-        'url' => URL_BASE . 'dashboard/ver_orden_servicio.php?id=' . $orden_id
+        'url' => URL_BASE . 'dashboard/ordenes_servicio/ver_orden_servicio.php?id=' . $orden_id
     ]);
     
     $stmt_notif->execute([

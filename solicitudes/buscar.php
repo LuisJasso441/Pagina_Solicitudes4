@@ -191,7 +191,7 @@ function obtener_badge_prioridad($prioridad) {
                     <!-- Documentos Colaborativos SSC -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php">
+                        href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php"
                             <i class="bi bi-file-earmark-text"></i> Documentos SSC
                         </a>
                     </li>
@@ -202,7 +202,7 @@ function obtener_badge_prioridad($prioridad) {
                     <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php"
                             <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                         </a>
                     </li>

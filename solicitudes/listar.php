@@ -141,7 +141,7 @@ function obtener_texto_prioridad($prioridad) {
             <nav class="sidebar-nav">
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/colaborativo.php">
+                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php"
                             <i class="bi bi-house-door"></i> Inicio
                         </a>
                     </li>
@@ -182,7 +182,7 @@ function obtener_texto_prioridad($prioridad) {
                     <!-- Documentos Colaborativos SSC -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php">
+                        href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php"
                             <i class="bi bi-file-earmark-text"></i> Documentos SSC
                         </a>
                     </li>
@@ -193,7 +193,7 @@ function obtener_texto_prioridad($prioridad) {
                     <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
+                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php"
                             <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                         </a>
                     </li>
@@ -223,7 +223,7 @@ function obtener_texto_prioridad($prioridad) {
                         </p>
                     </div>
                     <div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/colaborativo.php" class="btn btn-outline-secondary">
+                        <a href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Volver al Dashboard
                         </a>
                     </div>

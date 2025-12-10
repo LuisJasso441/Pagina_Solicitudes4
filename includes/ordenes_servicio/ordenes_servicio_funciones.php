@@ -4,7 +4,7 @@
  * Archivo: includes/ordenes_servicio_funciones.php
  */
 
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/database.php';
 
 /**
  * Obtener una orden por ID

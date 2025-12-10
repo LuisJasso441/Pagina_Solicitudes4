@@ -5,10 +5,10 @@
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/../includes/documentos_colaborativos.php';
-require_once __DIR__ . '/../includes/documentos_comentarios.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../includes/colaborativo/documentos_colaborativos.php';
+require_once __DIR__ . '/../../includes/colaborativo/documentos_comentarios.php';
 
 // Verificar autenticación
 if (!isset($_SESSION['usuario_id'])) {
@@ -120,7 +120,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
     </style>
 </head>
 <body>
-    <?php include __DIR__ . '/../includes/sidebar_colaborativo.php'; ?>
+    <?php include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; ?>
     
     <div class="main-content">
 
@@ -305,7 +305,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
     
     <?php if ($puede_crear): ?>
     <!-- Modal Nuevo Documento -->
-    <?php include __DIR__ . '/../includes/modal_nuevo_documento.php'; ?>
+    <?php include __DIR__ . '/../../includes/colaborativo/modal_nuevo_documento.php'; ?>
     <?php endif; ?>
     
     <!-- Scripts -->

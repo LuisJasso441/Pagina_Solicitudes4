@@ -10,7 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/ordenes_servicio/ordenes_servicio_funciones.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -104,7 +104,7 @@ try {
     // Si viene de formulario HTML, redirigir
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_SERVER['HTTP_CONTENT_TYPE'])) {
         $_SESSION['success'] = "Orden actualizada correctamente";
-        header("Location: " . URL_BASE . "dashboard/ver_orden_servicio.php?id={$orden_id}");
+        header("Location: " . URL_BASE . "dashboard/ordenes_servicio/ver_orden_servicio.php?id={$orden_id}");
         exit;
     }
     
@@ -124,7 +124,7 @@ try {
     // Si viene de formulario HTML
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_SERVER['HTTP_CONTENT_TYPE'])) {
         $_SESSION['error'] = $e->getMessage();
-        header("Location: " . URL_BASE . "dashboard/ver_orden_servicio.php?id={$orden_id}");
+        header("Location: " . URL_BASE . "dashboard/ordenes_servicio/ver_orden_servicio.php?id={$orden_id}");
         exit;
     }
     

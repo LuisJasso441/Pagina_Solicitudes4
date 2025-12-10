@@ -5,10 +5,10 @@
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/ordenes_servicio/ordenes_servicio_funciones.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -20,7 +20,7 @@ if (!sesion_activa()) {
 $orden_id = $_GET['id'] ?? null;
 
 if (!$orden_id) {
-    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio_mantenimiento.php');
+    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php');
     exit;
 }
 
@@ -29,7 +29,7 @@ $orden = obtener_orden_por_id($orden_id);
 
 if (!$orden) {
     $_SESSION['error'] = "Orden no encontrada.";
-    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio_mantenimiento.php');
+    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php');
     exit;
 }
 
@@ -38,7 +38,7 @@ $permisos = verificar_permiso_orden($orden_id, $_SESSION['usuario_id'], $_SESSIO
 
 if (!$permisos['puede_ver']) {
     $_SESSION['error'] = "No tienes permiso para ver esta orden.";
-    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio_mantenimiento.php');
+    header('Location: ' . URL_BASE . 'dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php');
     exit;
 }
 
@@ -248,12 +248,12 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
         $departamento = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''));
         
         if ($departamento === 'mantenimiento') {
-            include __DIR__ . '/../includes/sidebar_mantenimiento.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php';
         } elseif ($departamento === 'ti' || $departamento === 'sistemas' || $departamento === 'ti_sistemas') {
-            include __DIR__ . '/../includes/sidebar_ti.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_ti.php';
         } else {
             // Para usuarios colaborativos
-            include __DIR__ . '/../includes/sidebar_colaborativo.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
         }
         ?>
         
@@ -863,7 +863,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                 .then(data => {
                     if (data.success) {
                         alert('¡Orden finalizada correctamente!');
-                        window.location = '<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php';
+                        window.location = '<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php';
                     } else {
                         alert('Error: ' + data.error);
                     }

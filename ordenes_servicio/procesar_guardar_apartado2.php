@@ -12,7 +12,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/ordenes_servicio_funciones.php';
+require_once __DIR__ . '/../includes/ordenes_servicio/ordenes_servicio_funciones.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
