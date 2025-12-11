@@ -2,6 +2,7 @@
 /**
  * Vista Detallada - Orden de Servicio para Mantenimiento
  * Muestra los 3 apartados con modo visualización/edición
+ * VERSIÓN CORREGIDA - Firmas digitales funcionando
  */
 
 session_start();
@@ -64,6 +65,88 @@ try {
 }
 
 $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']))) === 'mantenimiento';
+
+// ========================================
+// FUNCIONES HELPER PARA ARCHIVOS OSM
+// ========================================
+
+/**
+ * Obtiene la ruta correcta de un archivo OSM
+ * Compatible con datos nuevos y antiguos
+ */
+function obtener_ruta_archivo_osm($archivo) {
+    // Prioridad 1: nombre_guardado (formato nuevo)
+    if (isset($archivo['nombre_guardado']) && !empty($archivo['nombre_guardado'])) {
+        return 'Imagenes_OSM/' . $archivo['nombre_guardado'];
+    }
+    // Prioridad 2: nombre_archivo
+    if (isset($archivo['nombre_archivo']) && !empty($archivo['nombre_archivo'])) {
+        return 'Imagenes_OSM/' . $archivo['nombre_archivo'];
+    }
+    // Prioridad 3: ruta ya contiene Imagenes_OSM
+    if (isset($archivo['ruta']) && strpos($archivo['ruta'], 'Imagenes_OSM') !== false) {
+        return $archivo['ruta'];
+    }
+    // Prioridad 4: extraer nombre de ruta antigua (uploads/ordenes_servicio/...)
+    if (isset($archivo['ruta']) && !empty($archivo['ruta'])) {
+        $nombre = basename($archivo['ruta']);
+        return 'Imagenes_OSM/' . $nombre;
+    }
+    // Fallback: nombre_original
+    if (isset($archivo['nombre_original']) && !empty($archivo['nombre_original'])) {
+        return 'Imagenes_OSM/' . $archivo['nombre_original'];
+    }
+    return '#';
+}
+
+/**
+ * Verifica si un archivo es una imagen por su extensión
+ */
+function es_imagen_osm($nombre_archivo) {
+    $extensiones_imagen = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+    $extension = strtolower(pathinfo($nombre_archivo, PATHINFO_EXTENSION));
+    return in_array($extension, $extensiones_imagen);
+}
+
+/**
+ * Obtiene el icono Bootstrap apropiado según el tipo de archivo
+ */
+function obtener_icono_osm($nombre_archivo) {
+    $extension = strtolower(pathinfo($nombre_archivo, PATHINFO_EXTENSION));
+    $iconos = [
+        'pdf' => 'bi-file-earmark-pdf text-danger',
+        'doc' => 'bi-file-earmark-word text-primary',
+        'docx' => 'bi-file-earmark-word text-primary',
+        'xls' => 'bi-file-earmark-excel text-success',
+        'xlsx' => 'bi-file-earmark-excel text-success',
+        'ppt' => 'bi-file-earmark-ppt text-warning',
+        'pptx' => 'bi-file-earmark-ppt text-warning',
+        'zip' => 'bi-file-earmark-zip text-secondary',
+        'rar' => 'bi-file-earmark-zip text-secondary',
+        'mp4' => 'bi-file-earmark-play text-info',
+        'avi' => 'bi-file-earmark-play text-info',
+        'mov' => 'bi-file-earmark-play text-info',
+        'mp3' => 'bi-file-earmark-music text-purple',
+        'wav' => 'bi-file-earmark-music text-purple',
+        'txt' => 'bi-file-earmark-text text-muted',
+    ];
+    return $iconos[$extension] ?? 'bi-file-earmark text-secondary';
+}
+
+/**
+ * Formatea el tamaño de archivo en formato legible
+ */
+function formatear_tamanio_osm($bytes) {
+    if ($bytes >= 1073741824) {
+        return number_format($bytes / 1073741824, 2) . ' GB';
+    } elseif ($bytes >= 1048576) {
+        return number_format($bytes / 1048576, 2) . ' MB';
+    } elseif ($bytes >= 1024) {
+        return number_format($bytes / 1024, 2) . ' KB';
+    } else {
+        return $bytes . ' bytes';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -117,6 +200,8 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
             color: #212529;
             font-size: 0.85rem;
         }
+        
+        /* Estilos para firmas */
         .firma-container {
             border: 1px dashed #6c757d;
             border-radius: 5px;
@@ -125,19 +210,12 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
             background: #ffffff;
             margin-top: 5px;
         }
-        .firma-container > div {
+        .firma-container .jSignature {
             border: 1px solid #667eea !important;
             border-radius: 4px;
             background: white !important;
             cursor: crosshair;
             margin: 5px auto;
-        }
-        .firma-container canvas {
-            border: 1px solid #667eea !important;
-            border-radius: 4px;
-            background: white !important;
-            cursor: crosshair;
-            display: block;
         }
         .firma-imagen {
             max-width: 100%;
@@ -212,6 +290,56 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
             font-size: 0.85rem;
         }
         
+        /* ====== ESTILOS PARA EVIDENCIAS APARTADO 1 ====== */
+        .evidencias-grid-apartado1 {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .evidencia-card-osm {
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #fff;
+            transition: all 0.2s ease;
+        }
+        .evidencia-card-osm:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .evidencia-card-osm .preview-container {
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+        .evidencia-card-osm .preview-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+        }
+        .evidencia-card-osm .preview-container .file-icon {
+            font-size: 2.5rem;
+        }
+        .evidencia-card-osm .card-body {
+            padding: 8px;
+        }
+        .evidencia-card-osm .file-name {
+            font-size: 0.7rem;
+            color: #495057;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 5px;
+        }
+        .evidencia-card-osm .btn-group-sm .btn {
+            padding: 2px 6px;
+            font-size: 0.65rem;
+        }
+        
         /* Responsive para botones en móvil */
         @media (max-width: 768px) {
             .btn-group-acciones .row {
@@ -232,12 +360,13 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                 font-size: 1rem;
                 text-align: center;
             }
+            .evidencias-grid-apartado1 {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
     
-    <!-- jSignature para firmas digitales -->
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jSignature@2.1.3/libs/jSignature.min.js"></script>
+    <!-- NO CARGAR SCRIPTS AQUÍ - Se cargan al final del body -->
 </head>
 <body>
     <div class="dashboard-container">
@@ -431,15 +560,46 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                                         <div class="valor"><?php echo nl2br(htmlspecialchars($apartado1['descripcion_falla'] ?? '-')); ?></div>
                                     </div>
                                 </div>
+                                
+                                <!-- EVIDENCIAS CON CARDS -->
                                 <?php if (!empty($apartado1['evidencia_archivos'])): ?>
                                     <div class="col-12">
                                         <div class="campo-visualizacion">
-                                            <label>Evidencia de la Falla</label>
-                                            <div class="valor">
-                                                <?php foreach ($apartado1['evidencia_archivos'] as $archivo): ?>
-                                                    <a href="<?php echo URL_BASE . $archivo['ruta']; ?>" target="_blank" class="btn btn-sm btn-outline-primary me-1 mb-1">
-                                                        <i class="bi bi-file-earmark"></i> <?php echo htmlspecialchars($archivo['nombre_original']); ?>
-                                                    </a>
+                                            <label><i class="bi bi-images"></i> Evidencia de la Falla</label>
+                                            <div class="evidencias-grid-apartado1">
+                                                <?php foreach ($apartado1['evidencia_archivos'] as $archivo): 
+                                                    $ruta_archivo = obtener_ruta_archivo_osm($archivo);
+                                                    $nombre_original = $archivo['nombre_original'] ?? basename($ruta_archivo);
+                                                    $es_imagen = es_imagen_osm($nombre_original);
+                                                ?>
+                                                    <div class="evidencia-card-osm">
+                                                        <div class="preview-container">
+                                                            <?php if ($es_imagen): ?>
+                                                                <img src="<?php echo URL_BASE . $ruta_archivo; ?>" 
+                                                                     alt="<?php echo htmlspecialchars($nombre_original); ?>"
+                                                                     onerror="this.parentElement.innerHTML='<i class=\'bi bi-image text-muted file-icon\'></i>';">
+                                                            <?php else: ?>
+                                                                <i class="bi <?php echo obtener_icono_osm($nombre_original); ?> file-icon"></i>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <div class="file-name" title="<?php echo htmlspecialchars($nombre_original); ?>">
+                                                                <?php echo htmlspecialchars($nombre_original); ?>
+                                                            </div>
+                                                            <div class="btn-group btn-group-sm w-100">
+                                                                <a href="<?php echo URL_BASE . $ruta_archivo; ?>" 
+                                                                   target="_blank" 
+                                                                   class="btn btn-outline-primary">
+                                                                    <i class="bi bi-eye"></i>
+                                                                </a>
+                                                                <a href="<?php echo URL_BASE . $ruta_archivo; ?>" 
+                                                                   download="<?php echo htmlspecialchars($nombre_original); ?>" 
+                                                                   class="btn btn-outline-success">
+                                                                    <i class="bi bi-download"></i>
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 <?php endforeach; ?>
                                             </div>
                                         </div>
@@ -459,7 +619,7 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
                             </div>
                             
                             <?php if ($modo_edicion && $es_mantenimiento): ?>
-                                <!-- MODO EDICIÓN - Solo Mantenimiento -->
+                                <!-- MODO EDICIÓN - Solo Mantenimiento (SIN campo de archivos) -->
                                 <form id="formApartado2" method="POST">
                                     <input type="hidden" name="orden_id" value="<?php echo $orden_id; ?>">
                                     

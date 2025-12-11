@@ -2,6 +2,7 @@
 /**
  * Modal: Crear Nueva Orden de Servicio
  * Apartado 1 - Para ser llenado por el solicitante
+ * ⭐ MODIFICADO - Sin límites de archivos, acepta cualquier tipo
  */
 ?>
 
@@ -54,25 +55,31 @@
                                     <label for="area_solicitante" class="form-label">Área Solicitante</label>
                                     <input type="text" class="form-control" id="area_solicitante" name="area_solicitante" 
                                            value="<?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?>" readonly>
-                                    <div class="form-text">Campo automático</div>
                                 </div>
                                 
-                                <!-- Fecha de Entrada (auto-completada) -->
+                                <!-- Fecha de Entrada -->
                                 <div class="col-md-3">
-                                    <label for="fecha_entrada" class="form-label">Fecha de Entrada</label>
+                                    <label for="fecha_entrada" class="form-label">Fecha de Entrada *</label>
                                     <input type="date" class="form-control" id="fecha_entrada" name="fecha_entrada" 
-                                           value="<?php echo date('Y-m-d'); ?>" readonly>
-                                    <div class="form-text">Fecha actual</div>
+                                           value="<?php echo date('Y-m-d'); ?>" required>
                                 </div>
                                 
-                                <!-- Hora de Entrada (auto-completada) -->
+                                <!-- Hora de Entrada -->
                                 <div class="col-md-3">
-                                    <label for="hora_entrada" class="form-label">Hora de Entrada</label>
+                                    <label for="hora_entrada" class="form-label">Hora de Entrada *</label>
                                     <input type="time" class="form-control" id="hora_entrada" name="hora_entrada" 
-                                           value="<?php echo date('H:i'); ?>" readonly>
-                                    <div class="form-text">Hora actual</div>
+                                           value="<?php echo date('H:i'); ?>" required>
                                 </div>
-                                
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="bi bi-gear"></i> Detalles de la Solicitud</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
                                 <!-- Unidad/Equipo -->
                                 <div class="col-md-6">
                                     <label for="unidad_equipo" class="form-label">Unidad/Equipo *</label>
@@ -114,22 +121,17 @@
                                 <div class="col-12">
                                     <label for="descripcion_falla" class="form-label">Descripción de la Falla *</label>
                                     <textarea class="form-control" id="descripcion_falla" name="descripcion_falla" 
-                                              rows="4" required 
-                                              placeholder="Describa detalladamente la falla o problema presentado..."></textarea>
-                                    <div class="form-text">Sea lo más específico posible</div>
+                                              rows="4" placeholder="Describa detalladamente la falla o problema..." required></textarea>
                                 </div>
                                 
-                                <!-- Evidencia de la Falla (Archivos) -->
+                                <!-- Evidencia (Archivos) -->
                                 <div class="col-12">
-                                    <label for="evidencia_archivos" class="form-label">
-                                        Evidencia de la Falla (Opcional)
-                                    </label>
+                                    <label for="evidencia_archivos" class="form-label">Evidencia de la Falla (opcional)</label>
                                     <input type="file" class="form-control" id="evidencia_archivos" name="evidencia_archivos[]" 
-                                           multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx">
+                                           multiple accept="*/*">
                                     <div class="form-text">
-                                        <i class="bi bi-info-circle"></i> 
-                                        Puede adjuntar fotos o documentos. Máximo 5 archivos de 10 MB c/u.
-                                        Formatos: JPG, PNG, PDF, DOC, DOCX
+                                        <i class="bi bi-info-circle"></i>
+                                        Puede seleccionar múltiples archivos (imágenes, videos, documentos, etc.)
                                     </div>
                                     
                                     <!-- Lista de archivos seleccionados -->
@@ -171,31 +173,20 @@ document.getElementById('evidencia_archivos').addEventListener('change', functio
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
             
-            // Validar tamaño
             const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-            const sizeClass = file.size > 10485760 ? 'text-danger' : 'text-success';
             
             li.innerHTML = `
                 <div>
                     <i class="bi bi-file-earmark"></i> 
                     <strong>${file.name}</strong>
                 </div>
-                <span class="badge bg-secondary ${sizeClass}">${sizeMB} MB</span>
+                <span class="badge bg-secondary">${sizeMB} MB</span>
             `;
             
             ul.appendChild(li);
         });
         
         listaArchivos.appendChild(ul);
-        
-        // Advertencia si hay archivos muy grandes
-        const archivosGrandes = Array.from(this.files).filter(f => f.size > 10485760);
-        if (archivosGrandes.length > 0) {
-            const alerta = document.createElement('div');
-            alerta.className = 'alert alert-warning mt-2';
-            alerta.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Algunos archivos exceden el tamaño máximo de 10 MB';
-            listaArchivos.appendChild(alerta);
-        }
     }
 });
 
@@ -206,31 +197,6 @@ document.getElementById('formNuevaOrdenServicio').addEventListener('submit', asy
     const btnEnviar = document.getElementById('btnEnviarOrden');
     const mensajeDiv = document.getElementById('mensajeResultado');
     
-    // Validar archivos
-    const archivos = document.getElementById('evidencia_archivos').files;
-    if (archivos.length > 5) {
-        mensajeDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> 
-                Solo puede adjuntar máximo 5 archivos
-            </div>
-        `;
-        return;
-    }
-    
-    // Validar tamaño de archivos
-    for (let file of archivos) {
-        if (file.size > 10485760) { // 10 MB
-            mensajeDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> 
-                    El archivo "${file.name}" excede el tamaño máximo de 10 MB
-                </div>
-            `;
-            return;
-        }
-    }
-    
     // Deshabilitar botón
     btnEnviar.disabled = true;
     btnEnviar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
@@ -238,6 +204,7 @@ document.getElementById('formNuevaOrdenServicio').addEventListener('submit', asy
     try {
         // Primero subir archivos si los hay
         let archivosSubidos = [];
+        const archivos = document.getElementById('evidencia_archivos').files;
         
         if (archivos.length > 0) {
             const formDataArchivos = new FormData();
@@ -300,7 +267,7 @@ document.getElementById('formNuevaOrdenServicio').addEventListener('submit', asy
             // Cerrar modal después de 2 segundos
             setTimeout(() => {
                 bootstrap.Modal.getInstance(document.getElementById('modalCrearOrdenServicio')).hide();
-                location.reload(); // Recargar para mostrar nueva orden
+                location.reload();
             }, 2000);
             
         } else {
