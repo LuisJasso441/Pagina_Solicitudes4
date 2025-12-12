@@ -129,13 +129,19 @@ function obtener_badge_prioridad($prioridad) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
 </head>
 <body>
     
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
                 <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
@@ -179,8 +185,7 @@ function obtener_badge_prioridad($prioridad) {
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
+                        <a class="nav-link active" href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
                             <i class="bi bi-search"></i> Buscar
                         </a>
                     </li>
@@ -190,8 +195,7 @@ function obtener_badge_prioridad($prioridad) {
                     
                     <!-- Documentos Colaborativos SSC -->
                     <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php"
+                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php">
                             <i class="bi bi-file-earmark-text"></i> Documentos SSC
                         </a>
                     </li>
@@ -201,21 +205,11 @@ function obtener_badge_prioridad($prioridad) {
                     
                     <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
                     <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php"
+                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
                             <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                         </a>
                     </li>
-                    
-                    <?php if ($es_ti): ?>
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">GESTIÓN TI</small>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/todas_solicitudes.php">
-                            <i class="bi bi-folder"></i> Todas las Solicitudes
-                        </a>
-                    </li>
-                    <?php endif; ?>
+
                     
                     <hr class="text-white-50 my-3">
                     <li class="nav-item">
@@ -234,19 +228,22 @@ function obtener_badge_prioridad($prioridad) {
                 <!-- Header -->
                 <div class="top-navbar d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="welcome-text">
-                            <i class="bi bi-search"></i> Búsqueda Avanzada
-                        </h2>
+                        <h2 class="welcome-text">Búsqueda Avanzada</h2>
                         <p class="text-muted mb-0">
-                            Encuentra solicitudes con filtros personalizados
+                            <i class="bi bi-search"></i> Encuentra solicitudes por múltiples criterios
                         </p>
+                    </div>
+                    <div>
+                        <a href="<?php echo URL_BASE; ?>dashboard/<?php echo $es_ti ? 'ti_sistemas' : 'colaborativo'; ?>.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                        </a>
                     </div>
                 </div>
 
                 <!-- Alertas -->
                 <?php echo mostrar_alerta(); ?>
 
-                <!-- Formulario de Búsqueda -->
+                <!-- Filtros de Búsqueda -->
                 <div class="card card-custom mb-4">
                     <div class="card-header">
                         <i class="bi bi-funnel"></i> Filtros de Búsqueda
@@ -331,14 +328,14 @@ function obtener_badge_prioridad($prioridad) {
                 <?php if ($mostrar_resultados): ?>
                 <div class="card card-custom">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-list-check"></i> Resultados de la Búsqueda</span>
+                        <span><i class="bi bi-list-ul"></i> Resultados de Búsqueda</span>
                         <span class="badge bg-primary"><?php echo count($solicitudes); ?> resultado(s)</span>
                     </div>
                     <div class="card-body p-0">
                         <?php if (empty($solicitudes)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-search fs-1 text-muted"></i>
-                            <p class="text-muted mt-3">No se encontraron solicitudes con los criterios especificados</p>
+                            <p class="text-muted mt-3 mb-0">No se encontraron solicitudes con los criterios especificados</p>
                         </div>
                         <?php else: ?>
                         <div class="table-responsive">
@@ -349,7 +346,6 @@ function obtener_badge_prioridad($prioridad) {
                                         <?php if ($es_ti): ?>
                                         <th>Solicitante</th>
                                         <?php endif; ?>
-                                        <th>Tipo</th>
                                         <th>Descripción</th>
                                         <th>Prioridad</th>
                                         <th>Estado</th>
@@ -361,21 +357,18 @@ function obtener_badge_prioridad($prioridad) {
                                     <?php foreach ($solicitudes as $sol): ?>
                                     <tr>
                                         <td>
-                                            <strong><?php echo htmlspecialchars($sol['folio']); ?></strong>
+                                            <span class="badge bg-light text-dark">
+                                                <?php echo htmlspecialchars($sol['folio']); ?>
+                                            </span>
                                         </td>
                                         <?php if ($es_ti): ?>
                                         <td>
-                                            <?php echo htmlspecialchars($sol['solicitante_nombre']); ?>
+                                            <small><?php echo htmlspecialchars($sol['solicitante_nombre']); ?></small>
                                         </td>
                                         <?php endif; ?>
                                         <td>
-                                            <span class="badge bg-light text-dark">
-                                                <?php echo htmlspecialchars($sol['tipo_soporte']); ?>
-                                            </span>
-                                        </td>
-                                        <td>
                                             <?php 
-                                            $desc = htmlspecialchars($sol['descripcion']);
+                                            $desc = $sol['descripcion'];
                                             echo strlen($desc) > 50 ? substr($desc, 0, 50) . '...' : $desc;
                                             ?>
                                         </td>
@@ -430,6 +423,8 @@ function obtener_badge_prioridad($prioridad) {
     <?php include __DIR__ . '/modal_crear.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
     <script>
         // Modo oscuro

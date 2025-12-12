@@ -69,6 +69,13 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     <!-- Estilos personalizados -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    
     <style>
         /* ====== ESTILOS COMPACTOS ====== */
         .documento-header {
@@ -219,41 +226,44 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                         </h3>
                         <p>Solicitud de Servicio a Clientes</p>
                         <span class="badge bg-<?= $documento['prioridad'] == 'alta' ? 'danger' : ($documento['prioridad'] == 'media' ? 'warning' : 'success') ?> badge-prioridad">
-                            <?= strtoupper($documento['prioridad']) ?>
-                        </span>
-                        <span class="badge bg-light text-dark badge-prioridad ms-1">
-                            <?= ucfirst(str_replace('_', ' ', $documento['estado'])) ?>
+                            Prioridad: <?= ucfirst($documento['prioridad']) ?>
                         </span>
                     </div>
-                    <div class="col-md-4 text-end no-print">
+                    <div class="col-md-4 text-end">
+                        <a href="documentos_colaborativos.php" class="btn btn-light btn-sm">
+                            <i class="bi bi-arrow-left"></i> Volver
+                        </a>
                         <button class="btn btn-light btn-sm" onclick="window.print()">
                             <i class="bi bi-printer"></i> Imprimir
                         </button>
-                        <a href="documentos_colaborativos.php" class="btn btn-outline-light btn-sm">
-                            <i class="bi bi-arrow-left"></i> Volver
-                        </a>
                     </div>
                 </div>
             </div>
             
-            <!-- Información general -->
+            <!-- Info cards compactas -->
             <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-subtitle text-muted">Información del documento</h6>
-                            <p><strong>Folio:</strong> <?= htmlspecialchars($documento['folio']) ?></p>
-                            <p><strong>Nombre del Cliente:</strong> <?= htmlspecialchars($documento['nombre_cliente']) ?></p>
-                            <p><strong>Creado por:</strong> <?= htmlspecialchars($documento['departamento_creador']) ?></p>
-                            <p><strong>Fecha:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_creacion'])) ?></p>
-                            <p class="mb-0"><strong>Actualizado:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_ultima_edicion'])) ?></p>
+                            <h6 class="card-subtitle text-muted">Estado</h6>
+                            <span class="badge bg-<?= $documento['estado'] == 'completado' ? 'success' : ($documento['estado'] == 'en_seguimiento' ? 'warning' : 'primary') ?>">
+                                <?= ucfirst(str_replace('_', ' ', $documento['estado'])) ?>
+                            </span>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-subtitle text-muted">Permisos</h6>
+                            <h6 class="card-subtitle text-muted">Servicio</h6>
+                            <p class="mb-0"><?= htmlspecialchars($servicio_texto) ?></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-body">
+                            <h6 class="card-subtitle text-muted">Permisos de edición</h6>
                             <p>
                                 <i class="bi bi-<?= $permisos['apartado1'] ? 'check-circle-fill text-success' : 'x-circle-fill text-danger' ?>"></i>
                                 Apartado 1: <?= $permisos['apartado1'] ? 'Sí' : 'No' ?>
@@ -302,6 +312,8 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/documento_editar.js"></script>
 </body>

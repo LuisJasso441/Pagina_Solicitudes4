@@ -9,7 +9,7 @@ session_start();
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../includes/notificaciones.php'; // ⭐ AGREGADO: Sistema de notificaciones
+require_once __DIR__ . '/../../includes/notificaciones.php';
 
 // Verificar sesión
 if (!sesion_activa()) {
@@ -30,7 +30,7 @@ $filtro_base = $_GET['base'] ?? 'local';
 // Filtros
 $filtros = [
     'estado' => $_GET['estado'] ?? '',
-    'empleado' => $_GET['empleado'] ?? '',  // NUEVO: Filtro por empleado
+    'empleado' => $_GET['empleado'] ?? '',
     'empresa' => $_GET['empresa'] ?? '',
     'fecha_desde' => $_GET['fecha_desde'] ?? '',
     'fecha_hasta' => $_GET['fecha_hasta'] ?? '',
@@ -39,7 +39,6 @@ $filtros = [
 
 // Construir consulta según la base
 if ($filtro_base === 'local') {
-    // Base Local: Órdenes Activas
     $sql = "SELECT 
                 id, folio, estado, usuario_nombre, departamento, empresa,
                 fecha_creacion, fecha_primera_edicion_mant, apartado1_data,
@@ -47,7 +46,6 @@ if ($filtro_base === 'local') {
             FROM ordenes_servicio_mantenimiento 
             WHERE estado IN ('pendiente_mantenimiento', 'en_proceso', 'pendiente_usuario', 'devuelto')";
 } else {
-    // Base Global: Órdenes Finalizadas
     $sql = "SELECT 
                 id, folio, usuario_nombre, departamento, empresa,
                 fecha_creacion, fecha_completado, apartado1_data
@@ -57,7 +55,7 @@ if ($filtro_base === 'local') {
 
 $params = [];
 
-// ⭐ FILTRO AUTOMÁTICO: Si NO es Mantenimiento, solo mostrar órdenes de su departamento
+// Filtro automático por departamento si NO es Mantenimiento
 if (!$es_mantenimiento) {
     $sql .= " AND departamento = :dept_usuario";
     $params[':dept_usuario'] = $_SESSION['departamento_nombre'];
@@ -69,7 +67,6 @@ if (!empty($filtros['estado']) && $filtro_base === 'local') {
     $params[':estado'] = $filtros['estado'];
 }
 
-// NUEVO: Filtro por empleado (solo para usuarios no-Mantenimiento)
 if (!empty($filtros['empleado'])) {
     $sql .= " AND usuario_nombre LIKE :empleado";
     $params[':empleado'] = '%' . $filtros['empleado'] . '%';
@@ -117,7 +114,6 @@ $ordenes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Estadísticas según la base
 if ($filtro_base === 'local') {
-    // ⭐ Si NO es Mantenimiento, filtrar por su departamento
     if (!$es_mantenimiento) {
         $stmt_stats = $pdo->prepare("
             SELECT 
@@ -143,46 +139,21 @@ if ($filtro_base === 'local') {
             WHERE estado IN ('pendiente_mantenimiento', 'en_proceso', 'pendiente_usuario', 'devuelto')
         ");
     }
+    $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
 } else {
-    // ⭐ Si NO es Mantenimiento, filtrar por su departamento
-    if (!$es_mantenimiento) {
-        $stmt_stats = $pdo->prepare("
-            SELECT 
-                COUNT(*) as total_global,
-                COUNT(DISTINCT departamento) as departamentos_totales
-            FROM ordenes_servicio_mantenimiento
-            WHERE estado = 'completado'
-            AND departamento = :dept_usuario
-        ");
-        $stmt_stats->execute([':dept_usuario' => $_SESSION['departamento_nombre']]);
-    } else {
-        $stmt_stats = $pdo->query("
-            SELECT 
-                COUNT(*) as total_global,
-                COUNT(DISTINCT departamento) as departamentos_totales
-            FROM ordenes_servicio_mantenimiento
-            WHERE estado = 'completado'
-        ");
-    }
-}
-
-$stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
-
-// Obtener lista de empleados del departamento (solo para usuarios no-Mantenimiento)
-if (!$es_mantenimiento) {
-    $stmt_empleados = $pdo->prepare("
-        SELECT DISTINCT usuario_nombre 
-        FROM ordenes_servicio_mantenimiento 
-        WHERE departamento = :dept_usuario
-        ORDER BY usuario_nombre
+    $stmt_stats = $pdo->query("
+        SELECT COUNT(*) as total
+        FROM ordenes_servicio_mantenimiento
+        WHERE estado = 'completado'
     ");
-    $stmt_empleados->execute([':dept_usuario' => $_SESSION['departamento_nombre']]);
-    $empleados = $stmt_empleados->fetchAll(PDO::FETCH_COLUMN);
-} else {
-    $empleados = [];
+    $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
+    $stats['pendientes'] = 0;
+    $stats['en_proceso'] = 0;
+    $stats['pendiente_usuario'] = 0;
+    $stats['devueltas'] = 0;
 }
 
-// Obtener lista de empresas
+// Obtener lista de empresas para filtro
 $stmt_empresas = $pdo->query("SELECT DISTINCT empresa FROM ordenes_servicio_mantenimiento WHERE empresa IS NOT NULL AND empresa != '' ORDER BY empresa");
 $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
 ?>
@@ -198,21 +169,14 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    
     <style>
-        /* Layout del dashboard */
-        .dashboard-container {
-            display: flex;
-            min-height: 100vh;
-        }
-        .main-content {
-            flex: 1;
-            margin-left: 250px;
-            background: #f5f6fa;
-        }
-        .content-wrapper {
-            padding: 1.5rem;
-        }
-        
         /* Diseño compacto */
         body { 
             font-size: 0.85rem; 
@@ -238,7 +202,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             padding: 0.75rem; 
         }
         
-        /* TABS como SSC */
+        /* TABS */
         .nav-tabs {
             border-bottom: 2px solid #dee2e6;
             margin-bottom: 1rem;
@@ -367,7 +331,6 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
     <div class="dashboard-container">
         <!-- Sidebar -->
         <?php 
-        // Cargar sidebar según departamento
         if ($es_mantenimiento) {
             include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php';
         } elseif ($es_ti) {
@@ -401,7 +364,6 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                         </div>
                         
                         <?php if (!$es_mantenimiento): ?>
-                        <!-- Botón para crear nueva orden (solo para usuarios NO-Mantenimiento) -->
                         <div>
                             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearOrdenServicio">
                                 <i class="bi bi-plus-circle"></i> Nueva Orden de Servicio
@@ -411,7 +373,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                     </div>
                 </div>
                 
-                <!-- TABS: Base Local / Base Global (como SSC) -->
+                <!-- TABS -->
                 <ul class="nav nav-tabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <a class="nav-link <?php echo $filtro_base == 'local' ? 'active' : ''; ?>" 
@@ -427,95 +389,73 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                     </li>
                 </ul>
                 
-                <!-- Estadísticas según la base -->
+                <!-- Estadísticas -->
                 <?php if ($filtro_base === 'local'): ?>
-                    <!-- Estadísticas Base Local (Activas) -->
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['total']; ?></div>
-                                    <div class="stat-label">Total Activas</div>
-                                </div>
-                                <i class="bi bi-card-list stat-icon"></i>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-number"><?php echo $stats['total']; ?></div>
+                                <div class="stat-label">Total Activas</div>
                             </div>
-                        </div>
-                        
-                        <div class="stat-card pendientes">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['pendientes']; ?></div>
-                                    <div class="stat-label">Pendientes</div>
-                                </div>
-                                <i class="bi bi-hourglass-split stat-icon"></i>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card proceso">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['en_proceso']; ?></div>
-                                    <div class="stat-label">En Proceso</div>
-                                </div>
-                                <i class="bi bi-gear-fill stat-icon"></i>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card validar">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['pendiente_usuario']; ?></div>
-                                    <div class="stat-label">A Validar</div>
-                                </div>
-                                <i class="bi bi-person-check stat-icon"></i>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card devueltas">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['devueltas']; ?></div>
-                                    <div class="stat-label">Devueltas</div>
-                                </div>
-                                <i class="bi bi-arrow-return-left stat-icon"></i>
-                            </div>
+                            <i class="bi bi-card-list stat-icon"></i>
                         </div>
                     </div>
+                    
+                    <div class="stat-card pendientes">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-number"><?php echo $stats['pendientes']; ?></div>
+                                <div class="stat-label">Pendientes</div>
+                            </div>
+                            <i class="bi bi-hourglass-split stat-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card proceso">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-number"><?php echo $stats['en_proceso']; ?></div>
+                                <div class="stat-label">En Proceso</div>
+                            </div>
+                            <i class="bi bi-gear stat-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card validar">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-number"><?php echo $stats['pendiente_usuario']; ?></div>
+                                <div class="stat-label">Por Validar</div>
+                            </div>
+                            <i class="bi bi-person-check stat-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card devueltas">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-number"><?php echo $stats['devueltas']; ?></div>
+                                <div class="stat-label">Devueltas</div>
+                            </div>
+                            <i class="bi bi-arrow-return-left stat-icon"></i>
+                        </div>
+                    </div>
+                </div>
                 <?php else: ?>
-                    <!-- Estadísticas Base Global (Finalizadas) -->
-                    <div class="stats-grid">
-                        <div class="stat-card completadas">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['total_global']; ?></div>
-                                    <div class="stat-label">Completadas</div>
-                                </div>
-                                <i class="bi bi-check-circle stat-icon"></i>
+                <div class="stats-grid">
+                    <div class="stat-card completadas">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="stat-number"><?php echo $stats['total']; ?></div>
+                                <div class="stat-label">Total Finalizadas</div>
                             </div>
-                        </div>
-                        
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo $stats['departamentos_totales']; ?></div>
-                                    <div class="stat-label">Departamentos</div>
-                                </div>
-                                <i class="bi bi-building stat-icon"></i>
-                            </div>
-                        </div>
-                        
-                        <div class="stat-card">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-number"><?php echo count($ordenes); ?></div>
-                                    <div class="stat-label">Filtradas</div>
-                                </div>
-                                <i class="bi bi-funnel stat-icon"></i>
-                            </div>
+                            <i class="bi bi-check-circle stat-icon"></i>
                         </div>
                     </div>
+                </div>
                 <?php endif; ?>
-                
+
                 <!-- Filtros -->
                 <div class="card mb-3">
                     <div class="card-header">
@@ -603,11 +543,11 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                     </div>
                 </div>
                 
-                <!-- Tabla de Órdenes -->
+                <!-- Tabla de órdenes -->
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>
-                            <i class="bi bi-list-task"></i> 
+                            <i class="bi bi-table"></i> 
                             <?php echo $filtro_base === 'local' ? 'Órdenes Activas' : 'Órdenes Finalizadas'; ?>
                         </span>
                         <span class="badge bg-light text-dark">
@@ -651,85 +591,56 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                     <tbody>
                                         <?php foreach ($ordenes as $orden): 
                                             $apartado1 = json_decode($orden['apartado1_data'], true);
-                                            $unidad_equipo = $apartado1['unidad_equipo'] ?? 'N/A';
+                                            $unidad_equipo = $apartado1['unidad_equipo'] ?? '-';
                                         ?>
-                                            <tr onclick="window.location.href='ver_orden_servicio.php?id=<?php echo $orden['id']; ?>';" style="cursor: pointer;">
+                                            <tr class="orden-card <?php 
+                                                if ($filtro_base === 'local') {
+                                                    echo $orden['estado'] == 'pendiente_mantenimiento' ? 'pendiente' : 
+                                                        ($orden['estado'] == 'en_proceso' ? 'proceso' : 
+                                                        ($orden['estado'] == 'pendiente_usuario' ? 'validar' : 
+                                                        ($orden['estado'] == 'devuelto' ? 'devuelta' : '')));
+                                                } else {
+                                                    echo 'completada';
+                                                }
+                                            ?>" onclick="window.location='ver_orden_servicio.php?id=<?php echo $orden['id']; ?>'">
                                                 
                                                 <?php if ($filtro_base === 'local'): ?>
-                                                <!-- Columnas para Base Local (Activas) -->
                                                 <td>
                                                     <?php
-                                                    $badges_estados = [
-                                                        'pendiente_mantenimiento' => ['bg-warning', 'Pendiente'],
-                                                        'en_proceso' => ['bg-info', 'En Proceso'],
-                                                        'pendiente_usuario' => ['bg-primary', 'A Validar'],
+                                                    $estado_badges = [
+                                                        'pendiente_mantenimiento' => ['bg-warning text-dark', 'Pendiente'],
+                                                        'en_proceso' => ['bg-info text-dark', 'En Proceso'],
+                                                        'pendiente_usuario' => ['bg-purple text-white', 'Por Validar'],
                                                         'devuelto' => ['bg-danger', 'Devuelto']
                                                     ];
-                                                    $badge = $badges_estados[$orden['estado']] ?? ['bg-secondary', $orden['estado']];
+                                                    $badge = $estado_badges[$orden['estado']] ?? ['bg-secondary', 'Desconocido'];
                                                     ?>
-                                                    <span class="badge <?php echo $badge[0]; ?>">
+                                                    <span class="badge <?php echo $badge[0]; ?>" style="<?php echo $orden['estado'] == 'pendiente_usuario' ? 'background-color: #9b59b6;' : ''; ?>">
                                                         <?php echo $badge[1]; ?>
                                                     </span>
                                                 </td>
-                                                <td>
-                                                    <strong style="font-size: 0.8rem; color: #667eea;">
-                                                        <?php echo htmlspecialchars($orden['folio']); ?>
-                                                    </strong>
-                                                </td>
+                                                <?php endif; ?>
+                                                
+                                                <td><strong><?php echo htmlspecialchars($orden['folio']); ?></strong></td>
                                                 <td><?php echo htmlspecialchars($orden['usuario_nombre']); ?></td>
+                                                <td><small><?php echo htmlspecialchars($orden['departamento']); ?></small></td>
+                                                <td><small><?php echo htmlspecialchars($orden['empresa'] ?? '-'); ?></small></td>
+                                                <td><small><?php echo htmlspecialchars($unidad_equipo); ?></small></td>
                                                 <td>
-                                                    <span class="badge bg-light text-dark" style="font-size: 0.65rem;">
-                                                        <?php echo htmlspecialchars($orden['departamento']); ?>
-                                                    </span>
+                                                    <small><?php echo date('d/m/Y', strtotime($orden['fecha_creacion'])); ?></small>
                                                 </td>
+                                                
+                                                <?php if ($filtro_base === 'local'): ?>
                                                 <td>
-                                                    <small class="text-muted">
-                                                        <?php echo htmlspecialchars($orden['empresa']); ?>
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <small><?php echo htmlspecialchars($unidad_equipo); ?></small>
-                                                </td>
-                                                <td>
-                                                    <small class="text-muted">
-                                                        <?php echo date('d/m/Y', strtotime($orden['fecha_creacion'])); ?>
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <?php
+                                                    <?php 
                                                     $dias = $orden['dias_desde_creacion'];
-                                                    $badge_dias = $dias > 7 ? 'bg-danger' : ($dias > 3 ? 'bg-warning' : 'bg-success');
+                                                    $color = $dias > 7 ? 'danger' : ($dias > 3 ? 'warning' : 'success');
                                                     ?>
-                                                    <span class="badge <?php echo $badge_dias; ?>" style="font-size: 0.65rem;">
+                                                    <span class="badge bg-<?php echo $color; ?>" style="font-size: 0.65rem;">
                                                         <?php echo $dias; ?> día(s)
                                                     </span>
                                                 </td>
                                                 <?php else: ?>
-                                                <!-- Columnas para Base Global (Finalizadas) -->
-                                                <td>
-                                                    <strong style="font-size: 0.8rem; color: #27ae60;">
-                                                        <?php echo htmlspecialchars($orden['folio']); ?>
-                                                    </strong>
-                                                </td>
-                                                <td><?php echo htmlspecialchars($orden['usuario_nombre']); ?></td>
-                                                <td>
-                                                    <span class="badge bg-light text-dark" style="font-size: 0.65rem;">
-                                                        <?php echo htmlspecialchars($orden['departamento']); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <small class="text-muted">
-                                                        <?php echo htmlspecialchars($orden['empresa']); ?>
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <small><?php echo htmlspecialchars($unidad_equipo); ?></small>
-                                                </td>
-                                                <td>
-                                                    <small class="text-muted">
-                                                        <?php echo date('d/m/Y', strtotime($orden['fecha_creacion'])); ?>
-                                                    </small>
-                                                </td>
                                                 <td>
                                                     <small class="text-success">
                                                         <i class="bi bi-check-circle"></i>
@@ -764,10 +675,10 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                     </div>
                 </div>
                 
-            </div><!-- fin content-wrapper -->
-        </main><!-- fin main-content -->
+            </div>
+        </main>
         
-    </div><!-- fin dashboard-container -->
+    </div>
     
     <!-- Modal para crear nueva orden (solo para usuarios NO-Mantenimiento) -->
     <?php if (!$es_mantenimiento): ?>
@@ -802,7 +713,10 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- ⭐ AGREGADO: Script de notificaciones SSE -->
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+    
+    <!-- Script de notificaciones SSE -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     
     <script>
@@ -812,7 +726,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             location.reload();
         }, 120000);
         <?php endif; ?>
-        
+
         <?php if ($es_mantenimiento): ?>
         // Función para descargar Excel con modal de procesamiento
         function descargarExcel() {
@@ -837,5 +751,6 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
         }
         <?php endif; ?>
     </script>
+
 </body>
 </html>

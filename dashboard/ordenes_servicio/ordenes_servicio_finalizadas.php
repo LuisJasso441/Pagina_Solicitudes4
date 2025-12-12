@@ -107,6 +107,13 @@ $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     
     <style>
         /* Diseño compacto general */
@@ -471,5 +478,7 @@ $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 /**
  * Sistema de Documentos Colaborativos
  * Funciones para gestión de documentos SSC
- * VERSIÓN CORREGIDA - Incluye: nombre_cliente, revision_productos, fecha/hora separados, archivos
+ * VERSIÓN ACTUALIZADA - Incluye: fecha_entrega + hora_entrega en Apartado 2
  */
 
 require_once __DIR__ . '/../../config/database.php';
@@ -273,7 +273,7 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
 
 /**
  * Actualizar Apartado 2 (Laboratorio)
- * ⭐ CORREGIDO - fecha_recibido + hora_recibido + archivos + SIN NOTIFICACIÓN SSE
+ * ⭐ ACTUALIZADO - fecha_recibido + hora_recibido + archivos + fecha_entrega + hora_entrega
  */
 function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuario) {
     try {
@@ -309,7 +309,7 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
         // Codificar todos los archivos
         $archivos_json = !empty($archivos_existentes) ? json_encode($archivos_existentes) : null;
         
-        // Actualizar (⭐ CAMPOS MODIFICADOS: fecha_recibido + hora_recibido + archivos)
+        // ⭐ ACTUALIZADO - Incluye fecha_entrega y hora_entrega
         $stmt = $pdo->prepare("
             UPDATE documentos_colaborativos SET
                 recibe_solicitud = ?,
@@ -317,6 +317,8 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
                 fecha_recibido = ?,
                 hora_recibido = ?,
                 archivos_apartado2 = ?,
+                fecha_entrega = ?,
+                hora_entrega = ?,
                 estado = 'en_seguimiento',
                 usuario_seguimiento_id = ?,
                 fecha_ultima_edicion = NOW()
@@ -326,9 +328,11 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
         $resultado = $stmt->execute([
             trim($datos['recibe_solicitud']),
             trim($datos['resumen_resultados']),
-            $datos['fecha_recibido'],      // ⭐ NUEVO CAMPO (antes era fecha_hora_entrega)
-            $datos['hora_recibido'],       // ⭐ NUEVO CAMPO
-            $archivos_json,                // ⭐ NUEVO CAMPO
+            $datos['fecha_recibido'],
+            $datos['hora_recibido'],
+            $archivos_json,
+            $datos['fecha_entrega'] ?? null,    // ⭐ NUEVO CAMPO (opcional)
+            $datos['hora_entrega'] ?? null,     // ⭐ NUEVO CAMPO (opcional)
             $usuario_id,
             $documento_id
         ]);

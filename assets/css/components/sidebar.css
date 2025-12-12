@@ -1,0 +1,208 @@
+/**
+ * Sidebar Component
+ * Portal de Solicitudes TI - GrupoVerden
+ * 
+ * Estilos para el sidebar de navegación lateral.
+ * Incluye estados normal, hover, active y responsive.
+ */
+
+/* ====================================
+   SIDEBAR - ESTRUCTURA BASE
+   ==================================== */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--gradient-primary);
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: var(--z-sidebar);
+    box-shadow: var(--shadow-sidebar);
+    transition: transform var(--transition-normal), width var(--transition-normal);
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 100vh;
+}
+
+/* ====================================
+   SIDEBAR - HEADER
+   ==================================== */
+.sidebar-header {
+    padding: 0.6rem 0.5rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-header h4 {
+    color: var(--text-white);
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    margin: 0;
+    margin-bottom: 0.15rem;
+}
+
+.sidebar-header small {
+    font-size: var(--font-size-xs);
+    opacity: 0.9;
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--text-white);
+}
+
+.sidebar-header .badge {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.35rem;
+    margin-top: 0.15rem;
+}
+
+.sidebar-header .logo {
+    max-width: 80px;
+    margin-bottom: 0.2rem;
+}
+
+.sidebar-header > i {
+    font-size: 1.5rem !important;
+    margin-bottom: 0.3rem !important;
+}
+
+/* ====================================
+   SIDEBAR - NAVEGACIÓN
+   ==================================== */
+.sidebar-nav {
+    padding: 0.3rem 0;
+}
+
+.sidebar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.9);
+    padding: 0.3rem 1rem;
+    display: flex;
+    align-items: center;
+    transition: all var(--transition-normal);
+    border-left: 3px solid transparent;
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    text-decoration: none;
+}
+
+.sidebar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left-color: var(--text-white);
+    padding-left: 1.2rem;
+}
+
+.sidebar-nav .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-left-color: var(--text-white);
+    font-weight: 600;
+}
+
+.sidebar-nav .nav-link i {
+    margin-right: 0.5rem;
+    font-size: 0.8rem;
+    width: 16px;
+    text-align: center;
+}
+
+/* ====================================
+   SIDEBAR - SEPARADORES Y TÍTULOS
+   ==================================== */
+.sidebar-nav hr {
+    margin: 0.2rem 0 !important;
+    opacity: 0.3;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-nav small {
+    padding: 0.15rem 1rem !important;
+    display: block !important;
+    font-size: 0.6rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.7;
+    margin-bottom: 0.1rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* ====================================
+   SIDEBAR - FOOTER
+   ==================================== */
+.sidebar-footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: 0.6rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ====================================
+   SIDEBAR - SCROLLBAR
+   ==================================== */
+.sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* ====================================
+   SIDEBAR - OVERLAY (para móvil)
+   ==================================== */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-overlay);
+    z-index: calc(var(--z-sidebar) - 1);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-normal), visibility var(--transition-normal);
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ====================================
+   SIDEBAR - ESTADOS RESPONSIVE
+   ==================================== */
+
+/* Tablet y móvil: sidebar oculto por defecto */
+@media (max-width: 991.98px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    /* Sidebar visible cuando tiene clase 'active' */
+    .sidebar.active {
+        transform: translateX(0);
+    }
+}
+
+/* Móvil pequeño: ajustes adicionales */
+@media (max-width: 575.98px) {
+    .sidebar {
+        width: 250px; /* Un poco más ancho en móvil para mejor usabilidad */
+    }
+    
+    .sidebar-header h4 {
+        font-size: 0.9rem;
+    }
+    
+    .sidebar-nav .nav-link {
+        padding: 0.5rem 1rem; /* Más padding para touch */
+        font-size: 0.8rem;
+    }
+}

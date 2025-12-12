@@ -1,0 +1,174 @@
+/**
+ * Dashboard Layout
+ * Portal de Solicitudes TI - GrupoVerden
+ * 
+ * Estructura principal del layout del dashboard.
+ * Define el contenedor, contenido principal y navbar superior.
+ */
+
+/* ====================================
+   RESET Y BASE
+   ==================================== */
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-body);
+    overflow-x: hidden;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+/* ====================================
+   CONTENEDOR PRINCIPAL
+   ==================================== */
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* ====================================
+   CONTENIDO PRINCIPAL
+   ==================================== */
+.main-content {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    min-height: 100vh;
+    transition: margin-left var(--transition-normal), width var(--transition-normal);
+    background-color: var(--bg-body);
+}
+
+.content-wrapper {
+    padding: var(--spacing-md);
+}
+
+/* ====================================
+   NAVBAR SUPERIOR
+   ==================================== */
+.top-navbar {
+    background-color: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+    padding: 0.6rem 1rem;
+    margin-bottom: var(--spacing-md);
+    border-radius: var(--border-radius);
+}
+
+.welcome-text {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-badge {
+    background: var(--gradient-primary);
+    color: var(--text-white);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--border-radius-pill);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+/* ====================================
+   PAGE HEADER
+   ==================================== */
+.page-header {
+    background: var(--bg-card);
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.page-header h1,
+.page-header h2,
+.page-header h3,
+.page-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.page-header h1 { font-size: 1.5rem; }
+.page-header h2 { font-size: 1.35rem; }
+.page-header h3 { font-size: 1.2rem; }
+.page-header h4 { font-size: 1.1rem; }
+
+/* ====================================
+   RESPONSIVE - TABLET Y MÓVIL
+   ==================================== */
+@media (max-width: 991.98px) {
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+        /* Añadir padding top para el botón hamburguesa */
+        padding-top: 60px;
+    }
+    
+    .content-wrapper {
+        padding: 0.75rem;
+    }
+    
+    .top-navbar {
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .welcome-text {
+        font-size: 1rem;
+    }
+    
+    .page-header {
+        padding: 0.75rem;
+    }
+    
+    .page-header h1 { font-size: 1.25rem; }
+    .page-header h2 { font-size: 1.15rem; }
+    .page-header h3 { font-size: 1.05rem; }
+    .page-header h4 { font-size: 1rem; }
+}
+
+/* ====================================
+   RESPONSIVE - MÓVIL PEQUEÑO
+   ==================================== */
+@media (max-width: 575.98px) {
+    .content-wrapper {
+        padding: 0.5rem;
+    }
+    
+    .top-navbar {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .user-info {
+        justify-content: center;
+    }
+    
+    .page-header {
+        padding: 0.6rem;
+    }
+    
+    .page-header h1 { font-size: 1.1rem; }
+    .page-header h2 { font-size: 1rem; }
+}
+
+/* ====================================
+   ESTADO: SIDEBAR ACTIVO EN MÓVIL
+   ==================================== */
+/* Cuando el sidebar está abierto, el contenido puede necesitar ajustes */
+body.sidebar-open {
+    overflow: hidden; /* Prevenir scroll del body cuando sidebar está abierto */
+}
+
+@media (max-width: 991.98px) {
+    body.sidebar-open .main-content {
+        /* El contenido se mantiene igual, el overlay cubre todo */
+    }
+}

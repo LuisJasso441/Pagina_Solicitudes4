@@ -124,90 +124,28 @@ function obtener_texto_prioridad($prioridad) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
 </head>
 <body>
     
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
-                <h4><?php echo htmlspecialchars($departamento); ?></h4>
-                <small class="text-white-50"><?php echo htmlspecialchars($nombre_usuario); ?></small>
-                <span class="badge bg-info mt-2">Colaborativo</span>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php"
-                            <i class="bi bi-house-door"></i> Inicio
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
-                            <i class="bi bi-plus-circle"></i> Nueva Solicitud
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/crear_mantenimiento.php">
-                            <i class="bi bi-tools"></i> Solicitar Mantenimiento
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                            <i class="bi bi-list-ul"></i> Mis Solicitudes
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/listar_mantenimientos.php">
-                            <i class="bi bi-wrench"></i> Mis Mantenimientos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                            <i class="bi bi-search"></i> Buscar
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>
-                    
-                    <!-- Documentos Colaborativos SSC -->
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php"
-                            <i class="bi bi-file-earmark-text"></i> Documentos SSC
-                        </a>
-                    </li>
-
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
-                    
-                    <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
-                    <li class="nav-item">
-                        <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
-                        href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php"
-                            <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
-                        </a>
-                    </li>
-
-                    
-                    <hr class="text-white-50 my-3">
-                    <li class="nav-item">
-                        <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+        <?php 
+        if (es_usuario_ti()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
+        } elseif (es_usuario_colaborativo()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
+        } else {
+            include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
+        }
+        ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
@@ -216,15 +154,15 @@ function obtener_texto_prioridad($prioridad) {
                 <!-- Header -->
                 <div class="top-navbar d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="welcome-text">SOLICITUDES PARA SISTEMAS de Atención</h2>
+                        <h2 class="welcome-text">Mis Solicitudes</h2>
                         <p class="text-muted mb-0">
-                            <i class="bi bi-person-circle"></i> 
-                            <?php echo htmlspecialchars($nombre_usuario); ?>
+                            <i class="bi bi-folder"></i> 
+                            Solicitudes de atención a TI/Sistemas
                         </p>
                     </div>
                     <div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                        <a href="#" class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
+                            <i class="bi bi-plus-circle"></i> Nueva Solicitud
                         </a>
                     </div>
                 </div>
@@ -339,39 +277,39 @@ function obtener_texto_prioridad($prioridad) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($solicitudes as $solicitud): ?>
+                                    <?php foreach ($solicitudes as $sol): ?>
                                     <tr>
                                         <td>
-                                            <strong><?php echo htmlspecialchars($solicitud['folio']); ?></strong>
+                                            <strong class="text-primary"><?php echo htmlspecialchars($sol['folio']); ?></strong>
                                         </td>
                                         <td>
-                                            <span class="badge bg-light text-dark">
-                                                <?php echo htmlspecialchars($solicitud['tipo_soporte']); ?>
+                                            <span class="badge <?php echo $sol['tipo_soporte'] == 'Apoyo' ? 'bg-info' : 'bg-warning'; ?>">
+                                                <?php echo htmlspecialchars($sol['tipo_soporte']); ?>
                                             </span>
                                         </td>
                                         <td>
                                             <?php 
-                                            $desc = htmlspecialchars($solicitud['descripcion']);
-                                            echo strlen($desc) > 60 ? substr($desc, 0, 60) . '...' : $desc;
+                                            $desc = htmlspecialchars($sol['descripcion']);
+                                            echo strlen($desc) > 50 ? substr($desc, 0, 50) . '...' : $desc;
                                             ?>
                                         </td>
                                         <td>
-                                            <span class="badge <?php echo obtener_badge_prioridad($solicitud['prioridad']); ?>">
-                                                <?php echo obtener_texto_prioridad($solicitud['prioridad']); ?>
+                                            <span class="badge <?php echo obtener_badge_prioridad($sol['prioridad']); ?>">
+                                                <?php echo obtener_texto_prioridad($sol['prioridad']); ?>
                                             </span>
                                         </td>
                                         <td>
-                                            <span class="badge <?php echo obtener_badge_estado($solicitud['estado']); ?>">
-                                                <?php echo obtener_texto_estado_custom($solicitud['estado']); ?>
+                                            <span class="badge <?php echo obtener_badge_estado($sol['estado']); ?>">
+                                                <?php echo obtener_texto_estado_custom($sol['estado']); ?>
                                             </span>
                                         </td>
                                         <td>
-                                            <small><?php echo formatear_fecha($solicitud['fecha_creacion'], true); ?></small>
+                                            <small><?php echo date('d/m/Y H:i', strtotime($sol['fecha_creacion'])); ?></small>
                                         </td>
                                         <td>
-                                            <a href="<?php echo URL_BASE; ?>solicitudes/ver.php?folio=<?php echo urlencode($solicitud['folio']); ?>" 
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-eye"></i> Ver
+                                            <a href="<?php echo URL_BASE; ?>solicitudes/ver.php?folio=<?php echo urlencode($sol['folio']); ?>" 
+                                               class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                                                <i class="bi bi-eye"></i>
                                             </a>
                                         </td>
                                     </tr>
@@ -395,28 +333,28 @@ function obtener_texto_prioridad($prioridad) {
     </button>
 
     <!-- Modal de Nueva Solicitud -->
-    <?php include __DIR__ . '/modal_crear.php'; ?>
+    <?php include __DIR__ . '/../includes/modal_nueva_solicitud.php'; ?>
 
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
     <script>
         // Modo oscuro
         const themeToggle = document.getElementById('themeToggle');
-        const bodyElement = document.body;
-        const currentTheme = localStorage.getItem('theme') || 'light';
-        bodyElement.setAttribute('data-theme', currentTheme);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
         
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = bodyElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            themeToggle.classList.add('rotating');
-            setTimeout(() => {
-                themeToggle.classList.remove('rotating');
-            }, 500);
-            bodyElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.body.setAttribute('data-theme', 'dark');
+        }
+        
+        themeToggle?.addEventListener('click', () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
         });
     </script>
-
 </body>
 </html>

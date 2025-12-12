@@ -71,9 +71,17 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Estilos personalizados -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     
     <style>
         .documento-card {
@@ -182,12 +190,12 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label">Fecha Desde</label>
+                            <label class="form-label">Fecha desde</label>
                             <input type="date" name="fecha_desde" class="form-control" value="<?= htmlspecialchars($filtro_fecha_desde) ?>">
                         </div>
                         
                         <div class="col-md-3">
-                            <label class="form-label">Fecha Hasta</label>
+                            <label class="form-label">Fecha hasta</label>
                             <input type="date" name="fecha_hasta" class="form-control" value="<?= htmlspecialchars($filtro_fecha_hasta) ?>">
                         </div>
                         
@@ -195,7 +203,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                             <button type="submit" class="btn btn-primary me-2">
                                 <i class="bi bi-search"></i> Filtrar
                             </button>
-                            <a href="?ubicacion=<?= htmlspecialchars($filtro_ubicacion) ?>" class="btn btn-outline-secondary">
+                            <a href="?ubicacion=<?= $filtro_ubicacion ?>" class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle"></i> Limpiar
                             </a>
                         </div>
@@ -203,67 +211,67 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                 </div>
             </div>
             
-            <!-- Lista de Documentos -->
+            <!-- Lista de documentos -->
             <div class="row">
                 <?php if (empty($documentos)): ?>
                     <div class="col-12">
-                        <div class="alert alert-info small">
-                            <i class="bi bi-info-circle"></i>
-                            No hay documentos para mostrar con los filtros seleccionados.
+                        <div class="alert alert-info text-center">
+                            <i class="bi bi-info-circle fs-4"></i>
+                            <p class="mb-0 mt-2">No hay documentos que mostrar</p>
                         </div>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($documentos as $doc): ?>
-                        <?php
-                        $prioridad_class = 'prioridad-' . $doc['prioridad'];
-                        $estado_badge = [
-                            'borrador' => 'secondary',
-                            'enviado' => 'info',
-                            'en_seguimiento' => 'warning',
-                            'completado' => 'success'
-                        ];
-                        $badge_color = $estado_badge[$doc['estado']] ?? 'secondary';
-
+                    <?php foreach ($documentos as $doc): 
                         // Obtener número de comentarios
                         $num_comentarios = contar_comentarios_documento($doc['id']);
-                        ?>
-
-                        <div class="col-md-4 col-lg-3 mb-3">
-                            <div class="card documento-card <?= $prioridad_class ?> h-100">
-                                <div class="card-body p-3">
-                                    <!-- Folio y Estado -->
+                        
+                        // Determinar clase de prioridad
+                        $prioridad_class = '';
+                        if ($doc['prioridad'] == 'alta') {
+                            $prioridad_class = 'prioridad-alta';
+                        } elseif ($doc['prioridad'] == 'media') {
+                            $prioridad_class = 'prioridad-media';
+                        } else {
+                            $prioridad_class = 'prioridad-baja';
+                        }
+                        
+                        // Badge de estado
+                        $estado_badges = [
+                            'borrador' => 'bg-secondary',
+                            'enviado' => 'bg-primary',
+                            'en_seguimiento' => 'bg-warning text-dark',
+                            'completado' => 'bg-success'
+                        ];
+                        $badge_class = $estado_badges[$doc['estado']] ?? 'bg-secondary';
+                    ?>
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card documento-card <?= $prioridad_class ?>">
+                                <div class="card-body">
+                                    <!-- Header: Folio y Estado -->
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <span class="folio-badge text-primary">
                                             <?= htmlspecialchars($doc['folio']) ?>
                                         </span>
-                                        <span class="badge bg-<?= $badge_color ?> badge-estado">
+                                        <span class="badge badge-estado <?= $badge_class ?>">
                                             <?= ucfirst(str_replace('_', ' ', $doc['estado'])) ?>
                                         </span>
                                     </div>
 
-                                    <!-- Prioridad -->
-                                    <div class="mb-1">
-                                        <span class="badge bg-<?= $doc['prioridad'] == 'alta' ? 'danger' : ($doc['prioridad'] == 'media' ? 'warning' : 'success') ?>">
-                                            <?= strtoupper($doc['prioridad']) ?>
-                                        </span>
-                                    </div>
+                                    <!-- Cliente -->
+                                    <h6 class="card-title mb-1">
+                                        <?= htmlspecialchars($doc['nombre_cliente'] ?? 'Sin cliente') ?>
+                                    </h6>
 
-                                    <!-- Información principal -->
-                                    <h6 class="card-title mb-1 small"><?= htmlspecialchars($doc['solicitado_por']) ?></h6>
-                                    <p class="card-text text-muted small mb-1">
-                                        <i class="bi bi-building"></i>
-                                        <?= htmlspecialchars($doc['area_proceso_solicitante']) ?>
-                                    </p>
-
-                                    <!-- Servicio -->
-                                    <p class="card-text small mb-1">
-                                        <strong>Servicio:</strong>
+                                    <!-- Departamento y Servicio -->
+                                    <p class="card-text small text-muted mb-2">
+                                        <i class="bi bi-building"></i> <?= htmlspecialchars($doc['departamento_creador']) ?><br>
+                                        <i class="bi bi-gear"></i> 
                                         <?php
                                         $servicios = [
                                             'tratamiento_agua' => 'Tratamiento de agua',
                                             'revision_productos' => 'Revisión de productos químicos',
                                             'calibracion_equipos' => 'Calibración y/o verificación de equipos',
-                                            'otro' => $doc['servicio_otro_especificar'] ?? 'Otro'
+                                            'otro' => 'Otro'
                                         ];
                                         echo htmlspecialchars($servicios[$doc['servicio_solicitado']] ?? 'N/A');
                                         ?>
@@ -310,6 +318,10 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
     
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+    
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
 </body>
 </html>

@@ -8,7 +8,23 @@ $current_page = basename($_SERVER['PHP_SELF']);
 require_once __DIR__ . '/../../config/database.php';
 ?>
 
-<aside class="sidebar">
+<!-- Botón Hamburguesa para Sidebar Responsive -->
+<button class="hamburger-btn" 
+        type="button" 
+        aria-label="Abrir menú de navegación"
+        aria-expanded="false"
+        aria-controls="sidebar">
+    <span class="hamburger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+    </span>
+</button>
+
+<!-- Overlay para cerrar sidebar en móvil -->
+<div class="sidebar-overlay" aria-hidden="true"></div>
+
+<aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-tools text-white fs-1 mb-2"></i>
         <h4>Mantenimiento</h4>

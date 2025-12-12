@@ -1,0 +1,138 @@
+/**
+ * Variables CSS Globales
+ * Portal de Solicitudes TI - GrupoVerden
+ * 
+ * Este archivo contiene todas las variables CSS personalizadas
+ * para mantener consistencia en todo el sistema.
+ */
+
+:root {
+    /* ====================================
+       COLORES PRINCIPALES
+       ==================================== */
+    --color-primary: #4158d0;
+    --color-secondary: #c850c0;
+    --color-success: #198754;
+    --color-warning: #ffc107;
+    --color-danger: #dc3545;
+    --color-info: #0dcaf0;
+    
+    /* Colores de la marca */
+    --color-brand-dark: #07492E;
+    --color-brand-light: #0E6847;
+    --color-brand-hover-dark: #1B3321;
+    --color-brand-hover-light: #04CF85;
+    
+    /* Gradientes */
+    --gradient-primary: linear-gradient(-135deg, #07492E, #0E6847);
+    --gradient-primary-hover: linear-gradient(-135deg, #1B3321, #04CF85);
+    --gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-green: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+    
+    /* ====================================
+       COLORES DE FONDO
+       ==================================== */
+    --bg-body: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-sidebar: var(--gradient-primary);
+    --bg-overlay: rgba(0, 0, 0, 0.5);
+    
+    /* ====================================
+       COLORES DE TEXTO
+       ==================================== */
+    --text-primary: #333333;
+    --text-secondary: #6c757d;
+    --text-muted: #adb5bd;
+    --text-white: #ffffff;
+    --text-dark: #212529;
+    
+    /* ====================================
+       BORDES
+       ==================================== */
+    --border-color: #dee2e6;
+    --border-color-light: #e9ecef;
+    --border-radius-sm: 4px;
+    --border-radius: 8px;
+    --border-radius-lg: 10px;
+    --border-radius-xl: 15px;
+    --border-radius-pill: 50px;
+    
+    /* ====================================
+       SOMBRAS
+       ==================================== */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+    --shadow-sidebar: 2px 0 10px rgba(0, 0, 0, 0.1);
+    
+    /* ====================================
+       DIMENSIONES DEL SIDEBAR
+       ==================================== */
+    --sidebar-width: 220px;
+    --sidebar-width-collapsed: 0px;
+    --navbar-height: 50px;
+    
+    /* ====================================
+       BREAKPOINTS (para referencia)
+       ==================================== */
+    /* 
+     * Los breakpoints se usan en media queries:
+     * --bp-xs: 0        (móviles pequeños)
+     * --bp-sm: 576px    (móviles grandes)
+     * --bp-md: 768px    (tablets)
+     * --bp-lg: 992px    (laptops)
+     * --bp-xl: 1200px   (desktops)
+     * --bp-xxl: 1400px  (pantallas grandes)
+     */
+    
+    /* ====================================
+       TRANSICIONES
+       ==================================== */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    
+    /* ====================================
+       Z-INDEX
+       ==================================== */
+    --z-dropdown: 100;
+    --z-sticky: 500;
+    --z-sidebar: 1000;
+    --z-overlay: 1040;
+    --z-modal: 1050;
+    --z-hamburger: 1060;
+    --z-toast: 1100;
+    
+    /* ====================================
+       TIPOGRAFÍA
+       ==================================== */
+    --font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-size-xs: 0.65rem;
+    --font-size-sm: 0.75rem;
+    --font-size-base: 0.875rem;
+    --font-size-md: 0.85rem;
+    --font-size-lg: 1rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    
+    /* ====================================
+       ESPACIADO
+       ==================================== */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+}
+
+/* ====================================
+   MODO OSCURO (preparado para futuro)
+   ==================================== */
+[data-theme="dark"] {
+    --bg-body: #1a1a1a;
+    --bg-card: #2d2d2d;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --border-color: #404040;
+}

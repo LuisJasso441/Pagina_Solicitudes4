@@ -3,7 +3,7 @@
  * Formulario del documento colaborativo
  * Muestra Apartado 1 y Apartado 2 con controles de edición según permisos
  * Variables disponibles: $documento, $permisos, $servicio_texto
- * ⭐ CORREGIDO - Archivos adjuntos antes de los botones
+ * ⭐ ACTUALIZADO - Fecha/Hora recibido arriba de Resumen + Fecha/Hora entrega al final
  */
 
 // Función auxiliar para verificar si es imagen (solo si no existe)
@@ -284,17 +284,7 @@ if (!function_exists('obtener_icono_ssc')) {
                            <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
                 </div>
                 
-                <!-- Resumen de resultados -->
-                <div class="col-12 mb-3">
-                    <label class="form-label fw-bold">Resumen de resultados:</label>
-                    <textarea class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
-                              name="resumen_resultados" 
-                              rows="6" 
-                              placeholder="Describa los resultados obtenidos, análisis realizados y conclusiones..."
-                              <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>><?= htmlspecialchars($documento['resumen_resultados'] ?? '') ?></textarea>
-                </div>
-                
-                <!-- Fecha de recibido -->
+                <!-- ⭐ Fecha de recibido (MOVIDO ARRIBA) -->
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">Fecha de recibido:</label>
                     <input type="date" 
@@ -304,7 +294,7 @@ if (!function_exists('obtener_icono_ssc')) {
                            <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
                 </div>
                 
-                <!-- Hora de recibido -->
+                <!-- ⭐ Hora de recibido (MOVIDO ARRIBA) -->
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">Hora de recibido:</label>
                     <input type="time" 
@@ -312,6 +302,16 @@ if (!function_exists('obtener_icono_ssc')) {
                            name="hora_recibido" 
                            value="<?= $documento['hora_recibido'] ?? '' ?>"
                            <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
+                </div>
+                
+                <!-- Resumen de resultados (AHORA DESPUÉS DE FECHA/HORA RECIBIDO) -->
+                <div class="col-12 mb-3">
+                    <label class="form-label fw-bold">Resumen de resultados:</label>
+                    <textarea class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                              name="resumen_resultados" 
+                              rows="6" 
+                              placeholder="Describa los resultados obtenidos, análisis realizados y conclusiones..."
+                              <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>><?= htmlspecialchars($documento['resumen_resultados'] ?? '') ?></textarea>
                 </div>
                 
                 <!-- Campo para subir archivos (solo Laboratorio) -->
@@ -330,6 +330,26 @@ if (!function_exists('obtener_icono_ssc')) {
                     </small>
                 </div>
                 <?php endif; ?>
+                
+                <!-- ⭐ NUEVO: Fecha de entrega -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Fecha de entrega:</label>
+                    <input type="date" 
+                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                           name="fecha_entrega" 
+                           value="<?= $documento['fecha_entrega'] ?? '' ?>"
+                           <?= !$permisos['apartado2'] ? 'readonly' : '' ?>>
+                </div>
+                
+                <!-- ⭐ NUEVO: Hora de entrega -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Hora de entrega:</label>
+                    <input type="time" 
+                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                           name="hora_entrega" 
+                           value="<?= $documento['hora_entrega'] ?? '' ?>"
+                           <?= !$permisos['apartado2'] ? 'readonly' : '' ?>>
+                </div>
             </div>
         </form>
         

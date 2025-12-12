@@ -93,6 +93,13 @@ try {
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
     
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    
     <!-- Sistema de notificaciones -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
 </head>
@@ -101,98 +108,7 @@ try {
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <i class="bi bi-laptop text-white fs-1 mb-2"></i>
-                <h4>TI / Sistemas</h4>
-                <small class="text-white-50"><?php echo htmlspecialchars($nombre_usuario); ?></small>
-                <span class="badge bg-danger mt-2">Administrador</span>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="<?php echo URL_BASE; ?>dashboard/ti_sistemas.php">
-                            <i class="bi bi-house-door"></i> Inicio
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">GESTIÓN DE SOLICITUDES</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php">
-                            <i class="bi bi-folder"></i> Todas las Solicitudes
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/pendientes.php">
-                            <i class="bi bi-clock-history"></i> Pendientes
-                            <?php if ($stats['pendientes'] > 0): ?>
-                            <span class="badge bg-warning text-dark ms-2"><?php echo $stats['pendientes']; ?></span>
-                            <?php endif; ?>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/en_proceso.php">
-                            <i class="bi bi-gear"></i> En Proceso
-                            <?php if ($stats['en_proceso'] > 0): ?>
-                            <span class="badge bg-info text-dark ms-2"><?php echo $stats['en_proceso']; ?></span>
-                            <?php endif; ?>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/finalizadas.php">
-                            <i class="bi bi-check-circle"></i> Finalizadas
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">INVENTARIO</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/inventario.php">
-                            <i class="bi bi-pc-display"></i> Equipos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/mantenimientos.php">
-                            <i class="bi bi-tools"></i> Mantenimientos
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio_mantenimiento.php">
-                            <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">HERRAMIENTAS</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                            <i class="bi bi-search"></i> Buscar
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>ti_sistemas/reportes.php">
-                            <i class="bi bi-graph-up"></i> Reportes
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-3">
-                    <li class="nav-item">
-                        <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+        <?php include __DIR__ . '/../../includes/sidebar/sidebar_ti.php'; ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
@@ -208,22 +124,18 @@ try {
                         </p>
                     </div>
                     <div class="user-info">
-                        <!-- Notificaciones - DESHABILITADO (manteniendo SSE activo) -->
-                        <?php // include __DIR__ . '/../includes/notificaciones_ui.php'; ?>
-                        
                         <span class="user-badge">
-                            <i class="bi bi-laptop"></i>
+                            <i class="bi bi-shield-check"></i>
                             TI / Sistemas
                         </span>
                     </div>
                 </div>
 
-                <!-- Alertas -->
                 <?php echo mostrar_alerta(); ?>
 
-                <!-- Estadísticas Globales -->
-                <div class="row mb-4 fade-in">
-                    <div class="col-md-2 mb-3">
+                <!-- Tarjetas de estadísticas -->
+                <div class="row">
+                    <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
                                 <div class="icon-box icon-box-warning mx-auto mb-3">
@@ -235,7 +147,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="col-md-2 mb-3">
+                    <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
                                 <div class="icon-box icon-box-info mx-auto mb-3">
@@ -247,7 +159,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="col-md-2 mb-3">
+                    <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
                                 <div class="icon-box icon-box-success mx-auto mb-3">
@@ -262,7 +174,7 @@ try {
                     <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
-                                <div class="icon-box mx-auto mb-3" style="background: #fee; color: #dc3545;">
+                                <div class="icon-box mx-auto mb-3" style="background-color: #f8d7da; color: #dc3545;">
                                     <i class="bi bi-exclamation-triangle"></i>
                                 </div>
                                 <h2 class="stats-number"><?php echo $stats['criticas']; ?></h2>
@@ -270,102 +182,42 @@ try {
                             </div>
                         </div>
                     </div>
-
-                    <div class="col-md-3 mb-3">
-                        <div class="card card-custom card-stats">
-                            <div class="card-body">
-                                <div class="icon-box mx-auto mb-3" style="background: #e0f2fe; color: #0ea5e9;">
-                                    <i class="bi bi-check2-all"></i>
-                                </div>
-                                <h2 class="stats-number"><?php echo $finalizadas_hoy; ?></h2>
-                                <p class="stats-label">Hoy</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Acciones rápidas -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="card card-custom">
-                            <div class="card-header">
-                                <i class="bi bi-lightning-charge"></i> Accesos Rápidos
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex flex-wrap gap-3">
-                                    <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php" class="btn btn-gradient">
-                                        <i class="bi bi-folder"></i> Ver Todas las Solicitudes
-                                    </a>
-                                    <a href="<?php echo URL_BASE; ?>ti_sistemas/pendientes.php" class="btn btn-outline-warning">
-                                        <i class="bi bi-clock-history"></i> Atender Pendientes
-                                    </a>
-                                    <a href="<?php echo URL_BASE; ?>ti_sistemas/inventario.php" class="btn btn-outline-info">
-                                        <i class="bi bi-pc-display"></i> Inventario de Equipos
-                                    </a>
-                                    <a href="<?php echo URL_BASE; ?>solicitudes/buscar.php" class="btn btn-outline-secondary">
-                                        <i class="bi bi-search"></i> Buscar
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Dos columnas: Pendientes y Mis asignadas -->
+                <!-- Panel Principal -->
                 <div class="row">
-                    
                     <!-- Solicitudes Pendientes -->
-                    <div class="col-lg-7 mb-4">
+                    <div class="col-lg-6 mb-4">
                         <div class="card card-custom">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <span><i class="bi bi-exclamation-circle"></i> Solicitudes Pendientes</span>
+                                <span><i class="bi bi-clock-history"></i> Solicitudes Pendientes</span>
                                 <a href="<?php echo URL_BASE; ?>ti_sistemas/pendientes.php" class="btn btn-sm btn-light">
-                                    Ver todas <i class="bi bi-arrow-right"></i>
+                                    Ver todas
                                 </a>
                             </div>
-                            <div class="card-body p-0">
+                            <div class="card-body">
                                 <?php if (empty($pendientes)): ?>
-                                <div class="text-center py-5">
-                                    <i class="bi bi-check-circle fs-1 text-success"></i>
-                                    <p class="text-muted mt-3 mb-0">¡No hay solicitudes pendientes!</p>
-                                </div>
+                                <p class="text-muted text-center mb-0">No hay solicitudes pendientes</p>
                                 <?php else: ?>
                                 <div class="list-group list-group-flush">
                                     <?php foreach ($pendientes as $sol): ?>
                                     <a href="<?php echo URL_BASE; ?>solicitudes/ver.php?folio=<?php echo urlencode($sol['folio']); ?>" 
                                        class="list-group-item list-group-item-action">
-                                        <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex justify-content-between align-items-center">
                                             <div class="flex-grow-1">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <strong class="me-2"><?php echo htmlspecialchars($sol['folio']); ?></strong>
-                                                    <span class="badge <?php 
-                                                        if ($sol['prioridad'] == 'critica') echo 'bg-danger';
-                                                        elseif ($sol['prioridad'] == 'alta') echo 'bg-warning text-dark';
-                                                        elseif ($sol['prioridad'] == 'media') echo 'bg-info text-dark';
-                                                        else echo 'bg-secondary';
-                                                    ?>">
-                                                        <?php echo ucfirst($sol['prioridad']); ?>
-                                                    </span>
-                                                </div>
-                                                <p class="mb-1">
-                                                    <i class="bi bi-person"></i> 
-                                                    <?php echo htmlspecialchars($sol['solicitante_nombre']); ?>
-                                                    <span class="text-muted">- <?php echo htmlspecialchars($sol['departamento']); ?></span>
+                                                <strong><?php echo htmlspecialchars($sol['folio']); ?></strong>
+                                                <p class="mb-0 small text-muted">
+                                                    <?php echo htmlspecialchars($sol['solicitante_nombre']); ?> - 
+                                                    <?php echo htmlspecialchars($sol['departamento']); ?>
                                                 </p>
-                                                <p class="mb-1 small text-muted">
-                                                    <?php 
-                                                    $desc = htmlspecialchars($sol['descripcion']);
-                                                    echo strlen($desc) > 80 ? substr($desc, 0, 80) . '...' : $desc;
-                                                    ?>
-                                                </p>
-                                                <small class="text-muted">
-                                                    <i class="bi bi-clock"></i> 
-                                                    <?php echo formatear_fecha($sol['fecha_creacion'], true); ?>
-                                                </small>
                                             </div>
-                                            <div>
-                                                <i class="bi bi-chevron-right"></i>
-                                            </div>
+                                            <span class="badge bg-<?php 
+                                                echo $sol['prioridad'] == 'critica' ? 'danger' : 
+                                                    ($sol['prioridad'] == 'alta' ? 'warning' : 
+                                                    ($sol['prioridad'] == 'media' ? 'info' : 'secondary')); 
+                                            ?>">
+                                                <?php echo ucfirst($sol['prioridad']); ?>
+                                            </span>
                                         </div>
                                     </a>
                                     <?php endforeach; ?>
@@ -375,19 +227,16 @@ try {
                         </div>
                     </div>
 
-                    <!-- SOLICITUDES PARA SISTEMAS asignadas -->
-                    <div class="col-lg-5 mb-4">
+                    <!-- Mis Asignadas -->
+                    <div class="col-lg-6 mb-4">
                         <div class="card card-custom">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <span><i class="bi bi-person-check"></i> Mis Asignadas</span>
-                                <span class="badge bg-info text-dark"><?php echo count($mis_asignadas); ?></span>
+                                <span class="badge bg-info"><?php echo count($mis_asignadas); ?> en proceso</span>
                             </div>
-                            <div class="card-body p-0">
+                            <div class="card-body">
                                 <?php if (empty($mis_asignadas)): ?>
-                                <div class="text-center py-5">
-                                    <i class="bi bi-inbox fs-1 text-muted"></i>
-                                    <p class="text-muted mt-3 mb-0">No tienes solicitudes asignadas</p>
-                                </div>
+                                <p class="text-muted text-center mb-0">No tienes solicitudes asignadas</p>
                                 <?php else: ?>
                                 <div class="list-group list-group-flush">
                                     <?php foreach ($mis_asignadas as $sol): ?>
@@ -424,9 +273,12 @@ try {
     </button>
 
     <!-- Modal de Nueva Solicitud -->
-    <?php include __DIR__ . '/../solicitudes/modal_crear.php'; ?>
+    <?php include __DIR__ . '/../../solicitudes/modal_crear.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
     <script>
         // Modo oscuro

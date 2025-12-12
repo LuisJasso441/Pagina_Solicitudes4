@@ -26,7 +26,23 @@ $stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
 $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 ?>
 
-<aside class="sidebar">
+<!-- Botón Hamburguesa para Sidebar Responsive -->
+<button class="hamburger-btn" 
+        type="button" 
+        aria-label="Abrir menú de navegación"
+        aria-expanded="false"
+        aria-controls="sidebar">
+    <span class="hamburger-icon">
+        <span></span>
+        <span></span>
+        <span></span>
+    </span>
+</button>
+
+<!-- Overlay para cerrar sidebar en móvil -->
+<div class="sidebar-overlay" aria-hidden="true"></div>
+
+<aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-building text-white fs-1 mb-2"></i>
         <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
@@ -78,7 +94,6 @@ $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total']
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
             
-            <!-- ⭐ NUEVA SECCIÓN INDEPENDIENTE AGREGADA -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">

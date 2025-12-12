@@ -7,6 +7,9 @@
 // Obtener página actual para marcar como activa
 $current_page = basename($_SERVER['PHP_SELF']);
 
+// Obtener filtro de estado actual (para marcar links activos)
+$filtro_estado_actual = $_GET['estado'] ?? '';
+
 // Determinar si está en sección de órdenes de servicio
 $en_mis_ordenes = in_array($current_page, [
     'mis_ordenes_servicio.php',
@@ -44,7 +47,17 @@ try {
 }
 ?>
 
-<aside class="sidebar">
+<!-- Botón Hamburguesa para móvil -->
+<button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<!-- Overlay para cerrar sidebar en móvil -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-laptop text-white fs-1 mb-2"></i>
         <h4>TI / Sistemas</h4>
@@ -65,14 +78,14 @@ try {
             <small class="text-white-50 px-3 fw-bold">GESTIÓN DE SOLICITUDES</small>
             
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'todas_solicitudes.php' ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && empty($filtro_estado_actual)) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php">
                     <i class="bi bi-folder"></i> Todas las Solicitudes
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'pendientes.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/pendientes.php">
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'pendiente') ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=pendiente">
                     <i class="bi bi-clock-history"></i> Pendientes
                     <?php if ($stats_sidebar['pendientes'] > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $stats_sidebar['pendientes']; ?></span>
@@ -80,8 +93,8 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'en_proceso.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/en_proceso.php">
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'en_proceso') ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=en_proceso">
                     <i class="bi bi-gear"></i> En Proceso
                     <?php if ($stats_sidebar['en_proceso'] > 0): ?>
                     <span class="badge bg-info text-dark ms-2"><?php echo $stats_sidebar['en_proceso']; ?></span>
@@ -89,8 +102,8 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'finalizadas.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/finalizadas.php">
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'finalizada') ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=finalizada">
                     <i class="bi bi-check-circle"></i> Finalizadas
                 </a>
             </li>
@@ -114,7 +127,6 @@ try {
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
             
-            <!-- ⭐ NUEVA SECCIÓN INDEPENDIENTE AGREGADA -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">

@@ -1,0 +1,151 @@
+/**
+ * Hamburger Button Component
+ * Portal de Solicitudes TI - GrupoVerden
+ * 
+ * Botón de menú hamburguesa para toggle del sidebar en móvil.
+ * Incluye animación de transformación a X cuando está activo.
+ */
+
+/* ====================================
+   HAMBURGER - CONTENEDOR
+   ==================================== */
+.hamburger-btn {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: var(--z-hamburger);
+    width: 45px;
+    height: 45px;
+    padding: 0;
+    display: none; /* Oculto por defecto en desktop */
+    align-items: center;
+    justify-content: center;
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    transition: all var(--transition-normal);
+}
+
+.hamburger-btn:hover {
+    background: var(--gradient-primary-hover);
+    transform: scale(1.05);
+    box-shadow: var(--shadow-lg);
+}
+
+.hamburger-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(7, 73, 46, 0.3);
+}
+
+/* ====================================
+   HAMBURGER - LÍNEAS
+   ==================================== */
+.hamburger-icon {
+    position: relative;
+    width: 22px;
+    height: 16px;
+}
+
+.hamburger-icon span {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: var(--text-white);
+    border-radius: 2px;
+    transition: all var(--transition-normal);
+}
+
+.hamburger-icon span:nth-child(1) {
+    top: 0;
+}
+
+.hamburger-icon span:nth-child(2) {
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.hamburger-icon span:nth-child(3) {
+    bottom: 0;
+}
+
+/* ====================================
+   HAMBURGER - ESTADO ACTIVO (X)
+   ==================================== */
+.hamburger-btn.active .hamburger-icon span:nth-child(1) {
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.hamburger-btn.active .hamburger-icon span:nth-child(2) {
+    opacity: 0;
+    transform: translateX(-10px);
+}
+
+.hamburger-btn.active .hamburger-icon span:nth-child(3) {
+    bottom: 50%;
+    transform: translateY(50%) rotate(-45deg);
+}
+
+/* ====================================
+   HAMBURGER - RESPONSIVE
+   ==================================== */
+
+/* Mostrar en tablet y móvil */
+@media (max-width: 991.98px) {
+    .hamburger-btn {
+        display: flex;
+    }
+}
+
+/* Ajustes para móvil pequeño */
+@media (max-width: 575.98px) {
+    .hamburger-btn {
+        top: 10px;
+        left: 10px;
+        width: 40px;
+        height: 40px;
+    }
+    
+    .hamburger-icon {
+        width: 20px;
+        height: 14px;
+    }
+}
+
+/* ====================================
+   HAMBURGER - VARIANTES DE COLOR
+   ==================================== */
+
+/* Variante clara (para fondos oscuros) */
+.hamburger-btn.hamburger-light {
+    background: var(--text-white);
+}
+
+.hamburger-btn.hamburger-light .hamburger-icon span {
+    background-color: var(--color-brand-dark);
+}
+
+.hamburger-btn.hamburger-light:hover {
+    background: #f8f9fa;
+}
+
+/* Variante outline */
+.hamburger-btn.hamburger-outline {
+    background: transparent;
+    border: 2px solid var(--color-brand-dark);
+}
+
+.hamburger-btn.hamburger-outline .hamburger-icon span {
+    background-color: var(--color-brand-dark);
+}
+
+.hamburger-btn.hamburger-outline:hover {
+    background: var(--color-brand-dark);
+}
+
+.hamburger-btn.hamburger-outline:hover .hamburger-icon span {
+    background-color: var(--text-white);
+}

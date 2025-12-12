@@ -82,6 +82,13 @@ try {
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
     
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    
     <!-- Sistema de notificaciones -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
 </head>
@@ -89,8 +96,8 @@ try {
     
     <div class="dashboard-container">
         
-        <!-- SIDEBAR - ⭐ AHORA INCLUYE sidebar_normal.php -->
-        <?php include __DIR__ . '/../includes/sidebar_normal.php'; ?>
+        <!-- SIDEBAR -->
+        <?php include __DIR__ . '/../includes/sidebar/sidebar_normal.php'; ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
@@ -106,9 +113,6 @@ try {
                         </p>
                     </div>
                     <div class="user-info">
-                        <!-- Notificaciones - DESHABILITADO (manteniendo SSE activo) -->
-                        <?php // include __DIR__ . '/../includes/notificaciones_ui.php'; ?>
-                        
                         <span class="user-badge">
                             <i class="bi bi-building"></i>
                             <?php echo htmlspecialchars($departamento); ?>
@@ -159,8 +163,8 @@ try {
                     <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
-                                <div class="icon-box mx-auto mb-3" style="background: #e0e7ff; color: #6366f1;">
-                                    <i class="bi bi-file-earmark-text"></i>
+                                <div class="icon-box mx-auto mb-3" style="background-color: #e3e6f0; color: #6c757d;">
+                                    <i class="bi bi-folder"></i>
                                 </div>
                                 <h2 class="stats-number"><?php echo $stats['total']; ?></h2>
                                 <p class="stats-label">Total</p>
@@ -169,7 +173,7 @@ try {
                     </div>
                 </div>
 
-                <!-- Acciones rápidas -->
+                <!-- Acciones Rápidas -->
                 <div class="row mb-4">
                     <div class="col-12">
                         <div class="card card-custom">
@@ -189,6 +193,59 @@ try {
                         </div>
                     </div>
                 </div>
+
+                <!-- Solicitudes recientes -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card card-custom">
+                            <div class="card-header">
+                                <i class="bi bi-clock-history"></i> Solicitudes Recientes
+                            </div>
+                            <div class="card-body">
+                                <?php if (empty($solicitudes_recientes)): ?>
+                                <p class="text-muted text-center mb-0">No tienes solicitudes aún</p>
+                                <?php else: ?>
+                                <div class="table-responsive-custom">
+                                    <table class="table table-custom">
+                                        <thead>
+                                            <tr>
+                                                <th>Folio</th>
+                                                <th>Descripción</th>
+                                                <th>Fecha</th>
+                                                <th>Estado</th>
+                                                <th>Prioridad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($solicitudes_recientes as $sol): ?>
+                                            <tr>
+                                                <td><strong><?php echo htmlspecialchars($sol['folio']); ?></strong></td>
+                                                <td><?php echo htmlspecialchars(mb_substr($sol['descripcion'], 0, 50)); ?>...</td>
+                                                <td><?php echo date('d/m/Y', strtotime($sol['fecha_creacion'])); ?></td>
+                                                <td>
+                                                    <span class="badge badge-<?php echo $sol['estado']; ?>">
+                                                        <?php echo ucfirst(str_replace('_', ' ', $sol['estado'])); ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-<?php 
+                                                        echo $sol['prioridad'] == 'critica' ? 'danger' : 
+                                                            ($sol['prioridad'] == 'alta' ? 'warning' : 
+                                                            ($sol['prioridad'] == 'media' ? 'info' : 'secondary')); 
+                                                    ?>">
+                                                        <?php echo ucfirst($sol['prioridad']); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
 
@@ -204,6 +261,9 @@ try {
     <?php include __DIR__ . '/../solicitudes/modal_crear.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Sidebar Toggle JS -->
+    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
     <script>
         // Modo oscuro

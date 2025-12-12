@@ -2,7 +2,7 @@
 /**
  * Procesar actualización del Apartado 2
  * Solo usuarios de Laboratorio
- * ⭐ CORREGIDO - Ruta de archivos corregida
+ * ⭐ ACTUALIZADO - Incluye fecha_entrega y hora_entrega
  */
 
 // Deshabilitar output de errores PHP para que no rompa el JSON
@@ -94,17 +94,17 @@ try {
         exit;
     }
 
-    // Validar formato de fecha
+    // Validar formato de fecha recibido
     $fecha_recibido = $_POST['fecha_recibido'];
     $hora_recibido = $_POST['hora_recibido'];
 
     if (!strtotime($fecha_recibido)) {
-        echo json_encode(['success' => false, 'message' => 'Formato de fecha no válido']);
+        echo json_encode(['success' => false, 'message' => 'Formato de fecha de recibido no válido']);
         exit;
     }
 
     if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora_recibido)) {
-        echo json_encode(['success' => false, 'message' => 'Formato de hora no válido (HH:MM)']);
+        echo json_encode(['success' => false, 'message' => 'Formato de hora de recibido no válido (HH:MM)']);
         exit;
     }
 
@@ -114,6 +114,26 @@ try {
     if ($timestamp_fecha < $hace_un_ano) {
         echo json_encode(['success' => false, 'message' => 'La fecha de recibido no puede ser anterior a hace un año']);
         exit;
+    }
+
+    // ⭐ VALIDAR FECHA Y HORA DE ENTREGA (OPCIONALES)
+    $fecha_entrega = null;
+    $hora_entrega = null;
+    
+    if (!empty($_POST['fecha_entrega'])) {
+        if (!strtotime($_POST['fecha_entrega'])) {
+            echo json_encode(['success' => false, 'message' => 'Formato de fecha de entrega no válido']);
+            exit;
+        }
+        $fecha_entrega = $_POST['fecha_entrega'];
+    }
+    
+    if (!empty($_POST['hora_entrega'])) {
+        if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $_POST['hora_entrega'])) {
+            echo json_encode(['success' => false, 'message' => 'Formato de hora de entrega no válido (HH:MM)']);
+            exit;
+        }
+        $hora_entrega = $_POST['hora_entrega'];
     }
 
     // ===== MANEJO DE ARCHIVOS =====
@@ -167,13 +187,15 @@ try {
         }
     }
 
-    // Preparar datos
+    // ⭐ PREPARAR DATOS - Incluye fecha_entrega y hora_entrega
     $datos = [
         'recibe_solicitud' => trim($_POST['recibe_solicitud']),
         'resumen_resultados' => trim($_POST['resumen_resultados']),
         'fecha_recibido' => $fecha_recibido,
         'hora_recibido' => $hora_recibido,
-        'archivos_apartado2' => !empty($archivos_guardados) ? json_encode($archivos_guardados) : null
+        'archivos_apartado2' => !empty($archivos_guardados) ? json_encode($archivos_guardados) : null,
+        'fecha_entrega' => $fecha_entrega,
+        'hora_entrega' => $hora_entrega
     ];
 
     // Log de la operación
