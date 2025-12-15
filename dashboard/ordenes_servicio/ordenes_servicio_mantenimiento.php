@@ -3,6 +3,9 @@
  * Dashboard de Mantenimiento - Órdenes de Servicio
  * Con tabs: Base Local (Activas) / Base Global (Finalizadas)
  * Similar al sistema SSC Colaborativo
+ * 
+ * ACTUALIZADO: Botones de descarga movidos fuera de filtros
+ *              Nuevo botón para descargar por rango de fechas
  */
 
 session_start();
@@ -191,73 +194,39 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             margin-bottom: 0.75rem;
         }
         .card-header { 
-            padding: 0.4rem 0.75rem; 
+            padding: 0.5rem 0.75rem; 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            font-weight: 600;
-            font-size: 0.85rem;
-            border: none;
-        }
-        .card-body { 
-            padding: 0.75rem; 
-        }
-        
-        /* TABS */
-        .nav-tabs {
-            border-bottom: 2px solid #dee2e6;
-            margin-bottom: 1rem;
-        }
-        .nav-tabs .nav-link {
-            border: none;
-            border-bottom: 3px solid transparent;
-            color: #6c757d;
-            font-weight: 500;
-            padding: 0.75rem 1.5rem;
-            transition: all 0.2s;
-        }
-        .nav-tabs .nav-link:hover {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-        .nav-tabs .nav-link.active {
-            color: #667eea;
-            background: transparent;
-            border-bottom-color: #667eea;
+            font-size: 0.8rem;
             font-weight: 600;
         }
+        .card-body { padding: 0.75rem; }
         
-        /* Estadísticas compactas */
+        /* Stats grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 0.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
         .stat-card {
             background: white;
-            border-radius: 8px;
             padding: 0.75rem;
-            border-left: 3px solid #667eea;
-            transition: all 0.2s;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
         }
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        .stat-card.pendientes { border-left-color: #f39c12; }
-        .stat-card.proceso { border-left-color: #3498db; }
-        .stat-card.validar { border-left-color: #9b59b6; }
-        .stat-card.devueltas { border-left-color: #e74c3c; }
-        .stat-card.completadas { border-left-color: #27ae60; }
-        
+        .stat-card.pendientes { border-left: 3px solid #f39c12; }
+        .stat-card.proceso { border-left: 3px solid #3498db; }
+        .stat-card.validar { border-left: 3px solid #9b59b6; }
+        .stat-card.devueltas { border-left: 3px solid #e74c3c; }
+        .stat-card.completadas { border-left: 3px solid #27ae60; }
         .stat-number {
-            font-size: 1.75rem;
+            font-size: 1.3rem;
             font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 0.25rem;
+            color: #495057;
         }
         .stat-label {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             color: #7f8c8d;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -325,10 +294,48 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             margin: 0;
             color: #495057;
         }
+        
+        /* Formularios compactos */
+        .form-label { 
+            margin-bottom: 0.2rem; 
+            font-size: 0.7rem; 
+            font-weight: 600;
+            color: #5a5c69;
+        }
+        .form-control, .form-select { 
+            padding: 0.3rem 0.5rem; 
+            font-size: 0.8rem;
+        }
+        
+        /* Tabs */
+        .nav-tabs .nav-link {
+            font-size: 0.8rem;
+            padding: 0.5rem 1rem;
+        }
+        .nav-tabs .nav-link.active {
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        
+        /* Botones de descarga */
+        .btn-descarga-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .btn-descarga-container .btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
     </style>
 </head>
 <body>
     <div class="dashboard-container">
+        
         <!-- Sidebar -->
         <?php 
         if ($es_mantenimiento) {
@@ -392,23 +399,13 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                 <!-- Estadísticas -->
                 <?php if ($filtro_base === 'local'): ?>
                 <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="stat-number"><?php echo $stats['total']; ?></div>
-                                <div class="stat-label">Total Activas</div>
-                            </div>
-                            <i class="bi bi-card-list stat-icon"></i>
-                        </div>
-                    </div>
-                    
                     <div class="stat-card pendientes">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <div class="stat-number"><?php echo $stats['pendientes']; ?></div>
                                 <div class="stat-label">Pendientes</div>
                             </div>
-                            <i class="bi bi-hourglass-split stat-icon"></i>
+                            <i class="bi bi-clock stat-icon"></i>
                         </div>
                     </div>
                     
@@ -426,7 +423,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <div class="stat-number"><?php echo $stats['pendiente_usuario']; ?></div>
-                                <div class="stat-label">Por Validar</div>
+                                <div class="stat-label">A Validar</div>
                             </div>
                             <i class="bi bi-person-check stat-icon"></i>
                         </div>
@@ -478,21 +475,6 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                             </div>
                             <?php endif; ?>
                             
-                            <?php if (!$es_mantenimiento && !empty($empleados)): ?>
-                            <div class="col-md-2">
-                                <label class="form-label" style="font-size: 0.7rem;">Empleado</label>
-                                <select name="empleado" class="form-select form-select-sm">
-                                    <option value="">Todos</option>
-                                    <?php foreach ($empleados as $empleado): ?>
-                                        <option value="<?php echo htmlspecialchars($empleado); ?>" 
-                                                <?php echo $filtros['empleado'] == $empleado ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($empleado); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <?php endif; ?>
-                            
                             <div class="col-md-2">
                                 <label class="form-label" style="font-size: 0.7rem;">Empresa</label>
                                 <select name="empresa" class="form-select form-select-sm">
@@ -530,18 +512,21 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                     <i class="bi bi-search"></i> Filtrar
                                 </button>
                             </div>
-                            
-                            <?php if ($es_mantenimiento): ?>
-                            <!-- Botón Descargar Registros (EXCLUSIVO Mantenimiento) -->
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="button" class="btn btn-success btn-sm w-100" onclick="descargarExcel()">
-                                    <i class="bi bi-file-earmark-excel"></i> Descargar registros
-                                </button>
-                            </div>
-                            <?php endif; ?>
                         </form>
                     </div>
                 </div>
+                
+                <!-- BOTONES DE DESCARGA (EXCLUSIVO Mantenimiento) - FUERA DE FILTROS -->
+                <?php if ($es_mantenimiento): ?>
+                <div class="btn-descarga-container">
+                    <button type="button" class="btn btn-success btn-sm" onclick="descargarExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Descargar registros (Mes actual)
+                    </button>
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalDescargarRango">
+                        <i class="bi bi-calendar-range"></i> Descargar registros (Rango de fechas)
+                    </button>
+                </div>
+                <?php endif; ?>
                 
                 <!-- Tabla de órdenes -->
                 <div class="card">
@@ -592,33 +577,55 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                         <?php foreach ($ordenes as $orden): 
                                             $apartado1 = json_decode($orden['apartado1_data'], true);
                                             $unidad_equipo = $apartado1['unidad_equipo'] ?? '-';
+                                            
+                                            // Calcular duración para finalizadas
+                                            $dias_duracion = '';
+                                            if ($filtro_base === 'global' && !empty($orden['fecha_completado']) && !empty($orden['fecha_creacion'])) {
+                                                $fecha_inicio = new DateTime($orden['fecha_creacion']);
+                                                $fecha_fin = new DateTime($orden['fecha_completado']);
+                                                $diferencia = $fecha_inicio->diff($fecha_fin);
+                                                $dias_duracion = $diferencia->days;
+                                            }
                                         ?>
                                             <tr class="orden-card <?php 
                                                 if ($filtro_base === 'local') {
-                                                    echo $orden['estado'] == 'pendiente_mantenimiento' ? 'pendiente' : 
-                                                        ($orden['estado'] == 'en_proceso' ? 'proceso' : 
-                                                        ($orden['estado'] == 'pendiente_usuario' ? 'validar' : 
-                                                        ($orden['estado'] == 'devuelto' ? 'devuelta' : '')));
+                                                    switch($orden['estado']) {
+                                                        case 'pendiente_mantenimiento': echo 'pendiente'; break;
+                                                        case 'en_proceso': echo 'proceso'; break;
+                                                        case 'pendiente_usuario': echo 'validar'; break;
+                                                        case 'devuelto': echo 'devuelta'; break;
+                                                    }
                                                 } else {
                                                     echo 'completada';
                                                 }
                                             ?>" onclick="window.location='ver_orden_servicio.php?id=<?php echo $orden['id']; ?>'">
                                                 
                                                 <?php if ($filtro_base === 'local'): ?>
-                                                <td>
-                                                    <?php
-                                                    $estado_badges = [
-                                                        'pendiente_mantenimiento' => ['bg-warning text-dark', 'Pendiente'],
-                                                        'en_proceso' => ['bg-info text-dark', 'En Proceso'],
-                                                        'pendiente_usuario' => ['bg-purple text-white', 'Por Validar'],
-                                                        'devuelto' => ['bg-danger', 'Devuelto']
-                                                    ];
-                                                    $badge = $estado_badges[$orden['estado']] ?? ['bg-secondary', 'Desconocido'];
-                                                    ?>
-                                                    <span class="badge <?php echo $badge[0]; ?>" style="<?php echo $orden['estado'] == 'pendiente_usuario' ? 'background-color: #9b59b6;' : ''; ?>">
-                                                        <?php echo $badge[1]; ?>
-                                                    </span>
-                                                </td>
+                                                    <td>
+                                                        <?php 
+                                                        $badge_class = 'bg-secondary';
+                                                        $estado_texto = $orden['estado'];
+                                                        switch($orden['estado']) {
+                                                            case 'pendiente_mantenimiento':
+                                                                $badge_class = 'bg-warning text-dark';
+                                                                $estado_texto = 'Pendiente';
+                                                                break;
+                                                            case 'en_proceso':
+                                                                $badge_class = 'bg-info';
+                                                                $estado_texto = 'En Proceso';
+                                                                break;
+                                                            case 'pendiente_usuario':
+                                                                $badge_class = 'bg-primary';
+                                                                $estado_texto = 'A Validar';
+                                                                break;
+                                                            case 'devuelto':
+                                                                $badge_class = 'bg-danger';
+                                                                $estado_texto = 'Devuelta';
+                                                                break;
+                                                        }
+                                                        ?>
+                                                        <span class="badge <?php echo $badge_class; ?>"><?php echo $estado_texto; ?></span>
+                                                    </td>
                                                 <?php endif; ?>
                                                 
                                                 <td><strong><?php echo htmlspecialchars($orden['folio']); ?></strong></td>
@@ -627,36 +634,36 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                                 <td><small><?php echo htmlspecialchars($orden['empresa'] ?? '-'); ?></small></td>
                                                 <td><small><?php echo htmlspecialchars($unidad_equipo); ?></small></td>
                                                 <td>
-                                                    <small><?php echo date('d/m/Y', strtotime($orden['fecha_creacion'])); ?></small>
+                                                    <small class="text-muted">
+                                                        <?php echo date('d/m/Y', strtotime($orden['fecha_creacion'])); ?>
+                                                    </small>
                                                 </td>
                                                 
                                                 <?php if ($filtro_base === 'local'): ?>
-                                                <td>
-                                                    <?php 
-                                                    $dias = $orden['dias_desde_creacion'];
-                                                    $color = $dias > 7 ? 'danger' : ($dias > 3 ? 'warning' : 'success');
-                                                    ?>
-                                                    <span class="badge bg-<?php echo $color; ?>" style="font-size: 0.65rem;">
-                                                        <?php echo $dias; ?> día(s)
-                                                    </span>
-                                                </td>
+                                                    <td>
+                                                        <?php 
+                                                        $dias = $orden['dias_desde_creacion'];
+                                                        $badge_dias = 'bg-secondary';
+                                                        if ($dias > 7) $badge_dias = 'bg-danger';
+                                                        elseif ($dias > 3) $badge_dias = 'bg-warning text-dark';
+                                                        elseif ($dias > 1) $badge_dias = 'bg-info';
+                                                        ?>
+                                                        <span class="badge <?php echo $badge_dias; ?>">
+                                                            <?php echo $dias; ?> día(s)
+                                                        </span>
+                                                    </td>
                                                 <?php else: ?>
-                                                <td>
-                                                    <small class="text-success">
-                                                        <i class="bi bi-check-circle"></i>
-                                                        <?php echo date('d/m/Y', strtotime($orden['fecha_completado'])); ?>
-                                                    </small>
-                                                </td>
-                                                <td>
-                                                    <?php
-                                                    $fecha_inicio = strtotime($orden['fecha_creacion']);
-                                                    $fecha_fin = strtotime($orden['fecha_completado']);
-                                                    $dias_duracion = ceil(($fecha_fin - $fecha_inicio) / (60 * 60 * 24));
-                                                    ?>
-                                                    <span class="badge bg-secondary" style="font-size: 0.65rem;">
-                                                        <?php echo $dias_duracion; ?> día(s)
-                                                    </span>
-                                                </td>
+                                                    <td>
+                                                        <small class="text-success">
+                                                            <i class="bi bi-check-circle"></i>
+                                                            <?php echo date('d/m/Y', strtotime($orden['fecha_completado'])); ?>
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-secondary">
+                                                            <?php echo $dias_duracion; ?> día(s)
+                                                        </span>
+                                                    </td>
                                                 <?php endif; ?>
                                                 
                                                 <td>
@@ -709,6 +716,53 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             </div>
         </div>
     </div>
+    
+    <!-- Modal para Descargar por Rango de Fechas -->
+    <div class="modal fade" id="modalDescargarRango" tabindex="-1" aria-labelledby="modalDescargarRangoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="modalDescargarRangoLabel">
+                        <i class="bi bi-calendar-range"></i> Descargar por Rango de Fechas
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-4">
+                        Seleccione el rango de fechas para descargar las órdenes de servicio. 
+                        Se filtrarán por <strong>fecha de entrada</strong>.
+                    </p>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="rango_fecha_desde" class="form-label">
+                                <i class="bi bi-calendar-event"></i> Fecha Desde *
+                            </label>
+                            <input type="date" class="form-control" id="rango_fecha_desde" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="rango_fecha_hasta" class="form-label">
+                                <i class="bi bi-calendar-event"></i> Fecha Hasta *
+                            </label>
+                            <input type="date" class="form-control" id="rango_fecha_hasta" required>
+                        </div>
+                    </div>
+                    
+                    <div id="errorRangoFechas" class="alert alert-danger mt-3 d-none">
+                        <i class="bi bi-exclamation-triangle"></i> <span id="errorRangoTexto"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="descargarExcelRango()">
+                        <i class="bi bi-download"></i> Descargar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     <?php endif; ?>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -728,7 +782,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
         <?php endif; ?>
 
         <?php if ($es_mantenimiento): ?>
-        // Función para descargar Excel con modal de procesamiento
+        // Función para descargar Excel del mes actual
         function descargarExcel() {
             // Mostrar modal de procesamiento
             const modal = new bootstrap.Modal(document.getElementById('modalProcesandoDescarga'));
@@ -740,14 +794,61 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             iframe.src = '<?php echo URL_BASE; ?>ordenes_servicio/descargar_ordenes_excel.php';
             document.body.appendChild(iframe);
             
-            // Cerrar modal después de un tiempo prudente (la descarga debería haber iniciado)
+            // Cerrar modal después de un tiempo prudente
             setTimeout(function() {
                 modal.hide();
-                // Limpiar el iframe después de cerrar el modal
                 setTimeout(function() {
                     document.body.removeChild(iframe);
                 }, 1000);
-            }, 3000); // 3 segundos para dar tiempo a que inicie la descarga
+            }, 3000);
+        }
+        
+        // Función para descargar Excel por rango de fechas
+        function descargarExcelRango() {
+            const fechaDesde = document.getElementById('rango_fecha_desde').value;
+            const fechaHasta = document.getElementById('rango_fecha_hasta').value;
+            const errorDiv = document.getElementById('errorRangoFechas');
+            const errorTexto = document.getElementById('errorRangoTexto');
+            
+            // Ocultar error previo
+            errorDiv.classList.add('d-none');
+            
+            // Validar campos obligatorios
+            if (!fechaDesde || !fechaHasta) {
+                errorTexto.textContent = 'Ambas fechas son obligatorias.';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+            
+            // Validar que fecha desde no sea mayor que fecha hasta
+            if (fechaDesde > fechaHasta) {
+                errorTexto.textContent = 'La fecha "Desde" no puede ser mayor que la fecha "Hasta".';
+                errorDiv.classList.remove('d-none');
+                return;
+            }
+            
+            // Cerrar modal de rango
+            const modalRango = bootstrap.Modal.getInstance(document.getElementById('modalDescargarRango'));
+            modalRango.hide();
+            
+            // Mostrar modal de procesamiento
+            const modalProcesando = new bootstrap.Modal(document.getElementById('modalProcesandoDescarga'));
+            modalProcesando.show();
+            
+            // Crear un iframe oculto para la descarga con parámetros
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = '<?php echo URL_BASE; ?>ordenes_servicio/descargar_ordenes_excel_rango.php?fecha_desde=' + 
+                         encodeURIComponent(fechaDesde) + '&fecha_hasta=' + encodeURIComponent(fechaHasta);
+            document.body.appendChild(iframe);
+            
+            // Cerrar modal después de un tiempo prudente
+            setTimeout(function() {
+                modalProcesando.hide();
+                setTimeout(function() {
+                    document.body.removeChild(iframe);
+                }, 1000);
+            }, 3000);
         }
         <?php endif; ?>
     </script>

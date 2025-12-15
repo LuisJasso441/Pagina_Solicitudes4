@@ -146,7 +146,7 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                         
                         <?php if ($puede_crear): ?>
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoDocumento">
-                            <i class="bi bi-plus-circle"></i> Nuevo Documento
+                            <i class="bi bi-plus-circle"></i> Nueva Solicitud de Servicio
                         </button>
                         <?php endif; ?>
                     </div>

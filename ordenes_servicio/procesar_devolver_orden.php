@@ -4,6 +4,9 @@
  * Usuario devuelve la orden a Mantenimiento para que corrijan algo
  * 
  * NOTIFICACIÓN: Devolver orden → Mantenimiento
+ * 
+ * ACTUALIZADO: Ahora requiere motivo de devolución obligatorio
+ *              El motivo se guarda en apartado1_data y se sobrescribe en cada devolución
  */
 
 session_start();
@@ -46,6 +49,15 @@ if (!$orden_id) {
     exit;
 }
 
+// Validar que el motivo no esté vacío
+if (empty(trim($motivo_devolucion))) {
+    echo json_encode([
+        'success' => false,
+        'error' => 'El motivo de devolución es obligatorio'
+    ]);
+    exit;
+}
+
 try {
     $pdo = conectarDB();
     
@@ -68,20 +80,27 @@ try {
     
     $pdo->beginTransaction();
     
-    // Preparar datos adicionales si hay motivo
-    $datos_devolucion = [];
-    if ($motivo_devolucion) {
-        $datos_devolucion = [
-            'motivo_devolucion' => trim($motivo_devolucion),
-            'fecha_devolucion' => date('Y-m-d H:i:s'),
-            'devuelto_por' => $_SESSION['nombre_completo']
-        ];
-    }
+    // Preparar datos adicionales del motivo
+    $datos_devolucion = [
+        'motivo_devolucion' => trim($motivo_devolucion),
+        'fecha_devolucion' => date('Y-m-d H:i:s'),
+        'devuelto_por' => $_SESSION['nombre_completo']
+    ];
     
-    // Actualizar orden - cambiar estado a devuelto
+    // ========================================
+    // GUARDAR MOTIVO EN APARTADO 1
+    // Se sobrescribe el motivo anterior si existía
+    // ========================================
+    $apartado1 = $orden['apartado1'] ?? [];
+    $apartado1['motivo_devolucion'] = trim($motivo_devolucion);
+    $apartado1['fecha_devolucion'] = date('Y-m-d H:i:s');
+    $apartado1['devuelto_por'] = $_SESSION['nombre_completo'];
+    
+    // Actualizar orden - cambiar estado a devuelto Y actualizar apartado1
     $stmt = $pdo->prepare("
         UPDATE ordenes_servicio_mantenimiento 
         SET estado = 'devuelto',
+            apartado1_data = :apartado1_data,
             fecha_ultima_modificacion = NOW(),
             usuario_ultima_modificacion_id = :usuario_id,
             usuario_ultima_modificacion_nombre = :usuario_nombre
@@ -89,12 +108,13 @@ try {
     ");
     
     $stmt->execute([
+        ':apartado1_data' => json_encode($apartado1, JSON_UNESCAPED_UNICODE),
         ':usuario_id' => $_SESSION['usuario_id'],
         ':usuario_nombre' => $_SESSION['nombre_completo'],
         ':orden_id' => $orden_id
     ]);
     
-    // Si hay motivo, guardarlo en apartado3 temporal
+    // Si hay motivo, guardarlo también en apartado3 para historial
     if (!empty($datos_devolucion)) {
         $apartado3 = $orden['apartado3'] ?? [];
         $apartado3['historial_devoluciones'] = $apartado3['historial_devoluciones'] ?? [];
@@ -134,7 +154,7 @@ try {
         $stmt_notif->execute([
             'orden_devuelta',
             '🔄 Orden Devuelta',
-            "{$_SESSION['nombre_completo']} ha devuelto la orden {$orden['folio']}",
+            "{$_SESSION['nombre_completo']} ha devuelto la orden {$orden['folio']}: " . substr($motivo_devolucion, 0, 50) . (strlen($motivo_devolucion) > 50 ? '...' : ''),
             $usuario_mant_id,
             $datos_json
         ]);
@@ -142,7 +162,7 @@ try {
     
     $pdo->commit();
     
-    error_log("Usuario devolvió orden para corrección - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario: {$_SESSION['nombre_completo']}");
+    error_log("Usuario devolvió orden para corrección - Orden ID: {$orden_id}, Folio: {$orden['folio']}, Usuario: {$_SESSION['nombre_completo']}, Motivo: {$motivo_devolucion}");
     
     echo json_encode([
         'success' => true,

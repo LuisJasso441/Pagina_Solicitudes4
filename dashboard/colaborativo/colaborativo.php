@@ -181,7 +181,7 @@ try {
                                     <a href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php" class="btn btn-success">
                                         <i class="bi bi-file-earmark-text"></i> Documentos SSC
                                     </a>
-                                    <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php" class="btn btn-info">
+                                    <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php" class="btn btn-success">
                                         <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                                     </a>
                                 </div>
