@@ -3,6 +3,7 @@
  * Sistema de Documentos Colaborativos
  * Funciones para gestión de documentos SSC
  * VERSIÓN ACTUALIZADA - Incluye: fecha_entrega + hora_entrega en Apartado 2
+ * ✅ CORREGIDO - Filtro de cliente implementado en listar_documentos()
  */
 
 require_once __DIR__ . '/../../config/database.php';
@@ -184,6 +185,116 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
     } catch (Exception $e) {
         error_log("Error al crear documento colaborativo: " . $e->getMessage());
         return ['success' => false, 'message' => 'Error del sistema: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Obtener documento por ID
+ */
+function obtener_documento($documento_id) {
+    try {
+        $pdo = conectarDB();
+        $stmt = $pdo->prepare("SELECT * FROM documentos_colaborativos WHERE id = ?");
+        $stmt->execute([$documento_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("Error al obtener documento: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Listar documentos con filtros
+ * ✅ CORREGIDO - Ahora incluye filtro por cliente (nombre_cliente)
+ */
+function listar_documentos($filtros = [], $usuario_id = null, $departamento = null) {
+    try {
+        $pdo = conectarDB();
+        
+        $where = [];
+        $params = [];
+        
+        // Filtro por ubicación (local/global)
+        if (isset($filtros['ubicacion'])) {
+            $where[] = "ubicacion = ?";
+            $params[] = $filtros['ubicacion'];
+        }
+        
+        // Filtro por departamento creador
+        if (isset($filtros['departamento'])) {
+            $where[] = "departamento_creador = ?";
+            $params[] = $filtros['departamento'];
+        }
+        
+        // Filtro por estado
+        if (isset($filtros['estado'])) {
+            $where[] = "estado = ?";
+            $params[] = $filtros['estado'];
+        }
+        
+        // Filtro por rango de fechas
+        if (isset($filtros['fecha_desde'])) {
+            $where[] = "fecha_solicitud >= ?";
+            $params[] = $filtros['fecha_desde'];
+        }
+        
+        if (isset($filtros['fecha_hasta'])) {
+            $where[] = "fecha_solicitud <= ?";
+            $params[] = $filtros['fecha_hasta'];
+        }
+        
+        // ✅ NUEVO: Filtro por cliente (nombre_cliente)
+        if (isset($filtros['cliente']) && !empty($filtros['cliente'])) {
+            $where[] = "nombre_cliente = ?";
+            $params[] = $filtros['cliente'];
+        }
+        
+        // Filtro por usuario específico
+        if (isset($filtros['usuario_id'])) {
+            $where[] = "(usuario_creador_id = ? OR usuario_seguimiento_id = ?)";
+            $params[] = $filtros['usuario_id'];
+            $params[] = $filtros['usuario_id'];
+        }
+        
+        $sql = "SELECT * FROM documentos_colaborativos";
+        
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+        
+        $sql .= " ORDER BY fecha_creacion DESC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (Exception $e) {
+        error_log("Error al listar documentos: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Registrar en historial
+ */
+function registrar_historial_documento($doc_id, $folio, $user_id, $user_nombre, $dept, $accion, $estado_ant, $estado_nuevo, $detalles) {
+    try {
+        $pdo = conectarDB();
+        $stmt = $pdo->prepare("
+            INSERT INTO documentos_historial 
+            (documento_id, folio_documento, usuario_id, usuario_nombre, departamento, 
+             accion, estado_anterior, estado_nuevo, detalles, fecha_hora)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        
+        return $stmt->execute([
+            $doc_id, $folio, $user_id, $user_nombre, $dept,
+            $accion, $estado_ant, $estado_nuevo, $detalles
+        ]);
+    } catch (Exception $e) {
+        error_log("Error al registrar historial: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -424,109 +535,6 @@ function completar_documento($documento_id, $usuario_id) {
     } catch (Exception $e) {
         error_log("Error al completar documento: " . $e->getMessage());
         return ['success' => false, 'message' => 'Error del sistema'];
-    }
-}
-
-/**
- * Obtener documento por ID
- */
-function obtener_documento($documento_id) {
-    try {
-        $pdo = conectarDB();
-        $stmt = $pdo->prepare("SELECT * FROM documentos_colaborativos WHERE id = ?");
-        $stmt->execute([$documento_id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
-        error_log("Error al obtener documento: " . $e->getMessage());
-        return null;
-    }
-}
-
-/**
- * Listar documentos con filtros
- */
-function listar_documentos($filtros = [], $usuario_id = null, $departamento = null) {
-    try {
-        $pdo = conectarDB();
-        
-        $where = [];
-        $params = [];
-        
-        // Filtro por ubicación (local/global)
-        if (isset($filtros['ubicacion'])) {
-            $where[] = "ubicacion = ?";
-            $params[] = $filtros['ubicacion'];
-        }
-        
-        // Filtro por departamento creador
-        if (isset($filtros['departamento'])) {
-            $where[] = "departamento_creador = ?";
-            $params[] = $filtros['departamento'];
-        }
-        
-        // Filtro por estado
-        if (isset($filtros['estado'])) {
-            $where[] = "estado = ?";
-            $params[] = $filtros['estado'];
-        }
-        
-        // Filtro por rango de fechas
-        if (isset($filtros['fecha_desde'])) {
-            $where[] = "fecha_solicitud >= ?";
-            $params[] = $filtros['fecha_desde'];
-        }
-        
-        if (isset($filtros['fecha_hasta'])) {
-            $where[] = "fecha_solicitud <= ?";
-            $params[] = $filtros['fecha_hasta'];
-        }
-        
-        // Filtro por usuario específico
-        if (isset($filtros['usuario_id'])) {
-            $where[] = "(usuario_creador_id = ? OR usuario_seguimiento_id = ?)";
-            $params[] = $filtros['usuario_id'];
-            $params[] = $filtros['usuario_id'];
-        }
-        
-        $sql = "SELECT * FROM documentos_colaborativos";
-        
-        if (!empty($where)) {
-            $sql .= " WHERE " . implode(" AND ", $where);
-        }
-        
-        $sql .= " ORDER BY fecha_creacion DESC";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-    } catch (Exception $e) {
-        error_log("Error al listar documentos: " . $e->getMessage());
-        return [];
-    }
-}
-
-/**
- * Registrar en historial
- */
-function registrar_historial_documento($doc_id, $folio, $user_id, $user_nombre, $dept, $accion, $estado_ant, $estado_nuevo, $detalles) {
-    try {
-        $pdo = conectarDB();
-        $stmt = $pdo->prepare("
-            INSERT INTO documentos_historial 
-            (documento_id, folio_documento, usuario_id, usuario_nombre, departamento, 
-             accion, estado_anterior, estado_nuevo, detalles, fecha_hora)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        
-        return $stmt->execute([
-            $doc_id, $folio, $user_id, $user_nombre, $dept,
-            $accion, $estado_ant, $estado_nuevo, $detalles
-        ]);
-    } catch (Exception $e) {
-        error_log("Error al registrar historial: " . $e->getMessage());
-        return false;
     }
 }
 

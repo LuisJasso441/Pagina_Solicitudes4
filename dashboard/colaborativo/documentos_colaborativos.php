@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../auth/verificar_sesion.php';
 require_once __DIR__ . '/../../includes/colaborativo/documentos_colaborativos.php';
 require_once __DIR__ . '/../../includes/colaborativo/documentos_comentarios.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Verificar autenticación
 if (!isset($_SESSION['usuario_id'])) {
@@ -35,6 +36,8 @@ $es_laboratorio = $dept_lower == 'laboratorio';
 // Obtener filtros
 $filtro_ubicacion = $_GET['ubicacion'] ?? 'local';
 $filtro_estado = $_GET['estado'] ?? '';
+$filtro_cliente = $_GET['cliente'] ?? '';
+$filtro_departamento = $_GET['departamento'] ?? '';
 $filtro_fecha_desde = $_GET['fecha_desde'] ?? '';
 $filtro_fecha_hasta = $_GET['fecha_hasta'] ?? '';
 
@@ -43,6 +46,14 @@ $filtros = ['ubicacion' => $filtro_ubicacion];
 
 if (!empty($filtro_estado)) {
     $filtros['estado'] = $filtro_estado;
+}
+
+if (!empty($filtro_cliente)) {
+    $filtros['cliente'] = $filtro_cliente;
+}
+
+if (!empty($filtro_departamento) && $filtro_ubicacion == 'global') {
+    $filtros['departamento'] = $filtro_departamento;
 }
 
 if (!empty($filtro_fecha_desde)) {
@@ -60,6 +71,70 @@ if ($filtro_ubicacion == 'local' && !$es_laboratorio) {
 
 // Obtener documentos
 $documentos = listar_documentos($filtros, $usuario_id, $departamento);
+
+// ========================================
+// OBTENER CONTEOS PARA STAT-CARDS
+// ========================================
+try {
+    $pdo = conectarDB();
+    
+    if ($es_laboratorio) {
+        // Laboratorio: Solicitudes pendientes (enviadas a laboratorio, no completadas)
+        $sql_pendientes = "SELECT COUNT(*) FROM documentos_colaborativos 
+                          WHERE estado IN ('enviado', 'en_seguimiento') 
+                          AND ubicacion = 'local'";
+        $stmt = $pdo->query($sql_pendientes);
+        $count_pendientes = $stmt->fetchColumn();
+        
+        // Laboratorio: Solicitudes finalizadas (todas, de todos los departamentos)
+        $sql_finalizadas = "SELECT COUNT(*) FROM documentos_colaborativos 
+                           WHERE estado = 'completado'";
+        $stmt = $pdo->query($sql_finalizadas);
+        $count_finalizadas_global = $stmt->fetchColumn();
+    } else {
+        // Ventas/Normatividad: Solicitudes enviadas (del departamento del usuario)
+        $sql_enviadas = "SELECT COUNT(*) FROM documentos_colaborativos 
+                        WHERE estado = 'enviado' 
+                        AND ubicacion = 'local'
+                        AND departamento_creador = :departamento";
+        $stmt = $pdo->prepare($sql_enviadas);
+        $stmt->execute([':departamento' => $departamento]);
+        $count_enviadas = $stmt->fetchColumn();
+        
+        // Ventas/Normatividad: Solicitudes en seguimiento (del departamento del usuario)
+        $sql_seguimiento = "SELECT COUNT(*) FROM documentos_colaborativos 
+                           WHERE estado = 'en_seguimiento' 
+                           AND ubicacion = 'local'
+                           AND departamento_creador = :departamento";
+        $stmt = $pdo->prepare($sql_seguimiento);
+        $stmt->execute([':departamento' => $departamento]);
+        $count_seguimiento = $stmt->fetchColumn();
+        
+        // Ventas/Normatividad: Solicitudes finalizadas (SOLO del departamento del usuario)
+        $sql_finalizadas = "SELECT COUNT(*) FROM documentos_colaborativos 
+                           WHERE estado = 'completado'
+                           AND departamento_creador = :departamento";
+        $stmt = $pdo->prepare($sql_finalizadas);
+        $stmt->execute([':departamento' => $departamento]);
+        $count_finalizadas = $stmt->fetchColumn();
+    }
+    
+    // Obtener lista de clientes únicos para el filtro
+    $sql_clientes = "SELECT DISTINCT nombre_cliente FROM documentos_colaborativos 
+                    WHERE nombre_cliente IS NOT NULL AND nombre_cliente != '' 
+                    ORDER BY nombre_cliente";
+    $stmt = $pdo->query($sql_clientes);
+    $clientes_lista = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+} catch (Exception $e) {
+    error_log("Error al obtener conteos: " . $e->getMessage());
+    $count_enviadas = 0;
+    $count_seguimiento = 0;
+    $count_finalizadas = 0;
+    $count_pendientes = 0;
+    $count_finalizadas_global = 0;
+    $clientes_lista = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -125,6 +200,65 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
         .comentarios-count i {
             margin-right: 0.25rem;
         }
+        
+        /* Stat Cards */
+        .stat-card {
+            border-radius: 10px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+        }
+        
+        .stat-card .card-body {
+            padding: 1rem 1.25rem;
+        }
+        
+        .stat-card .stat-icon {
+            width: 45px;
+            height: 45px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+        
+        .stat-card .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+        
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+        
+        .stat-card.enviadas .stat-icon {
+            background: rgba(13, 110, 253, 0.15);
+            color: #0d6efd;
+        }
+        
+        .stat-card.seguimiento .stat-icon {
+            background: rgba(255, 193, 7, 0.15);
+            color: #ffc107;
+        }
+        
+        .stat-card.finalizadas .stat-icon {
+            background: rgba(25, 135, 84, 0.15);
+            color: #198754;
+        }
+        
+        .stat-card.pendientes .stat-icon {
+            background: rgba(220, 53, 69, 0.15);
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -172,12 +306,98 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                 </li>
             </ul>
             
+            <!-- ========================================
+                 STAT CARDS - Según ubicación seleccionada
+                 ======================================== -->
+            <?php if ($filtro_ubicacion == 'local'): ?>
+                <!-- STAT CARDS PARA BASE LOCAL -->
+                <?php if (!$es_laboratorio): ?>
+                <!-- Ventas/Normatividad en Base Local -->
+                <div class="row mb-3">
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card enviadas">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-send"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_enviadas ?></div>
+                                        <div class="stat-label">Solicitudes Enviadas</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card seguimiento">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-eye"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_seguimiento ?></div>
+                                        <div class="stat-label">En Seguimiento</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
+                <!-- Laboratorio en Base Local -->
+                <div class="row mb-3">
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card pendientes">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-hourglass-split"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_pendientes ?></div>
+                                        <div class="stat-label">Solicitudes Pendientes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+            <?php else: ?>
+                <!-- STAT CARDS PARA BASE GLOBAL -->
+                <div class="row mb-3">
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card finalizadas">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-check-circle"></i>
+                                    </div>
+                                    <div>
+                                        <?php if ($es_laboratorio): ?>
+                                        <div class="stat-number"><?= $count_finalizadas_global ?></div>
+                                        <?php else: ?>
+                                        <div class="stat-number"><?= $count_finalizadas ?></div>
+                                        <?php endif; ?>
+                                        <div class="stat-label">Solicitudes Finalizadas</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+            
             <!-- Filtros -->
             <div class="card mb-3">
                 <div class="card-body p-3">
                     <form method="GET" class="row g-3">
                         <input type="hidden" name="ubicacion" value="<?= htmlspecialchars($filtro_ubicacion) ?>">
                         
+                        <?php if ($filtro_ubicacion == 'local'): ?>
+                        <!-- FILTROS PARA BASE LOCAL -->
                         <div class="col-md-3">
                             <label class="form-label">Estado</label>
                             <select name="estado" class="form-select">
@@ -185,26 +405,71 @@ $documentos = listar_documentos($filtros, $usuario_id, $departamento);
                                 <option value="borrador" <?= $filtro_estado == 'borrador' ? 'selected' : '' ?>>Borrador</option>
                                 <option value="enviado" <?= $filtro_estado == 'enviado' ? 'selected' : '' ?>>Enviado</option>
                                 <option value="en_seguimiento" <?= $filtro_estado == 'en_seguimiento' ? 'selected' : '' ?>>En Seguimiento</option>
-                                <option value="completado" <?= $filtro_estado == 'completado' ? 'selected' : '' ?>>Completado</option>
                             </select>
                         </div>
                         
                         <div class="col-md-3">
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente" class="form-select">
+                                <option value="">Todos</option>
+                                <?php foreach ($clientes_lista as $cliente): ?>
+                                <option value="<?= htmlspecialchars($cliente) ?>" <?= $filtro_cliente == $cliente ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($cliente) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
                             <label class="form-label">Fecha desde</label>
                             <input type="date" name="fecha_desde" class="form-control" value="<?= htmlspecialchars($filtro_fecha_desde) ?>">
                         </div>
                         
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Fecha hasta</label>
                             <input type="date" name="fecha_hasta" class="form-control" value="<?= htmlspecialchars($filtro_fecha_hasta) ?>">
                         </div>
                         
-                        <div class="col-md-3 d-flex align-items-end">
+                        <?php else: ?>
+                        <!-- FILTROS PARA BASE GLOBAL -->
+                        <div class="col-md-3">
+                            <label class="form-label">Departamento</label>
+                            <select name="departamento" class="form-select">
+                                <option value="">Todos</option>
+                                <option value="Ventas" <?= $filtro_departamento == 'Ventas' ? 'selected' : '' ?>>Ventas</option>
+                                <option value="Normatividad" <?= $filtro_departamento == 'Normatividad' ? 'selected' : '' ?>>Normatividad</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente" class="form-select">
+                                <option value="">Todos</option>
+                                <?php foreach ($clientes_lista as $cliente): ?>
+                                <option value="<?= htmlspecialchars($cliente) ?>" <?= $filtro_cliente == $cliente ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($cliente) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Fecha desde</label>
+                            <input type="date" name="fecha_desde" class="form-control" value="<?= htmlspecialchars($filtro_fecha_desde) ?>">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">Fecha hasta</label>
+                            <input type="date" name="fecha_hasta" class="form-control" value="<?= htmlspecialchars($filtro_fecha_hasta) ?>">
+                        </div>
+                        <?php endif; ?>
+                        
+                        <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary me-2">
                                 <i class="bi bi-search"></i> Filtrar
                             </button>
                             <a href="?ubicacion=<?= $filtro_ubicacion ?>" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle"></i> Limpiar
+                                <i class="bi bi-x-circle"></i>
                             </a>
                         </div>
                     </form>

@@ -242,25 +242,20 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             
             <!-- Info cards compactas -->
             <div class="row mb-3">
-                <div class="col-md-4">
+                <!-- Información del documento -->
+                <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
-                            <h6 class="card-subtitle text-muted">Estado</h6>
-                            <span class="badge bg-<?= $documento['estado'] == 'completado' ? 'success' : ($documento['estado'] == 'en_seguimiento' ? 'warning' : 'primary') ?>">
-                                <?= ucfirst(str_replace('_', ' ', $documento['estado'])) ?>
-                            </span>
+                            <h6 class="card-subtitle text-muted">Información del documento</h6>
+                            <p><strong>Folio:</strong> <?= htmlspecialchars($documento['folio']) ?></p>
+                            <p><strong>Creado por:</strong> <?= htmlspecialchars($documento['departamento_creador']) ?></p>
+                            <p><strong>Fecha:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_creacion'])) ?></p>
+                            <p class="mb-0"><strong>Actualizado:</strong> <?= date('d/m/Y H:i', strtotime($documento['fecha_ultima_edicion'])) ?></p>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-body">
-                            <h6 class="card-subtitle text-muted">Servicio</h6>
-                            <p class="mb-0"><?= htmlspecialchars($servicio_texto) ?></p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
+                <!-- Permisos de edición -->
+                <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
                             <h6 class="card-subtitle text-muted">Permisos de edición</h6>
