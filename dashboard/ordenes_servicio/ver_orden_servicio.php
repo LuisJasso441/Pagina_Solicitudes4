@@ -397,6 +397,14 @@ function formatear_tamanio_osm($bytes) {
                             </span>
                         </div>
                         <div class="col-md-6 text-end">
+                            <!-- Botón Guardar PDF (solo para órdenes completadas) -->
+                            <?php if ($orden['estado'] === 'completado'): ?>
+                                <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/generar_pdf_orden.php?id=<?php echo $orden_id; ?>" 
+                                class="btn btn-danger btn-sm">
+                                    <i class="bi bi-file-earmark-pdf"></i> Guardar PDF
+                                </a>
+                            <?php endif; ?>
+                            
                             <!-- Botón Volver -->
                             <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-arrow-left"></i> Volver

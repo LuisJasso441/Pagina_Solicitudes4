@@ -17,6 +17,13 @@ $en_mis_ordenes = in_array($current_page, [
     'ver_orden_servicio.php'
 ]);
 
+// Determinar si está en sección de gestión de usuarios
+$en_gestion_usuarios = in_array($current_page, [
+    'dashboard_usuarios.php',
+    'crear_usuario.php',
+    'editar_usuario.php'
+]);
+
 // Obtener estadísticas para badges (opcional)
 try {
     if (!isset($pdo)) {
@@ -41,9 +48,14 @@ try {
     ");
     $stmt_ordenes->execute([':usuario_id' => $_SESSION['usuario_id']]);
     $ordenes_pendientes_validar = $stmt_ordenes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
+    // Contar usuarios activos e inactivos para badge
+    $stmt_usuarios = $pdo->query("SELECT COUNT(*) as total FROM usuarios");
+    $total_usuarios = $stmt_usuarios->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 } catch (Exception $e) {
     $stats_sidebar = ['pendientes' => 0, 'en_proceso' => 0];
     $ordenes_pendientes_validar = 0;
+    $total_usuarios = 0;
 }
 ?>
 
@@ -105,6 +117,25 @@ try {
                 <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'finalizada') ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=finalizada">
                     <i class="bi bi-check-circle"></i> Finalizadas
+                </a>
+            </li>
+
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">ADMINISTRACIÓN DE USUARIOS</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'dashboard_usuarios.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php">
+                    <i class="bi bi-people"></i> Gestión de Usuarios
+                    <?php if ($total_usuarios > 0): ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $total_usuarios; ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'crear_usuario.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/crear_usuario.php">
+                    <i class="bi bi-person-plus"></i> Nuevo Usuario
                 </a>
             </li>
             
