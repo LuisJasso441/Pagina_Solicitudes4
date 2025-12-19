@@ -1,7 +1,7 @@
 <?php
 /**
  * Procesar actualización del Apartado 1
- * Solo usuarios de Normatividad y Ventas (creadores)
+ * ⭐ ACTUALIZADO - Usuarios del mismo departamento con permiso EDITOR pueden editar
  */
 
 session_start();
@@ -9,6 +9,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../auth/verificar_sesion.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/colaborativo/documentos_colaborativos.php';
 
 // Verificar autenticación
@@ -43,9 +44,34 @@ if (!$documento) {
     exit;
 }
 
-// Verificar permisos: solo el creador puede editar Apartado 1
-if ($documento['usuario_creador_id'] != $usuario_id) {
-    echo json_encode(['success' => false, 'message' => 'No tienes permiso para editar este documento']);
+// ========================================
+// VALIDACIÓN DE PERMISOS ACTUALIZADA
+// ========================================
+
+// Verificar que sea de un departamento que puede editar Apartado 1
+$deptos_permitidos = ['normatividad', 'ventas'];
+if (!in_array($dept_lower, $deptos_permitidos)) {
+    echo json_encode(['success' => false, 'message' => 'Su departamento no puede editar el Apartado 1']);
+    exit;
+}
+
+// Verificar que sea del mismo departamento que creó el documento
+$dept_documento = strtolower(trim($documento['departamento_creador']));
+if ($dept_lower != $dept_documento) {
+    echo json_encode([
+        'success' => false, 
+        'message' => 'Solo usuarios del departamento ' . $documento['departamento_creador'] . ' pueden editar este documento'
+    ]);
+    exit;
+}
+
+// Verificar permiso de EDITOR en permisos_ssc
+$permisos_ssc = obtener_permisos_ssc_usuario($usuario_id);
+if ($permisos_ssc['editor'] != 1) {
+    echo json_encode([
+        'success' => false, 
+        'message' => 'No tiene permisos de Editor para modificar documentos SSC. Contacte al administrador.'
+    ]);
     exit;
 }
 
@@ -54,6 +80,10 @@ if ($documento['estado'] == 'completado') {
     echo json_encode(['success' => false, 'message' => 'El documento está completado y no puede editarse']);
     exit;
 }
+
+// ========================================
+// VALIDACIÓN DE CAMPOS
+// ========================================
 
 // Validar campos requeridos
 $campos_requeridos = [
@@ -115,6 +145,10 @@ if (strlen($_POST['descripcion_servicio']) > 2000) {
     exit;
 }
 
+// ========================================
+// PROCESAR ACTUALIZACIÓN
+// ========================================
+
 // Preparar datos
 $datos = [
     'solicitado_por' => trim($_POST['solicitado_por']),
@@ -126,10 +160,10 @@ $datos = [
     'descripcion_servicio' => trim($_POST['descripcion_servicio'])
 ];
 
-// Log de la operación (opcional)
-error_log("Usuario {$usuario_id} actualizando Apartado 1 del documento {$documento_id}");
+// Log de la operación
+error_log("Usuario {$usuario_id} ({$departamento}) actualizando Apartado 1 del documento {$documento_id}");
 
-// Actualizar documento
+// Actualizar documento (la función ya valida permisos internamente también)
 $resultado = actualizar_apartado1($documento_id, $datos, $usuario_id);
 
 // Liberar sesión para evitar bloqueo con SSE

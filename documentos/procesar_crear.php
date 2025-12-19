@@ -9,6 +9,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../auth/verificar_sesion.php';
 require_once __DIR__ . '/../includes/csrf.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/colaborativo/documentos_colaborativos.php';
 
 // Verificar autenticación
@@ -33,11 +34,37 @@ $usuario_id = $_SESSION['usuario_id'];
 $departamento = $_SESSION['departamento'];
 $dept_lower = strtolower($departamento);
 
-// Verificar permisos (solo Normatividad y Ventas pueden crear)
+// Verificar permisos de departamento (solo Normatividad y Ventas pueden crear)
 if (!in_array($dept_lower, ['normatividad', 'ventas'])) {
     echo json_encode(['success' => false, 'message' => 'No tienes permiso para crear documentos']);
     exit;
 }
+
+// ========================================
+// VALIDACIÓN DE PERMISOS SSC - CREADOR
+// ========================================
+try {
+    $pdo_permisos = conectarDB();
+    $stmt_permisos = $pdo_permisos->prepare("
+        SELECT creador FROM permisos_ssc WHERE user_id = :user_id
+    ");
+    $stmt_permisos->execute([':user_id' => $usuario_id]);
+    $permisos_ssc = $stmt_permisos->fetch(PDO::FETCH_ASSOC);
+    
+    // Si no tiene registro de permisos o no tiene permiso de creador
+    if (!$permisos_ssc || $permisos_ssc['creador'] != 1) {
+        echo json_encode([
+            'success' => false, 
+            'message' => 'No tiene permisos para crear Documentos SSC. Contacte al administrador.'
+        ]);
+        exit;
+    }
+} catch (Exception $e) {
+    error_log("Error verificando permisos SSC: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Error al verificar permisos']);
+    exit;
+}
+// ========================================
 
 // Validar campos requeridos
 $campos_requeridos = [

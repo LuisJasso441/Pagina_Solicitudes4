@@ -39,6 +39,35 @@ if ($departamento_codigo === 'mantenimiento') {
     exit;
 }
 
+// ========================================
+// VALIDACIÓN DE PERMISOS OSM - CREADOR
+// ========================================
+try {
+    $pdo_permisos = conectarDB();
+    $stmt_permisos = $pdo_permisos->prepare("
+        SELECT creador FROM permisos_osm WHERE user_id = :user_id
+    ");
+    $stmt_permisos->execute([':user_id' => $_SESSION['usuario_id']]);
+    $permisos_osm = $stmt_permisos->fetch(PDO::FETCH_ASSOC);
+    
+    // Si no tiene registro de permisos o no tiene permiso de creador
+    if (!$permisos_osm || $permisos_osm['creador'] != 1) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'No tiene permisos para crear Órdenes de Servicio. Contacte al administrador.'
+        ]);
+        exit;
+    }
+} catch (Exception $e) {
+    error_log("Error verificando permisos OSM: " . $e->getMessage());
+    echo json_encode([
+        'success' => false,
+        'error' => 'Error al verificar permisos'
+    ]);
+    exit;
+}
+// ========================================
+
 // Obtener datos JSON
 $input = file_get_contents('php://input');
 $datos = json_decode($input, true);

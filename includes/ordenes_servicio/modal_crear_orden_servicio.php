@@ -3,7 +3,42 @@
  * Modal: Crear Nueva Orden de Servicio
  * Apartado 1 - Para ser llenado por el solicitante
  * ⭐ MODIFICADO - Sin límites de archivos, acepta cualquier tipo
+ * ⭐ VALIDACIÓN DE PERMISOS - Solo se muestra si el usuario tiene permiso de creador OSM
  */
+
+// Asegurar que la sesión está iniciada
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// ========================================
+// VERIFICAR PERMISOS OSM - CREADOR
+// ========================================
+$puede_crear_osm = false;
+
+// Verificar que no sea Mantenimiento (ellos no crean, solo procesan)
+$departamento_codigo = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+if ($departamento_codigo !== 'mantenimiento') {
+    try {
+        require_once __DIR__ . '/../../config/database.php';
+        $pdo_modal = conectarDB();
+        $stmt_permisos = $pdo_modal->prepare("
+            SELECT creador FROM permisos_osm WHERE user_id = :user_id
+        ");
+        $stmt_permisos->execute([':user_id' => $_SESSION['usuario_id']]);
+        $permisos_osm = $stmt_permisos->fetch(PDO::FETCH_ASSOC);
+        
+        if ($permisos_osm && $permisos_osm['creador'] == 1) {
+            $puede_crear_osm = true;
+        }
+    } catch (Exception $e) {
+        error_log("Error verificando permisos OSM en modal: " . $e->getMessage());
+        $puede_crear_osm = false;
+    }
+}
+
+// Solo mostrar el modal si tiene permisos
+if ($puede_crear_osm):
 ?>
 
 <!-- Modal Crear Orden de Servicio -->
@@ -312,3 +347,5 @@ document.getElementById('modalCrearOrdenServicio').addEventListener('hidden.bs.m
     padding: 0.5rem 1rem;
 }
 </style>
+
+<?php endif; // Fin de verificación de permisos ?>

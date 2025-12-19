@@ -1,6 +1,7 @@
 <?php
 /**
  * Modal para crear nuevo documento colaborativo SSC
+ * ⭐ VALIDACIÓN DE PERMISOS - Solo se muestra si el usuario tiene permiso de creador SSC
  */
 
 // Asegurar que la sesión está iniciada
@@ -10,6 +11,37 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Cargar funciones CSRF
 require_once __DIR__ . '/../csrf.php';
+
+// ========================================
+// VERIFICAR PERMISOS SSC - CREADOR
+// ========================================
+$puede_crear_ssc = false;
+
+// Verificar que sea de departamentos permitidos (Normatividad o Ventas)
+$departamento = $_SESSION['departamento'] ?? '';
+$dept_lower = strtolower($departamento);
+
+if (in_array($dept_lower, ['normatividad', 'ventas'])) {
+    try {
+        require_once __DIR__ . '/../../config/database.php';
+        $pdo_modal = conectarDB();
+        $stmt_permisos = $pdo_modal->prepare("
+            SELECT creador FROM permisos_ssc WHERE user_id = :user_id
+        ");
+        $stmt_permisos->execute([':user_id' => $_SESSION['usuario_id']]);
+        $permisos_ssc = $stmt_permisos->fetch(PDO::FETCH_ASSOC);
+        
+        if ($permisos_ssc && $permisos_ssc['creador'] == 1) {
+            $puede_crear_ssc = true;
+        }
+    } catch (Exception $e) {
+        error_log("Error verificando permisos SSC en modal: " . $e->getMessage());
+        $puede_crear_ssc = false;
+    }
+}
+
+// Solo mostrar el modal si tiene permisos
+if ($puede_crear_ssc):
 ?>
 
 <!-- Modal: Nuevo Documento Colaborativo -->
@@ -312,3 +344,5 @@ function mostrarAlerta(tipo, titulo, mensaje) {
     }, 5000);
 }
 </script>
+
+<?php endif; // Fin de verificación de permisos ?>

@@ -1,10 +1,44 @@
 <?php
 /**
  * Funciones Backend - Órdenes de Servicio para Mantenimiento
- * Archivo: includes/ordenes_servicio_funciones.php
+ * Archivo: includes/ordenes_servicio/ordenes_servicio_funciones.php
+ * 
+ * ACTUALIZADO: Usa tabla permisos_osm para validar acceso
  */
 
 require_once __DIR__ . '/../../config/database.php';
+
+/**
+ * Obtener permisos OSM del usuario
+ * @param int $usuario_id
+ * @return array|null
+ */
+function obtener_permisos_osm_usuario($usuario_id) {
+    static $cache = [];
+    
+    if (isset($cache[$usuario_id])) {
+        return $cache[$usuario_id];
+    }
+    
+    try {
+        $pdo = conectarDB();
+        $stmt = $pdo->prepare("SELECT lector, creador, editor FROM permisos_osm WHERE user_id = :user_id");
+        $stmt->execute([':user_id' => $usuario_id]);
+        $permisos = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Si no tiene registro, por defecto tiene permiso de lector
+        if (!$permisos) {
+            $permisos = ['lector' => 1, 'creador' => 0, 'editor' => 0];
+        }
+        
+        $cache[$usuario_id] = $permisos;
+        return $permisos;
+    } catch (Exception $e) {
+        error_log("Error obteniendo permisos OSM: " . $e->getMessage());
+        // Por defecto, permitir lectura
+        return ['lector' => 1, 'creador' => 0, 'editor' => 0];
+    }
+}
 
 /**
  * Obtener una orden por ID
@@ -32,6 +66,7 @@ function obtener_orden_por_id($orden_id) {
 
 /**
  * Verificar permisos de usuario sobre una orden
+ * ACTUALIZADO: Usa tabla permisos_osm para validar acceso
  */
 function verificar_permiso_orden($orden_id, $usuario_id, $departamento) {
     $orden = obtener_orden_por_id($orden_id);
@@ -44,23 +79,42 @@ function verificar_permiso_orden($orden_id, $usuario_id, $departamento) {
     $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
     $es_propietario = ($orden['usuario_id'] == $usuario_id);
     
+    // ========================================
+    // OBTENER PERMISOS DE LA TABLA permisos_osm
+    // ========================================
+    $permisos_osm = obtener_permisos_osm_usuario($usuario_id);
+    $tiene_permiso_lector = ($permisos_osm['lector'] == 1);
+    $tiene_permiso_editor = ($permisos_osm['editor'] == 1);
+    $tiene_permiso_creador = ($permisos_osm['creador'] == 1);
+    
+    // ========================================
+    // DETERMINAR PERMISOS DE ACCESO
+    // ========================================
+    // puede_ver: Si tiene permiso de lector, es mantenimiento, o es propietario
+    $puede_ver = $tiene_permiso_lector || $es_mantenimiento || $es_propietario;
+    
     $permisos = [
-        'puede_ver' => $es_mantenimiento || $es_propietario,
+        'puede_ver' => $puede_ver,
         'puede_editar' => false,
         'es_propietario' => $es_propietario,
-        'es_mantenimiento' => $es_mantenimiento
+        'es_mantenimiento' => $es_mantenimiento,
+        'tiene_permiso_lector' => $tiene_permiso_lector,
+        'tiene_permiso_editor' => $tiene_permiso_editor,
+        'tiene_permiso_creador' => $tiene_permiso_creador
     ];
     
-    // Determinar si puede editar según estado
+    // Determinar si puede editar según estado y permisos
     switch ($orden['estado']) {
         case 'pendiente_mantenimiento':
+            // Mantenimiento puede editar Apartado 2
             $permisos['puede_editar'] = $es_mantenimiento;
-            $permisos['puede_editar_apartado1'] = $es_propietario;
+            // Propietario puede editar Apartado 1 (si tiene permiso editor o es propietario)
+            $permisos['puede_editar_apartado1'] = $es_propietario && ($tiene_permiso_editor || $es_propietario);
             break;
             
         case 'en_proceso':
             $permisos['puede_editar'] = $es_mantenimiento;
-            $permisos['puede_editar_apartado1'] = $es_propietario;
+            $permisos['puede_editar_apartado1'] = $es_propietario && ($tiene_permiso_editor || $es_propietario);
             break;
             
         case 'pendiente_usuario':

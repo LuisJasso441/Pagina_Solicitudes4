@@ -4,11 +4,43 @@
  * Funciones para gestión de documentos SSC
  * VERSIÓN ACTUALIZADA - Incluye: fecha_entrega + hora_entrega en Apartado 2
  * ✅ CORREGIDO - Filtro de cliente implementado en listar_documentos()
+ * ⭐ ACTUALIZADO - Permisos basados en permisos_ssc (lector, creador, editor)
  */
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/verificar_sesion.php';
 require_once __DIR__ . '/../notificaciones.php';
+
+/**
+ * ⭐ NUEVA FUNCIÓN - Obtener permisos SSC del usuario
+ * @param int $usuario_id
+ * @return array
+ */
+function obtener_permisos_ssc_usuario($usuario_id) {
+    static $cache = [];
+    
+    if (isset($cache[$usuario_id])) {
+        return $cache[$usuario_id];
+    }
+    
+    try {
+        $pdo = conectarDB();
+        $stmt = $pdo->prepare("SELECT lector, creador, editor FROM permisos_ssc WHERE user_id = :user_id");
+        $stmt->execute([':user_id' => $usuario_id]);
+        $permisos = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Si no tiene registro, por defecto tiene permiso de lector
+        if (!$permisos) {
+            $permisos = ['lector' => 1, 'creador' => 0, 'editor' => 0];
+        }
+        
+        $cache[$usuario_id] = $permisos;
+        return $permisos;
+    } catch (Exception $e) {
+        error_log("Error obteniendo permisos SSC: " . $e->getMessage());
+        return ['lector' => 1, 'creador' => 0, 'editor' => 0];
+    }
+}
 
 /**
  * Generar folio automático
@@ -53,6 +85,12 @@ function generar_folio_documento() {
 
 /**
  * Verificar permisos de edición por apartado
+ * ⭐ ACTUALIZADO - Usa tabla permisos_ssc para validar acceso
+ * 
+ * LÓGICA:
+ * - Apartado 1: Usuarios del mismo departamento (Normatividad/Ventas) que creó el documento
+ *               pueden editar SI tienen permiso de Editor en permisos_ssc
+ * - Apartado 2: Solo Laboratorio puede editar
  * 
  * @param int $usuario_id ID del usuario actual
  * @param string $departamento Departamento del usuario
@@ -68,18 +106,43 @@ function verificar_permisos_edicion($usuario_id, $departamento, $documento) {
         'es_seguimiento' => false
     ];
     
+    // Obtener permisos de la tabla permisos_ssc
+    $permisos_ssc = obtener_permisos_ssc_usuario($usuario_id);
+    $tiene_permiso_editor = ($permisos_ssc['editor'] == 1);
+    
+    // Normalizar departamentos para comparación
+    $dept_usuario = strtolower(trim($departamento));
+    $dept_documento = strtolower(trim($documento['departamento_creador']));
+    
     // Verificar si es el creador
     if ($documento['usuario_creador_id'] == $usuario_id) {
         $permisos['es_creador'] = true;
+    }
+    
+    // ========================================
+    // PERMISO PARA EDITAR APARTADO 1
+    // ========================================
+    // Solo puede editar Apartado 1 si:
+    // 1. El documento no está completado
+    // 2. Es del mismo departamento que creó el documento (Normatividad o Ventas)
+    // 3. Tiene permiso de EDITOR en permisos_ssc
+    if ($documento['estado'] != 'completado') {
+        // Departamentos que pueden editar Apartado 1
+        $deptos_apartado1 = ['normatividad', 'ventas'];
         
-        // Solo puede editar Apartado 1 si no está completado
-        if ($documento['estado'] != 'completado') {
-            $permisos['apartado1'] = true;
+        if (in_array($dept_usuario, $deptos_apartado1) && $dept_usuario == $dept_documento) {
+            // Es del mismo departamento que creó el documento
+            if ($tiene_permiso_editor) {
+                // Tiene permiso de editor
+                $permisos['apartado1'] = true;
+            }
         }
     }
     
-    // Verificar si es de Laboratorio
-    if (strtolower($departamento) == 'laboratorio') {
+    // ========================================
+    // PERMISO PARA EDITAR APARTADO 2 (Laboratorio)
+    // ========================================
+    if ($dept_usuario == 'laboratorio') {
         $permisos['apartado2'] = true;
         
         // Si ya está asignado a este usuario específico
@@ -300,25 +363,53 @@ function registrar_historial_documento($doc_id, $folio, $user_id, $user_nombre, 
 
 /**
  * Actualizar Apartado 1 (Normatividad/Ventas)
- * ⭐ CORREGIDO - Incluye nombre_cliente y revision_productos
+ * ⭐ ACTUALIZADO - Valida permisos de editor y mismo departamento
  */
 function actualizar_apartado1($documento_id, $datos, $usuario_id) {
     try {
         $pdo = conectarDB();
         
-        // Verificar permisos
+        // Obtener documento
         $documento = obtener_documento($documento_id);
         if (!$documento) {
             return ['success' => false, 'message' => 'Documento no encontrado'];
         }
         
-        if ($documento['usuario_creador_id'] != $usuario_id) {
-            return ['success' => false, 'message' => 'No tienes permiso para editar este documento'];
-        }
-        
         if ($documento['estado'] == 'completado') {
             return ['success' => false, 'message' => 'El documento ya está completado y no puede editarse'];
         }
+        
+        // ========================================
+        // VALIDACIÓN DE PERMISOS ACTUALIZADA
+        // ========================================
+        
+        // Obtener departamento del usuario
+        $stmt_user = $pdo->prepare("SELECT departamento FROM usuarios WHERE id = ?");
+        $stmt_user->execute([$usuario_id]);
+        $user_data = $stmt_user->fetch(PDO::FETCH_ASSOC);
+        $dept_usuario = strtolower(trim($user_data['departamento'] ?? ''));
+        $dept_documento = strtolower(trim($documento['departamento_creador']));
+        
+        // Verificar que sea de un departamento permitido
+        $deptos_permitidos = ['normatividad', 'ventas'];
+        if (!in_array($dept_usuario, $deptos_permitidos)) {
+            return ['success' => false, 'message' => 'Su departamento no puede editar el Apartado 1'];
+        }
+        
+        // Verificar que sea del mismo departamento que creó el documento
+        if ($dept_usuario != $dept_documento) {
+            return ['success' => false, 'message' => 'Solo usuarios del departamento ' . $documento['departamento_creador'] . ' pueden editar este documento'];
+        }
+        
+        // Verificar permiso de EDITOR en permisos_ssc
+        $permisos_ssc = obtener_permisos_ssc_usuario($usuario_id);
+        if ($permisos_ssc['editor'] != 1) {
+            return ['success' => false, 'message' => 'No tiene permisos de Editor para modificar documentos SSC'];
+        }
+        
+        // ========================================
+        // VALIDACIÓN DE DATOS
+        // ========================================
         
         // Validar servicio "otro"
         $servicio_otro = null;
@@ -332,7 +423,10 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
             return ['success' => false, 'message' => 'Servicio no válido'];
         }
         
-        // Actualizar (⭐ INCLUYE nombre_cliente)
+        // ========================================
+        // ACTUALIZAR DOCUMENTO
+        // ========================================
+        
         $stmt = $pdo->prepare("
             UPDATE documentos_colaborativos SET
                 solicitado_por = ?,
@@ -349,7 +443,7 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
         
         $resultado = $stmt->execute([
             trim($datos['solicitado_por']),
-            trim($datos['nombre_cliente']),  // ⭐ NUEVO CAMPO
+            trim($datos['nombre_cliente']),
             trim($datos['area_proceso_solicitante']),
             $datos['servicio_solicitado'],
             $servicio_otro,
@@ -359,12 +453,17 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
         ]);
         
         if ($resultado) {
+            // Obtener nombre del usuario para historial
+            $stmt_nombre = $pdo->prepare("SELECT nombre_completo FROM usuarios WHERE id = ?");
+            $stmt_nombre->execute([$usuario_id]);
+            $nombre_usuario = $stmt_nombre->fetchColumn();
+            
             registrar_historial_documento(
                 $documento_id,
                 $documento['folio'],
                 $usuario_id,
-                $documento['solicitado_por'],
-                $documento['departamento_creador'],
+                $nombre_usuario,
+                $user_data['departamento'],
                 'editado_apartado1',
                 $documento['estado'],
                 'enviado',
