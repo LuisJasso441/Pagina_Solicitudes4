@@ -141,85 +141,15 @@ function obtener_badge_prioridad($prioridad) {
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
-                <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
-                <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
-                <?php if ($es_ti): ?>
-                <span class="badge bg-danger mt-2">TI/Sistemas</span>
-                <?php else: ?>
-                <span class="badge bg-info mt-2">Colaborativo</span>
-                <?php endif; ?>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/<?php echo $es_ti ? 'ti_sistemas' : 'colaborativo'; ?>.php">
-                            <i class="bi bi-house-door"></i> Inicio
-                        </a>
-                    </li>
-                    
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
-                    
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
-                            <i class="bi bi-plus-circle"></i> Nueva Solicitud
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/crear_mantenimiento.php">
-                            <i class="bi bi-tools"></i> Solicitar Mantenimiento
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/listar.php">
-                            <i class="bi bi-list-ul"></i> Mis Solicitudes
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>solicitudes/listar_mantenimientos.php">
-                            <i class="bi bi-wrench"></i> Mis Mantenimientos
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                            <i class="bi bi-search"></i> Buscar
-                        </a>
-                    </li>
-
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>
-                    
-                    <!-- Documentos Colaborativos SSC -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php">
-                            <i class="bi bi-file-earmark-text"></i> Documentos SSC
-                        </a>
-                    </li>
-
-                    <hr class="text-white-50 my-2">
-                    <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
-                    
-                    <!-- ⭐ NUEVA SECCIÓN AGREGADA -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
-                            <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
-                        </a>
-                    </li>
-
-                    
-                    <hr class="text-white-50 my-3">
-                    <li class="nav-item">
-                        <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
+        <?php 
+        if (es_usuario_ti()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
+        } elseif (es_usuario_colaborativo()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
+        } else {
+            include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
+        }
+        ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
@@ -234,9 +164,15 @@ function obtener_badge_prioridad($prioridad) {
                         </p>
                     </div>
                     <div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/<?php echo $es_ti ? 'ti_sistemas' : 'colaborativo'; ?>.php" class="btn btn-outline-secondary">
+                        <?php if ($es_ti): ?>
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Volver al Dashboard
                         </a>
+                        <?php else: ?>
+                        <a href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                        </a>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -253,17 +189,15 @@ function obtener_badge_prioridad($prioridad) {
                             
                             <div class="row g-3 mb-3">
                                 <!-- Búsqueda por texto -->
-                                <div class="col-md-12">
-                                    <label class="form-label">Buscar por folio, descripción o tipo</label>
+                                <div class="col-md-4">
+                                    <label class="form-label">Buscar</label>
                                     <input type="text" name="buscar" class="form-control" 
-                                           placeholder="Ej: SOL-20251008-A1B2C3, imprimir, office..."
+                                           placeholder="Folio, descripción, tipo..."
                                            value="<?php echo htmlspecialchars($buscar); ?>">
                                 </div>
-                            </div>
 
-                            <div class="row g-3 mb-3">
                                 <!-- Estado -->
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label">Estado</label>
                                     <select name="estado" class="form-select">
                                         <option value="">Todos</option>
@@ -275,7 +209,7 @@ function obtener_badge_prioridad($prioridad) {
                                 </div>
 
                                 <!-- Prioridad -->
-                                <div class="col-md-3">
+                                <div class="col-md-2">
                                     <label class="form-label">Prioridad</label>
                                     <select name="prioridad" class="form-select">
                                         <option value="">Todas</option>

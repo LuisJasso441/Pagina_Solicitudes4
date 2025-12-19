@@ -191,7 +191,7 @@ try {
                         <div class="card card-custom">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <span><i class="bi bi-clock-history"></i> Solicitudes Pendientes</span>
-                                <a href="<?php echo URL_BASE; ?>ti_sistemas/pendientes.php" class="btn btn-sm btn-light">
+                                <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=pendiente" class="btn btn-sm btn-light">
                                     Ver todas
                                 </a>
                             </div>

@@ -175,11 +175,11 @@ function obtener_icono_tipo($tipo) {
         <!-- SIDEBAR -->
         <?php 
         if (es_usuario_ti()) {
-            include __DIR__ . '/../includes/sidebar_ti.php';
+            include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
         } elseif (es_usuario_colaborativo()) {
-            include __DIR__ . '/../includes/sidebar_colaborativo.php';
+            include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
         } else {
-            include __DIR__ . '/../includes/sidebar_normal.php';
+            include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
         }
         ?>
 
@@ -197,9 +197,15 @@ function obtener_icono_tipo($tipo) {
                         </p>
                     </div>
                     <div>
+                        <?php if ($es_ti): ?>
                         <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Volver a la lista
                         </a>
+                        <?php else: ?>
+                        <a href="<?php echo URL_BASE; ?>solicitudes/listar.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver a mis solicitudes
+                        </a>
+                        <?php endif; ?>
                     </div>
                 </div>
 

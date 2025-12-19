@@ -131,7 +131,7 @@ function obtener_badge_prioridad($prioridad) {
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <?php include __DIR__ . '/../includes/sidebar_ti.php'; ?>
+        <?php include __DIR__ . '/../includes/sidebar/sidebar_ti.php'; ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
@@ -146,7 +146,7 @@ function obtener_badge_prioridad($prioridad) {
                         </p>
                     </div>
                     <div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/ti_sistemas.php" class="btn btn-outline-secondary">
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Volver al Dashboard
                         </a>
                     </div>
@@ -193,7 +193,7 @@ function obtener_badge_prioridad($prioridad) {
                     <div class="col-md-3 mb-3">
                         <div class="card card-custom text-center">
                             <div class="card-body">
-                                <div class="icon-box mx-auto mb-2" style="background: #e0e7ff; color: #6366f1;">
+                                <div class="icon-box icon-box-primary mx-auto mb-2">
                                     <i class="bi bi-file-earmark-text"></i>
                                 </div>
                                 <h3 class="mb-0"><?php echo $contadores['total']; ?></h3>
