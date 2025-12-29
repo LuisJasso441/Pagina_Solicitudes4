@@ -6,6 +6,21 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 // IMPORTANTE: Incluir database.php ANTES de usar conectarDB()
 require_once __DIR__ . '/../../config/database.php';
+
+// Obtener contador de mantenimientos pendientes del usuario
+try {
+    $pdo = conectarDB();
+    $stmt_mant = $pdo->prepare("
+        SELECT COUNT(*) as total 
+        FROM solicitudes_mantenimiento_ti 
+        WHERE usuario_id = :usuario_id 
+        AND estado IN ('pendiente', 'en_proceso')
+    ");
+    $stmt_mant->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $mis_mant_pendientes = $stmt_mant->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+} catch (Exception $e) {
+    $mis_mant_pendientes = 0;
+}
 ?>
 
 <!-- Botón Hamburguesa para Sidebar Responsive -->
@@ -60,6 +75,25 @@ require_once __DIR__ . '/../../config/database.php';
                 <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
                     <i class="bi bi-search"></i> Buscar
+                </a>
+            </li>
+            
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">MANTENIMIENTO DE EQUIPOS TI</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
+                    <i class="bi bi-pc-display"></i> Solicitar Mantenimiento TI
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
+                    <i class="bi bi-wrench"></i> Mis Mantenimientos TI
+                    <?php if ($mis_mant_pendientes > 0): ?>
+                    <span class="badge bg-info ms-2"><?php echo $mis_mant_pendientes; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
             

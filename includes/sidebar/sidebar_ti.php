@@ -24,6 +24,17 @@ $en_gestion_usuarios = in_array($current_page, [
     'editar_usuario.php'
 ]);
 
+// Determinar si está en sección de inventario TI
+$en_inventario_ti = in_array($current_page, [
+    'inventario.php',
+    'crear_equipo.php',
+    'editar_equipo.php',
+    'ver_equipo.php',
+    'mantenimientos.php',
+    'solicitar_mantenimiento.php',
+    'ver_mantenimiento.php'
+]);
+
 // Obtener estadísticas para badges (opcional)
 try {
     if (!isset($pdo)) {
@@ -52,10 +63,21 @@ try {
     // Contar usuarios activos e inactivos para badge
     $stmt_usuarios = $pdo->query("SELECT COUNT(*) as total FROM usuarios");
     $total_usuarios = $stmt_usuarios->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
+    // Contar equipos en inventario
+    $stmt_equipos = $pdo->query("SELECT COUNT(*) as total FROM inventario_equipos WHERE estado != 'dado_de_baja'");
+    $total_equipos = $stmt_equipos->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
+    // Contar mantenimientos pendientes
+    $stmt_mant = $pdo->query("SELECT COUNT(*) as total FROM solicitudes_mantenimiento_ti WHERE estado = 'pendiente'");
+    $mant_pendientes = $stmt_mant->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
 } catch (Exception $e) {
     $stats_sidebar = ['pendientes' => 0, 'en_proceso' => 0];
     $ordenes_pendientes_validar = 0;
     $total_usuarios = 0;
+    $total_equipos = 0;
+    $mant_pendientes = 0;
 }
 ?>
 
@@ -140,18 +162,30 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">INVENTARIO</small>
+            <small class="text-white-50 px-3 fw-bold">INVENTARIO TI</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/inventario.php">
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php">
                     <i class="bi bi-pc-display"></i> Equipos
+                    <?php if ($total_equipos > 0): ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $total_equipos; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'mantenimientos.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/mantenimientos.php">
+                <a class="nav-link <?php echo $current_page == 'crear_equipo.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/crear_equipo.php">
+                    <i class="bi bi-plus-circle"></i> Nuevo Equipo
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
+                    <?php if ($mant_pendientes > 0): ?>
+                    <span class="badge bg-warning text-dark ms-2"><?php echo $mant_pendientes; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
             
