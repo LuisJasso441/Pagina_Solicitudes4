@@ -84,6 +84,9 @@ function crearSolicitud($pdo) {
     $descripcion_problema = trim($_POST['descripcion_problema'] ?? '');
     $tipo_mantenimiento = $_POST['tipo_mantenimiento'] ?? 'correctivo';
     
+    // ⭐ Obtener equipo_id (puede ser null si no se seleccionó equipo del inventario)
+    $equipo_id = !empty($_POST['equipo_id']) ? intval($_POST['equipo_id']) : null;
+    
     // Validaciones
     $tipos_validos = ['computadora', 'impresora', 'camara', 'telefono'];
     if (empty($tipo_equipo) || !in_array($tipo_equipo, $tipos_validos)) {
@@ -105,7 +108,11 @@ function crearSolicitud($pdo) {
     if (!empty($errores)) {
         $_SESSION['form_errors'] = $errores;
         $_SESSION['form_data'] = $_POST;
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php');
+        $redirect_url = URL_BASE . 'dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php';
+        if ($equipo_id) {
+            $redirect_url .= '?equipo_id=' . $equipo_id;
+        }
+        header('Location: ' . $redirect_url);
         exit;
     }
     
@@ -121,16 +128,17 @@ function crearSolicitud($pdo) {
         $stmt->execute([$_SESSION['usuario_id']]);
         $departamento_id = $stmt->fetchColumn();
         
-        // Insertar solicitud
+        // ⭐ Insertar solicitud CON equipo_id
         $sql = "INSERT INTO solicitudes_mantenimiento_ti 
-                (folio, tipo_equipo, tipo_mantenimiento, usuario_id, departamento_id, 
+                (folio, tipo_equipo, equipo_id, tipo_mantenimiento, usuario_id, departamento_id, 
                  descripcion_problema, estado, fecha_solicitud) 
-                VALUES (?, ?, ?, ?, ?, ?, 'pendiente', NOW())";
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $folio,
             $tipo_equipo,
+            $equipo_id,
             $tipo_mantenimiento,
             $_SESSION['usuario_id'],
             $departamento_id,

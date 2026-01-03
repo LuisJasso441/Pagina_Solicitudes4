@@ -158,7 +158,7 @@ $pdf->SetXY($xDerecha, $yInicio + ($alturaCeldaDerecha * 2));
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->Cell(28, $alturaCeldaDerecha, 'FECHA REV:', 1, 0, 'C', true);
 $pdf->SetFont('helvetica', '', 8);
-$pdf->Cell(28, $alturaCeldaDerecha, date('d/m/Y'), 1, 1, 'C', true);
+$pdf->Cell(28, $alturaCeldaDerecha, '15/10/2025', 1, 1, 'C', true);
 
 // ========================================
 // APARTADO 1: SOLICITANTE
@@ -277,12 +277,15 @@ $archivosAdjuntos = $apartado1['evidencia_archivos'] ?? $apartado1['archivos_adj
 $rutaImagenes = __DIR__ . '/../../Imagenes_OSM/';
 $imagenesInsertadas = 0;
 $maxImagenes = 3;
-$anchoImagen = 30;
-$xImagen = 15;
+
+// Dimensiones máximas para cada imagen (en mm)
+$maxAltoImagen = 32;   // Alto máximo (dejando margen dentro del área)
 
 if (!empty($archivosAdjuntos)) {
+    // Contar imágenes válidas
+    $imagenesValidas = [];
     foreach ($archivosAdjuntos as $archivo) {
-        if ($imagenesInsertadas >= $maxImagenes) break;
+        if (count($imagenesValidas) >= $maxImagenes) break;
         
         $nombreArchivo = $archivo['nombre_guardado'] ?? $archivo['nombre_archivo'] ?? '';
         if (empty($nombreArchivo)) continue;
@@ -293,9 +296,58 @@ if (!empty($archivosAdjuntos)) {
         $extension = strtolower(pathinfo($nombreArchivo, PATHINFO_EXTENSION));
         if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) continue;
         
+        $imagenesValidas[] = $rutaCompleta;
+    }
+    
+    $totalImagenes = count($imagenesValidas);
+    
+    foreach ($imagenesValidas as $rutaCompleta) {
         try {
-            $pdf->Image($rutaCompleta, $xImagen + ($imagenesInsertadas * ($anchoImagen + 5)), $yFila + 2, $anchoImagen, 0, '', '', '', true, 150);
+            // Obtener dimensiones reales de la imagen
+            $infoImagen = @getimagesize($rutaCompleta);
+            if ($infoImagen === false) continue;
+            
+            $anchoOriginal = $infoImagen[0];
+            $altoOriginal = $infoImagen[1];
+            $ratio = $anchoOriginal / $altoOriginal;
+            
+            // Calcular dimensiones manteniendo proporción
+            if ($totalImagenes == 1) {
+                // Una sola imagen: centrada y más grande
+                $altoFinal = min($maxAltoImagen, $alturaEvidencia - 3);
+                $anchoFinal = $altoFinal * $ratio;
+                
+                // Limitar ancho máximo
+                if ($anchoFinal > $anchoTotal - 10) {
+                    $anchoFinal = $anchoTotal - 10;
+                    $altoFinal = $anchoFinal / $ratio;
+                }
+                
+                // Centrar la imagen
+                $xPos = 10 + ($anchoTotal - $anchoFinal) / 2;
+                $yPos = $yFila + ($alturaEvidencia - $altoFinal) / 2;
+            } else {
+                // Múltiples imágenes: distribuir horizontalmente
+                $anchoMaxPorImagen = ($anchoTotal - 10 - (($totalImagenes - 1) * 5)) / $totalImagenes;
+                $altoFinal = min($maxAltoImagen, $alturaEvidencia - 3);
+                $anchoFinal = $altoFinal * $ratio;
+                
+                // Ajustar si excede el ancho permitido
+                if ($anchoFinal > $anchoMaxPorImagen) {
+                    $anchoFinal = $anchoMaxPorImagen;
+                    $altoFinal = $anchoFinal / $ratio;
+                }
+                
+                // Calcular posición X
+                $espacioUsado = $anchoFinal * $totalImagenes + 5 * ($totalImagenes - 1);
+                $margenInicial = (($anchoTotal - $espacioUsado) / 2) + 10;
+                $xPos = $margenInicial + ($imagenesInsertadas * ($anchoFinal + 5));
+                $yPos = $yFila + ($alturaEvidencia - $altoFinal) / 2;
+            }
+            
+            $pdf->Image($rutaCompleta, $xPos, $yPos, $anchoFinal, $altoFinal, '', '', '', true, 300);
             $imagenesInsertadas++;
+            
         } catch (Exception $e) {
             error_log("Error insertando imagen: " . $e->getMessage());
         }
@@ -311,7 +363,6 @@ if ($imagenesInsertadas === 0) {
 // ========================================
 // APARTADO 2: MANTENIMIENTO
 // ========================================
-
 $yApartado2 = $yFila + $alturaEvidencia + 3;
 
 // Título de sección
@@ -421,7 +472,7 @@ $anchoFirmaValor = 53;
 $pdf->SetXY(10, $yFila);
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->SetFillColor($colorGris[0], $colorGris[1], $colorGris[2]);
-$pdf->Cell($anchoNombreLabel, $alturaFirma, "Nombre del\nsolicitante:", 1, 0, 'C', true);
+$pdf->Cell($anchoNombreLabel, $alturaFirma, "Nombre del solicitante:", 1, 0, 'C', true);
 $pdf->SetFont('helvetica', '', 9);
 $pdf->SetFillColor($colorBlanco[0], $colorBlanco[1], $colorBlanco[2]);
 $nombreSolicitanteCierre = $apartado3['nombre_solicitante'] ?? $apartado1['nombre_solicitante'] ?? '';
@@ -429,7 +480,7 @@ $pdf->Cell($anchoNombreValor, $alturaFirma, $nombreSolicitanteCierre, 1, 0, 'C',
 
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->SetFillColor($colorGris[0], $colorGris[1], $colorGris[2]);
-$pdf->Cell($anchoFirmaLabel, $alturaFirma, "Firma del\nsolicitante:", 1, 0, 'C', true);
+$pdf->Cell($anchoFirmaLabel, $alturaFirma, "Firma del solicitante:", 1, 0, 'C', true);
 $pdf->SetFillColor($colorBlanco[0], $colorBlanco[1], $colorBlanco[2]);
 $pdf->Cell($anchoFirmaValor, $alturaFirma, '', 1, 1, 'C', true);
 

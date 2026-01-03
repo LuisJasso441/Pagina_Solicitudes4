@@ -292,12 +292,34 @@ $contadores_estado = $pdo->query($sql_estados)->fetchAll(PDO::FETCH_KEY_PAIR);
 
                 <!-- Tabla de Equipos -->
                 <div class="card">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 flex-wrap gap-2">
                         <span class="fw-medium">
                             <i class="bi bi-list-ul me-1"></i>
                             Listado de Equipos
                             <span class="badge bg-secondary ms-1"><?php echo $total_registros; ?></span>
                         </span>
+                        
+                        <!-- ⭐ Botones de Exportación de Mantenimientos -->
+                        <div class="d-flex gap-2 flex-wrap">
+                            <div class="dropdown">
+                                <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>Exportar Mantenimientos
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/exportar_mantenimientos.php?periodo=mes">
+                                            <i class="bi bi-calendar-month me-2"></i>Mantenimientos del Mes Actual
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalRangoFechas">
+                                            <i class="bi bi-calendar-range me-2"></i>Seleccionar Rango de Fechas
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover table-sm mb-0">
@@ -463,6 +485,47 @@ $contadores_estado = $pdo->query($sql_estados)->fetchAll(PDO::FETCH_KEY_PAIR);
                         </button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ⭐ Modal para seleccionar rango de fechas -->
+    <div class="modal fade" id="modalRangoFechas" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-calendar-range me-2"></i>Exportar Mantenimientos</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/exportar_mantenimientos.php" method="GET">
+                    <input type="hidden" name="periodo" value="rango">
+                    <div class="modal-body">
+                        <p class="text-muted small mb-3">Seleccione el rango de fechas para exportar los mantenimientos finalizados.</p>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha Inicio <span class="text-danger">*</span></label>
+                                <input type="date" name="fecha_inicio" class="form-control" required 
+                                       value="<?php echo date('Y-m-01'); ?>">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Fecha Fin <span class="text-danger">*</span></label>
+                                <input type="date" name="fecha_fin" class="form-control" required
+                                       value="<?php echo date('Y-m-d'); ?>">
+                            </div>
+                        </div>
+                        <div class="alert alert-info mt-3 mb-0 small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            El reporte incluirá: folio, equipo, solicitante, descripción del problema, solución aplicada, 
+                            fecha de solicitud, fecha de finalización y tiempo de resolución.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-download me-1"></i>Descargar Excel
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
