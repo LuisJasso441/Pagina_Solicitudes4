@@ -91,6 +91,14 @@ try {
                            WHERE estado = 'completado'";
         $stmt = $pdo->query($sql_finalizadas);
         $count_finalizadas_global = $stmt->fetchColumn();
+        
+        // ⭐ Laboratorio: Solicitudes completadas en el MES ACTUAL
+        $sql_completadas_mes = "SELECT COUNT(*) FROM documentos_colaborativos 
+                               WHERE estado = 'completado'
+                               AND MONTH(fecha_completado) = MONTH(CURRENT_DATE())
+                               AND YEAR(fecha_completado) = YEAR(CURRENT_DATE())";
+        $stmt = $pdo->query($sql_completadas_mes);
+        $count_completadas_mes = $stmt->fetchColumn();
     } else {
         // Ventas/Normatividad: Solicitudes enviadas (del departamento del usuario)
         $sql_enviadas = "SELECT COUNT(*) FROM documentos_colaborativos 
@@ -133,6 +141,7 @@ try {
     $count_finalizadas = 0;
     $count_pendientes = 0;
     $count_finalizadas_global = 0;
+    $count_completadas_mes = 0;
     $clientes_lista = [];
 }
 ?>
@@ -258,6 +267,12 @@ try {
         .stat-card.pendientes .stat-icon {
             background: rgba(220, 53, 69, 0.15);
             color: #dc3545;
+        }
+        
+        /* ⭐ Stat card para completadas del mes */
+        .stat-card.mes-actual .stat-icon {
+            background: rgba(13, 202, 240, 0.15);
+            color: #0dcaf0;
         }
     </style>
 </head>
@@ -387,6 +402,33 @@ try {
                             </div>
                         </div>
                     </div>
+                    
+                    <?php if ($es_laboratorio): ?>
+                    <!-- ⭐ NUEVA CARD: Completadas del mes actual (solo Laboratorio) -->
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card mes-actual">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_completadas_mes ?></div>
+                                        <?php
+                                        $meses_es = [
+                                            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+                                            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+                                            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+                                        ];
+                                        $mes_actual = $meses_es[(int)date('n')];
+                                        ?>
+                                        <div class="stat-label">Completadas en <?= $mes_actual ?></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
             
@@ -534,7 +576,7 @@ try {
                                         <?php
                                         $servicios = [
                                             'tratamiento_agua' => 'Tratamiento de agua',
-                                            'revision_productos' => 'Revisión de productos químicos',
+                                            'revision_productos' => 'Productos químicos y/o residuos',
                                             'calibracion_equipos' => 'Calibración y/o verificación de equipos',
                                             'otro' => 'Otro'
                                         ];

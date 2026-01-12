@@ -4,6 +4,7 @@
  * Muestra Apartado 1 y Apartado 2 con controles de edición según permisos
  * Variables disponibles: $documento, $permisos, $servicio_texto
  * ⭐ ACTUALIZADO - Fecha/Hora recibido arriba de Resumen + Fecha/Hora entrega al final
+ * ⭐ ACTUALIZADO - Preview de archivos nuevos + Permite seguir agregando archivos
  */
 
 // Función auxiliar para verificar si es imagen (solo si no existe)
@@ -140,7 +141,7 @@ if (!function_exists('obtener_icono_ssc')) {
                                    <?= $documento['servicio_solicitado'] == 'revision_productos' ? 'checked' : '' ?>
                                    <?= !$permisos['apartado1'] ? 'disabled' : '' ?>>
                             <label class="form-check-label" for="edit_servicio_revision">
-                                Revisión de productos químicos
+                                Productos químicos y/o residuos
                             </label>
                         </div>
                     </div>
@@ -284,24 +285,38 @@ if (!function_exists('obtener_icono_ssc')) {
                            <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
                 </div>
                 
-                <!-- ⭐ Fecha de recibido (MOVIDO ARRIBA) -->
+                <!-- ⭐ Fecha de recibido -->
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">Fecha de recibido:</label>
-                    <input type="date" 
-                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
-                           name="fecha_recibido" 
-                           value="<?= $documento['fecha_recibido'] ?? '' ?>"
-                           <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
+                    <?php if ($documento['estado'] == 'completado'): ?>
+                        <input type="text" 
+                               class="form-control campo-bloqueado" 
+                               value="<?= !empty($documento['fecha_recibido']) ? date('d/m/Y', strtotime($documento['fecha_recibido'])) : 'No especificada' ?>"
+                               readonly>
+                    <?php else: ?>
+                        <input type="date" 
+                               class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                               name="fecha_recibido" 
+                               value="<?= $documento['fecha_recibido'] ?? '' ?>"
+                               <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
+                    <?php endif; ?>
                 </div>
                 
-                <!-- ⭐ Hora de recibido (MOVIDO ARRIBA) -->
+                <!-- ⭐ Hora de recibido -->
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">Hora de recibido:</label>
-                    <input type="time" 
-                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
-                           name="hora_recibido" 
-                           value="<?= $documento['hora_recibido'] ?? '' ?>"
-                           <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
+                    <?php if ($documento['estado'] == 'completado'): ?>
+                        <input type="text" 
+                               class="form-control campo-bloqueado" 
+                               value="<?= !empty($documento['hora_recibido']) ? $documento['hora_recibido'] : 'No especificada' ?>"
+                               readonly>
+                    <?php else: ?>
+                        <input type="time" 
+                               class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                               name="hora_recibido" 
+                               value="<?= $documento['hora_recibido'] ?? '' ?>"
+                               <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Resumen de resultados (AHORA DESPUÉS DE FECHA/HORA RECIBIDO) -->
@@ -314,53 +329,93 @@ if (!function_exists('obtener_icono_ssc')) {
                               <?= !$permisos['apartado2'] ? 'readonly' : 'required' ?>><?= htmlspecialchars($documento['resumen_resultados'] ?? '') ?></textarea>
                 </div>
                 
-                <!-- Campo para subir archivos (solo Laboratorio) -->
+                <!-- ⭐ Campo para subir archivos MEJORADO (solo Laboratorio) -->
                 <?php if ($permisos['apartado2'] && $documento['estado'] != 'completado'): ?>
                 <div class="col-12 mb-3">
-                    <label class="form-label fw-bold">Subir archivos (opcional):</label>
-                    <input type="file" 
-                           class="form-control" 
-                           name="archivos_apartado2[]" 
-                           id="archivos_apartado2"
-                           multiple
-                           accept="*/*">
+                    <label class="form-label fw-bold">
+                        <i class="bi bi-cloud-upload"></i> Agregar archivos:
+                    </label>
+                    <div class="input-group">
+                        <input type="file" 
+                               class="form-control" 
+                               name="archivos_apartado2[]" 
+                               id="archivos_apartado2"
+                               multiple
+                               accept="*/*">
+                        <button type="button" class="btn btn-outline-secondary" id="btnLimpiarArchivos" title="Limpiar selección">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
                     <small class="form-text text-muted">
                         <i class="bi bi-info-circle"></i>
-                        Puede seleccionar múltiples archivos (imágenes, videos, documentos, etc.)
+                        Puede seleccionar múltiples archivos. Los nuevos archivos se <strong>agregarán</strong> a los existentes.
                     </small>
+                    
+                    <!-- ⭐ PREVIEW DE ARCHIVOS NUEVOS SELECCIONADOS -->
+                    <div id="previewArchivosNuevos" class="mt-3" style="display: none;">
+                        <h6 class="fw-bold text-success">
+                            <i class="bi bi-file-earmark-plus"></i> 
+                            Archivos nuevos a subir: <span id="contadorArchivosNuevos">0</span>
+                        </h6>
+                        <div id="listaArchivosNuevos" class="row"></div>
+                    </div>
                 </div>
                 <?php endif; ?>
                 
-                <!-- ⭐ NUEVO: Fecha de entrega -->
+                <!-- ⭐ Fecha de entrega -->
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">Fecha de entrega:</label>
-                    <input type="date" 
-                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
-                           name="fecha_entrega" 
-                           value="<?= $documento['fecha_entrega'] ?? '' ?>"
-                           <?= !$permisos['apartado2'] ? 'readonly' : '' ?>>
+                    <?php if ($documento['estado'] == 'completado'): ?>
+                        <!-- Documento completado: mostrar como texto -->
+                        <input type="text" 
+                               class="form-control campo-bloqueado" 
+                               value="<?= !empty($documento['fecha_entrega']) ? date('d/m/Y', strtotime($documento['fecha_entrega'])) : 'No especificada' ?>"
+                               readonly>
+                    <?php else: ?>
+                        <!-- Documento en proceso: mostrar input editable -->
+                        <input type="date" 
+                               class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                               name="fecha_entrega" 
+                               value="<?= $documento['fecha_entrega'] ?? '' ?>"
+                               <?= !$permisos['apartado2'] ? 'readonly' : '' ?>>
+                    <?php endif; ?>
                 </div>
                 
-                <!-- ⭐ NUEVO: Hora de entrega -->
+                <!-- ⭐ Hora de entrega -->
                 <div class="col-md-6 mb-3">
                     <label class="form-label fw-bold">Hora de entrega:</label>
-                    <input type="time" 
-                           class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
-                           name="hora_entrega" 
-                           value="<?= $documento['hora_entrega'] ?? '' ?>"
-                           <?= !$permisos['apartado2'] ? 'readonly' : '' ?>>
+                    <?php if ($documento['estado'] == 'completado'): ?>
+                        <!-- Documento completado: mostrar como texto -->
+                        <input type="text" 
+                               class="form-control campo-bloqueado" 
+                               value="<?= !empty($documento['hora_entrega']) ? $documento['hora_entrega'] : 'No especificada' ?>"
+                               readonly>
+                    <?php else: ?>
+                        <!-- Documento en proceso: mostrar input editable -->
+                        <input type="time" 
+                               class="form-control <?= !$permisos['apartado2'] ? 'campo-bloqueado' : '' ?>" 
+                               name="hora_entrega" 
+                               value="<?= $documento['hora_entrega'] ?? '' ?>"
+                               <?= !$permisos['apartado2'] ? 'readonly' : '' ?>>
+                    <?php endif; ?>
                 </div>
             </div>
         </form>
         
-        <!-- ⭐ ARCHIVOS CARGADOS - ANTES DE LOS BOTONES -->
+        <!-- ⭐ ARCHIVOS YA CARGADOS - ANTES DE LOS BOTONES -->
         <?php if (!empty($documento['archivos_apartado2'])): ?>
             <?php 
             $archivos = json_decode($documento['archivos_apartado2'], true);
             if (is_array($archivos) && count($archivos) > 0): 
             ?>
             <div class="mb-3">
-                <h6 class="fw-bold"><i class="bi bi-folder2-open"></i> Archivos adjuntos (<?= count($archivos) ?>)</h6>
+                <h6 class="fw-bold">
+                    <i class="bi bi-folder2-open"></i> 
+                    Archivos guardados (<?= count($archivos) ?>)
+                    <?php if ($permisos['apartado2'] && $documento['estado'] != 'completado'): ?>
+                        <small class="text-muted fw-normal">- Puede agregar más archivos arriba</small>
+                    <?php endif; ?>
+                </h6>
                 
                 <div class="row mt-3">
                     <?php foreach ($archivos as $archivo): ?>
@@ -468,4 +523,159 @@ if (!function_exists('obtener_icono_ssc')) {
 .archivo-card:hover .card-img-top img {
     transform: scale(1.05);
 }
+
+/* ⭐ Estilos para preview de archivos nuevos */
+.archivo-nuevo-preview {
+    background: #e8f5e9;
+    border: 2px dashed #4caf50;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+.archivo-nuevo-preview:hover {
+    background: #c8e6c9;
+    transform: scale(1.02);
+}
+.archivo-nuevo-preview .preview-img {
+    max-height: 80px;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+}
+.archivo-nuevo-preview .preview-icon {
+    font-size: 3rem;
+}
+.archivo-nuevo-preview .archivo-nombre {
+    font-size: 0.75rem;
+    word-break: break-all;
+    margin-top: 5px;
+}
+.archivo-nuevo-preview .archivo-size {
+    font-size: 0.65rem;
+    color: #666;
+}
+.archivo-nuevo-preview .btn-quitar {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 0.7rem;
+}
 </style>
+
+<!-- ⭐ Script para preview de archivos nuevos -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputArchivos = document.getElementById('archivos_apartado2');
+    const btnLimpiar = document.getElementById('btnLimpiarArchivos');
+    const previewContainer = document.getElementById('previewArchivosNuevos');
+    const listaArchivos = document.getElementById('listaArchivosNuevos');
+    const contadorArchivos = document.getElementById('contadorArchivosNuevos');
+    
+    if (!inputArchivos) return;
+    
+    // ⭐ Función para obtener icono según extensión
+    function obtenerIcono(extension) {
+        const iconos = {
+            'pdf': 'bi-file-earmark-pdf text-danger',
+            'doc': 'bi-file-earmark-word text-primary',
+            'docx': 'bi-file-earmark-word text-primary',
+            'xls': 'bi-file-earmark-excel text-success',
+            'xlsx': 'bi-file-earmark-excel text-success',
+            'ppt': 'bi-file-earmark-ppt text-warning',
+            'pptx': 'bi-file-earmark-ppt text-warning',
+            'zip': 'bi-file-earmark-zip text-secondary',
+            'rar': 'bi-file-earmark-zip text-secondary',
+            'mp4': 'bi-file-earmark-play text-info',
+            'avi': 'bi-file-earmark-play text-info',
+            'mov': 'bi-file-earmark-play text-info',
+            'mp3': 'bi-file-earmark-music text-purple',
+            'wav': 'bi-file-earmark-music text-purple',
+            'txt': 'bi-file-earmark-text text-muted'
+        };
+        return iconos[extension.toLowerCase()] || 'bi-file-earmark text-secondary';
+    }
+    
+    // ⭐ Función para formatear tamaño
+    function formatearTamanio(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+    
+    // ⭐ Función para verificar si es imagen
+    function esImagen(tipo) {
+        return tipo.startsWith('image/');
+    }
+    
+    // ⭐ Mostrar preview cuando se seleccionan archivos
+    inputArchivos.addEventListener('change', function() {
+        const archivos = this.files;
+        
+        if (archivos.length === 0) {
+            previewContainer.style.display = 'none';
+            return;
+        }
+        
+        previewContainer.style.display = 'block';
+        contadorArchivos.textContent = archivos.length;
+        listaArchivos.innerHTML = '';
+        
+        Array.from(archivos).forEach((archivo, index) => {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-3 col-lg-2 mb-2';
+            
+            const extension = archivo.name.split('.').pop();
+            const icono = obtenerIcono(extension);
+            
+            let contenido = '';
+            
+            if (esImagen(archivo.type)) {
+                // Si es imagen, mostrar thumbnail
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    col.querySelector('.preview-placeholder').innerHTML = 
+                        `<img src="${e.target.result}" class="preview-img" alt="${archivo.name}">`;
+                };
+                reader.readAsDataURL(archivo);
+                
+                contenido = `
+                    <div class="archivo-nuevo-preview position-relative">
+                        <div class="preview-placeholder">
+                            <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                        </div>
+                        <div class="archivo-nombre">${archivo.name}</div>
+                        <div class="archivo-size">${formatearTamanio(archivo.size)}</div>
+                    </div>
+                `;
+            } else {
+                // Si no es imagen, mostrar icono
+                contenido = `
+                    <div class="archivo-nuevo-preview position-relative">
+                        <i class="bi ${icono} preview-icon"></i>
+                        <div class="archivo-nombre">${archivo.name}</div>
+                        <div class="archivo-size">${formatearTamanio(archivo.size)}</div>
+                    </div>
+                `;
+            }
+            
+            col.innerHTML = contenido;
+            listaArchivos.appendChild(col);
+        });
+    });
+    
+    // ⭐ Botón para limpiar selección
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener('click', function() {
+            inputArchivos.value = '';
+            previewContainer.style.display = 'none';
+            listaArchivos.innerHTML = '';
+            contadorArchivos.textContent = '0';
+        });
+    }
+});
+</script>

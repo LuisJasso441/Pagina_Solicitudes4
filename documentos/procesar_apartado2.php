@@ -20,6 +20,49 @@ try {
     require_once __DIR__ . '/../auth/verificar_sesion.php';
     require_once __DIR__ . '/../includes/colaborativo/documentos_colaborativos.php';
 
+    // ⭐ FUNCIÓN: Limpiar y normalizar formato de hora
+    // Convierte formatos como "09:50 a. m.", "9:50 AM", "09:50 a.m." a formato 24h "09:50"
+    function limpiar_formato_hora($hora) {
+        if (empty($hora)) return '';
+        
+        // Limpiar espacios extra
+        $hora = trim($hora);
+        
+        // Si ya está en formato 24h válido, devolverla tal cual
+        if (preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora)) {
+            return $hora;
+        }
+        
+        // Detectar si tiene indicador AM/PM (varios formatos)
+        $es_pm = preg_match('/p\.?\s*m\.?/i', $hora);
+        $es_am = preg_match('/a\.?\s*m\.?/i', $hora);
+        
+        // Extraer solo los números (hora y minutos)
+        if (preg_match('/(\d{1,2}):(\d{2})/', $hora, $matches)) {
+            $horas = intval($matches[1]);
+            $minutos = $matches[2];
+            
+            // Convertir a formato 24 horas si es necesario
+            if ($es_pm && $horas < 12) {
+                $horas += 12;
+            } elseif ($es_am && $horas == 12) {
+                $horas = 0;
+            }
+            
+            // Formatear con ceros a la izquierda
+            return sprintf('%02d:%s', $horas, $minutos);
+        }
+        
+        // Si no se pudo parsear, intentar con strtotime
+        $timestamp = strtotime($hora);
+        if ($timestamp !== false) {
+            return date('H:i', $timestamp);
+        }
+        
+        // Devolver original si no se puede procesar
+        return $hora;
+    }
+
     // Limpiar cualquier output buffer antes de continuar
     ob_clean();
 
@@ -103,6 +146,9 @@ try {
         exit;
     }
 
+    // ⭐ NORMALIZAR HORA - Limpiar formatos con AM/PM que envían algunos navegadores
+    $hora_recibido = limpiar_formato_hora($hora_recibido);
+    
     if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora_recibido)) {
         echo json_encode(['success' => false, 'message' => 'Formato de hora de recibido no válido (HH:MM)']);
         exit;
@@ -129,11 +175,13 @@ try {
     }
     
     if (!empty($_POST['hora_entrega'])) {
-        if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $_POST['hora_entrega'])) {
+        // ⭐ NORMALIZAR HORA DE ENTREGA
+        $hora_entrega = limpiar_formato_hora($_POST['hora_entrega']);
+        
+        if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora_entrega)) {
             echo json_encode(['success' => false, 'message' => 'Formato de hora de entrega no válido (HH:MM)']);
             exit;
         }
-        $hora_entrega = $_POST['hora_entrega'];
     }
 
     // ===== MANEJO DE ARCHIVOS =====

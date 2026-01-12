@@ -2,6 +2,7 @@
 /**
  * Modal para crear nuevo documento colaborativo SSC
  * ⭐ VALIDACIÓN DE PERMISOS - Solo se muestra si el usuario tiene permiso de creador SSC
+ * ⭐ ACTUALIZADO - Timeout de inactividad de 10 minutos
  */
 
 // Asegurar que la sesión está iniciada
@@ -146,7 +147,7 @@ if ($puede_crear_ssc):
                                                id="servicio_revision" 
                                                value="revision_productos">
                                         <label class="form-check-label" for="servicio_revision">
-                                            Revisión de productos químicos
+                                            Productos químicos y/o residuos
                                         </label>
                                     </div>
                                 </div>
@@ -321,6 +322,55 @@ document.addEventListener('DOMContentLoaded', function() {
             btnGuardar.innerHTML = '<i class="bi bi-save"></i> Crear Documento';
         });
     });
+    
+    // ============================================
+    // ⭐ TIMEOUT DE INACTIVIDAD - 10 MINUTOS
+    // ============================================
+    const TIMEOUT_INACTIVIDAD = 10 * 60 * 1000; // 10 minutos en milisegundos
+    let timeoutId = null;
+    const modalElement = document.getElementById('modalNuevoDocumento');
+    
+    // Función para reiniciar el timeout
+    function reiniciarTimeout() {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        
+        // Solo iniciar timeout si el modal está visible
+        if (modalElement && modalElement.classList.contains('show')) {
+            timeoutId = setTimeout(() => {
+                // Cerrar modal por inactividad
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    mostrarAlerta('warning', 'Modal cerrado', 'El formulario se cerró por inactividad (10 minutos)');
+                }
+            }, TIMEOUT_INACTIVIDAD);
+        }
+    }
+    
+    // Eventos que reinician el timeout (actividad del usuario)
+    const eventosActividad = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click', 'input', 'change'];
+    
+    // Agregar listeners al modal
+    if (modalElement) {
+        eventosActividad.forEach(evento => {
+            modalElement.addEventListener(evento, reiniciarTimeout);
+        });
+        
+        // Iniciar timeout cuando se abre el modal
+        modalElement.addEventListener('shown.bs.modal', function() {
+            reiniciarTimeout();
+        });
+        
+        // Limpiar timeout cuando se cierra el modal
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                timeoutId = null;
+            }
+        });
+    }
 });
 
 // Función para mostrar alertas

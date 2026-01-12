@@ -6,6 +6,7 @@
 
 session_start();
 require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../auth/verificar_sesion.php';
 require_once __DIR__ . '/../../includes/colaborativo/documentos_colaborativos.php';
 require_once __DIR__ . '/../../includes/colaborativo/documentos_comentarios.php';
@@ -39,13 +40,29 @@ if (!$documento) {
 // Verificar permisos
 $permisos = verificar_permisos_edicion($usuario_id, $departamento, $documento);
 
+// ⭐ Verificar si es Laboratorio (para funcionalidad "Marcar como visto")
+$es_laboratorio = strtolower($departamento) === 'laboratorio';
+
+// ⭐ Obtener nombre del usuario que marcó como visto (si aplica)
+$usuario_marcado_visto_nombre = null;
+if ($documento['marcado_visto'] && $documento['usuario_marcado_visto']) {
+    try {
+        $pdo_temp = conectarDB();
+        $stmt_temp = $pdo_temp->prepare("SELECT nombre_completo FROM usuarios WHERE id = ?");
+        $stmt_temp->execute([$documento['usuario_marcado_visto']]);
+        $usuario_marcado_visto_nombre = $stmt_temp->fetchColumn();
+    } catch (Exception $e) {
+        error_log("Error al obtener nombre de usuario: " . $e->getMessage());
+    }
+}
+
 // Obtener comentarios
 $comentarios = obtener_comentarios_documento($documento_id);
 
 // Obtener servicios para mostrar
 $servicios_nombres = [
     'tratamiento_agua' => 'Tratamiento de agua',
-    'revision_productos' => 'Revisión de productos químicos',
+    'revision_productos' => 'Productos químicos y/o residuos',
     'calibracion_equipos' => 'Calibración y/o verificación de equipos',
     'otro' => 'Otro'
 ];
@@ -196,6 +213,27 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             padding: 1rem !important;
         }
         
+        /* ⭐ Card Marcar como visto */
+        .card-marcar-visto {
+            border: 2px solid #17a2b8;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #e3f2fd 0%, #f8f9fa 100%);
+        }
+        .card-marcar-visto .btn-group .btn {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        .card-marcar-visto .btn-check:checked + .btn-outline-success {
+            background-color: #198754;
+            border-color: #198754;
+            color: white;
+        }
+        .card-marcar-visto .btn-check:checked + .btn-outline-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            color: white;
+        }
+        
         @media print {
             .no-print {
                 display: none !important;
@@ -236,6 +274,56 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                         <button class="btn btn-light btn-sm" onclick="window.print()">
                             <i class="bi bi-printer"></i> Imprimir
                         </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ⭐ NUEVA CARD: Marcar como visto -->
+            <div class="card mb-3 card-marcar-visto">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-eye-fill text-info me-2 fs-5"></i>
+                            <span class="fw-bold">Marcar como visto</span>
+                        </div>
+                        
+                        <div class="d-flex align-items-center">
+                            <?php if ($es_laboratorio): ?>
+                            <!-- Laboratorio: Puede editar -->
+                            <div class="btn-group" role="group" id="grupoMarcarVisto">
+                                <input type="radio" class="btn-check" name="marcado_visto" id="visto_si" value="1" 
+                                       <?= $documento['marcado_visto'] ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-success btn-sm" for="visto_si">
+                                    <i class="bi bi-check-lg"></i> Sí
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="marcado_visto" id="visto_no" value="0"
+                                       <?= !$documento['marcado_visto'] ? 'checked' : '' ?>>
+                                <label class="btn btn-outline-secondary btn-sm" for="visto_no">
+                                    <i class="bi bi-x-lg"></i> No
+                                </label>
+                            </div>
+                            <?php else: ?>
+                            <!-- Normatividad/Ventas: Solo visualización -->
+                            <?php if ($documento['marcado_visto']): ?>
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle"></i> Sí
+                                </span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-x-circle"></i> No
+                                </span>
+                            <?php endif; ?>
+                            <?php endif; ?>
+                            
+                            <!-- Info de quién marcó -->
+                            <?php if ($documento['marcado_visto'] && $usuario_marcado_visto_nombre): ?>
+                            <span class="ms-3 text-muted small" id="infoMarcadoVisto">
+                                <i class="bi bi-person"></i> <?= htmlspecialchars($usuario_marcado_visto_nombre) ?>
+                                <i class="bi bi-clock ms-1"></i> <?= date('d/m/Y H:i', strtotime($documento['fecha_marcado_visto'])) ?>
+                            </span>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -311,5 +399,109 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/documento_editar.js"></script>
+    
+    <?php if ($es_laboratorio): ?>
+    <!-- ⭐ Script para Marcar como visto (solo Laboratorio) -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const radiosVisto = document.querySelectorAll('input[name="marcado_visto"]');
+        const documentoId = <?= $documento['id'] ?>;
+        
+        radiosVisto.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const marcadoVisto = this.value;
+                
+                // Mostrar indicador de carga
+                const grupoBtn = document.getElementById('grupoMarcarVisto');
+                const originalHTML = grupoBtn.innerHTML;
+                grupoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Procesando...';
+                
+                // Enviar petición AJAX
+                fetch('<?= URL_BASE ?>documentos/procesar_marcar_visto.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `documento_id=${documentoId}&marcado_visto=${marcadoVisto}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Mostrar mensaje de éxito
+                        mostrarAlertaVisto('success', data.message);
+                        
+                        // Actualizar info si se marcó como visto
+                        if (data.marcado_visto == 1) {
+                            let infoSpan = document.getElementById('infoMarcadoVisto');
+                            if (!infoSpan) {
+                                infoSpan = document.createElement('span');
+                                infoSpan.id = 'infoMarcadoVisto';
+                                infoSpan.className = 'ms-3 text-muted small';
+                                grupoBtn.parentElement.appendChild(infoSpan);
+                            }
+                            infoSpan.innerHTML = `<i class="bi bi-person"></i> ${data.usuario} <i class="bi bi-clock ms-1"></i> ${data.fecha}`;
+                        } else {
+                            // Si se desmarcó, ocultar info
+                            const infoSpan = document.getElementById('infoMarcadoVisto');
+                            if (infoSpan) {
+                                infoSpan.remove();
+                            }
+                        }
+                        
+                        // Restaurar botones
+                        grupoBtn.innerHTML = `
+                            <input type="radio" class="btn-check" name="marcado_visto" id="visto_si" value="1" ${data.marcado_visto == 1 ? 'checked' : ''}>
+                            <label class="btn btn-outline-success btn-sm" for="visto_si">
+                                <i class="bi bi-check-lg"></i> Sí
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="marcado_visto" id="visto_no" value="0" ${data.marcado_visto == 0 ? 'checked' : ''}>
+                            <label class="btn btn-outline-secondary btn-sm" for="visto_no">
+                                <i class="bi bi-x-lg"></i> No
+                            </label>
+                        `;
+                        
+                        // Re-agregar event listeners
+                        document.querySelectorAll('input[name="marcado_visto"]').forEach(r => {
+                            r.addEventListener('change', arguments.callee);
+                        });
+                        
+                    } else {
+                        mostrarAlertaVisto('danger', data.message);
+                        grupoBtn.innerHTML = originalHTML;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    mostrarAlertaVisto('danger', 'Error al procesar la solicitud');
+                    grupoBtn.innerHTML = originalHTML;
+                });
+            });
+        });
+        
+        // Función para mostrar alertas
+        function mostrarAlertaVisto(tipo, mensaje) {
+            const alertaHTML = `
+                <div class="alert alert-${tipo} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3" 
+                     style="z-index: 9999; min-width: 300px;" role="alert">
+                    <i class="bi bi-${tipo === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                    ${mensaje}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', alertaHTML);
+            
+            // Auto-cerrar después de 4 segundos
+            setTimeout(() => {
+                const alerta = document.querySelector('.alert');
+                if (alerta) {
+                    alerta.remove();
+                }
+            }, 4000);
+        }
+    });
+    </script>
+    <?php endif; ?>
 </body>
 </html>
