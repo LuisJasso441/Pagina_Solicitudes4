@@ -271,9 +271,9 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                         <a href="documentos_colaborativos.php" class="btn btn-light btn-sm">
                             <i class="bi bi-arrow-left"></i> Volver
                         </a>
-                        <button class="btn btn-light btn-sm" onclick="window.print()">
-                            <i class="bi bi-printer"></i> Imprimir
-                        </button>
+                        <a href="<?= URL_BASE ?>documentos/generar_pdf_ssc.php?id=<?= $documento['id'] ?>" class="btn btn-light btn-sm">
+                            <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+                        </a>
                     </div>
                 </div>
             </div>
