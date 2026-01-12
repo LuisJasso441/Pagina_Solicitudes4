@@ -18,7 +18,6 @@
       <!-- Botones a la derecha -->
       <div class="navbar-buttons">
         <a href="auth/InicioSesion.php" class="btn btn-primary">Iniciar Sesión</a>
-        <a href="auth/Registrarse.php" class="btn btn-primary">Registrarse</a>
       </div>
     </div>
   </nav>

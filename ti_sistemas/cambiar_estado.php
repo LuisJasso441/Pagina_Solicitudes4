@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <?php include __DIR__ . '/../includes/sidebar_ti.php'; ?>
+        <?php include __DIR__ . '/../includes/sidebar/sidebar_ti.php'; ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">

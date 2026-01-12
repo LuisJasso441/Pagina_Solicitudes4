@@ -15,7 +15,6 @@
       </div>
       <div class="navbar-buttons">
         <a href="../index.php" class="btn btn-primary">Inicio</a>
-        <a href="Registrarse.php" class="btn btn-primary">Registrarse</a>
       </div>
     </div>
   </nav>
@@ -36,20 +35,8 @@
           <label>Contraseña</label>
         </div>
 
-        <div class="content">
-          <div class="checkbox">
-            <input type="checkbox" id="remember" name="remember">
-            <label for="remember">Recordar</label>
-          </div>
-          <a href="recuperar_password.php" class="pass-link">¿Olvidó su contraseña?</a>
-        </div>
-
         <div class="field">
           <input type="submit" value="Ingresar">
-        </div>
-
-        <div class="signup-link">
-          ¿No tienes cuenta? <a href="Registrarse.php">Regístrese Ahora</a>
         </div>
       </form>
     </div>
