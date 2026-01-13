@@ -224,7 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                                     <!-- Botones -->
                                     <div class="d-flex justify-content-between">
-                                        <a href="<?php echo URL_BASE; ?>ti_sistemas/todas_solicitudes.php" class="btn btn-secondary">
+                                        <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php" class="btn btn-secondary">
                                             <i class="bi bi-x-circle"></i> Cancelar
                                         </a>
                                         <button type="submit" class="btn btn-gradient">

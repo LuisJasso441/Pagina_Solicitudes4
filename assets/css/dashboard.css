@@ -324,39 +324,55 @@ body {
    BADGES PERSONALIZADOS - COMPACTOS
    ==================================== */
 .badge-pendiente {
-  background-color: #ffc107;
-  color: #000;
+  background-color: #ffc107 !important;
+  color: #000 !important;
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-weight: 500;
   font-size: 0.7rem;
+  display: inline-block;
 }
 
-.badge-en-proceso {
-  background-color: #0dcaf0;
-  color: #000;
+/* Clase con guión bajo (generada por PHP) */
+.badge-en_proceso {
+  background-color: #0dcaf0 !important;
+  color: #000 !important;
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-weight: 500;
   font-size: 0.7rem;
+  display: inline-block;
+}
+
+/* Clase con guión (compatibilidad) */
+.badge-en-proceso {
+  background-color: #0dcaf0 !important;
+  color: #000 !important;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 0.7rem;
+  display: inline-block;
 }
 
 .badge-finalizada {
-  background-color: #198754;
-  color: #fff;
+  background-color: #198754 !important;
+  color: #fff !important;
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-weight: 500;
   font-size: 0.7rem;
+  display: inline-block;
 }
 
 .badge-cancelada {
-  background-color: #6c757d;
-  color: #fff;
+  background-color: #6c757d !important;
+  color: #fff !important;
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
   font-weight: 500;
   font-size: 0.7rem;
+  display: inline-block;
 }
 
 /* ====================================
@@ -582,19 +598,116 @@ body[data-theme="dark"] .card-custom {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 
-body[data-theme="dark"] .table-custom {
+body[data-theme="dark"] .card-custom .card-body {
   background-color: var(--card-bg);
   color: var(--text-primary);
 }
 
-body[data-theme="dark"] .table-custom tbody tr:hover {
-  background-color: #3a3a3a;
+/* ====================================
+   TABLAS EN MODO OSCURO - COMPLETO
+   ==================================== */
+body[data-theme="dark"] .table-custom,
+body[data-theme="dark"] .table {
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+  --bs-table-bg: var(--card-bg);
+  --bs-table-color: var(--text-primary);
+  --bs-table-border-color: var(--border-color);
+  --bs-table-striped-bg: #353535;
+  --bs-table-striped-color: var(--text-primary);
+  --bs-table-hover-bg: #3a3a3a;
+  --bs-table-hover-color: var(--text-primary);
 }
 
-body[data-theme="dark"] .table-custom tbody td {
-  border-bottom: 1px solid var(--border-color);
+body[data-theme="dark"] .table-custom tbody tr,
+body[data-theme="dark"] .table tbody tr {
+  background-color: var(--card-bg);
   color: var(--text-primary);
 }
+
+body[data-theme="dark"] .table-custom tbody tr:hover,
+body[data-theme="dark"] .table tbody tr:hover {
+  background-color: #3a3a3a !important;
+  color: var(--text-primary);
+}
+
+body[data-theme="dark"] .table-custom tbody td,
+body[data-theme="dark"] .table tbody td {
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary) !important;
+  background-color: transparent;
+}
+
+body[data-theme="dark"] .table-custom tbody td strong,
+body[data-theme="dark"] .table tbody td strong {
+  color: #ffffff;
+}
+
+body[data-theme="dark"] .table-custom thead,
+body[data-theme="dark"] .table thead {
+  background: var(--gradient);
+  color: #fff;
+}
+
+body[data-theme="dark"] .table-custom thead th,
+body[data-theme="dark"] .table thead th {
+  color: #fff !important;
+  background: transparent;
+}
+
+body[data-theme="dark"] .table-responsive-custom {
+  background-color: var(--card-bg);
+}
+
+/* ====================================
+   FIN TABLAS EN MODO OSCURO
+   ==================================== */
+
+/* ====================================
+   LIST-GROUP EN MODO OSCURO
+   ==================================== */
+body[data-theme="dark"] .list-group {
+  --bs-list-group-bg: var(--card-bg);
+  --bs-list-group-color: var(--text-primary);
+  --bs-list-group-border-color: var(--border-color);
+  --bs-list-group-action-hover-bg: #3a3a3a;
+  --bs-list-group-action-hover-color: var(--text-primary);
+  --bs-list-group-action-active-bg: #404040;
+  --bs-list-group-action-active-color: var(--text-primary);
+}
+
+body[data-theme="dark"] .list-group-item {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+body[data-theme="dark"] .list-group-item-action:hover,
+body[data-theme="dark"] .list-group-item-action:focus {
+  background-color: #3a3a3a !important;
+  color: var(--text-primary) !important;
+}
+
+body[data-theme="dark"] .list-group-item strong {
+  color: #ffffff;
+}
+
+body[data-theme="dark"] .list-group-item .text-muted,
+body[data-theme="dark"] .list-group-item p.small {
+  color: var(--text-secondary) !important;
+}
+
+body[data-theme="dark"] .list-group-flush > .list-group-item {
+  border-width: 0 0 1px 0;
+}
+
+body[data-theme="dark"] .list-group-flush > .list-group-item:last-child {
+  border-bottom-width: 0;
+}
+
+/* ====================================
+   FIN LIST-GROUP EN MODO OSCURO
+   ==================================== */
 
 body[data-theme="dark"] .form-control,
 body[data-theme="dark"] .form-select {
@@ -655,6 +768,15 @@ body[data-theme="dark"] .alert {
   background-color: var(--card-bg);
   border-color: var(--border-color);
   color: var(--text-primary);
+}
+
+/* Scrollbar en modo oscuro */
+body[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+body[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(-135deg, #4a5568, #2d3748);
 }
 
 /* ====================================
