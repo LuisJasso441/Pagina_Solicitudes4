@@ -1,6 +1,8 @@
 <?php
 /**
  * Sidebar para usuarios colaborativos
+ * Actualizado: Enero 2026
+ * Incluye módulo de Cotizaciones Químicos/Residuos (solo Normatividad y Ventas)
  */
 $current_page = basename($_SERVER['PHP_SELF']);
 
@@ -20,6 +22,56 @@ try {
     $mis_mant_pendientes = $stmt_mant->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 } catch (Exception $e) {
     $mis_mant_pendientes = 0;
+}
+
+// ⭐ Verificar si el usuario tiene acceso al módulo CQR (Cotizaciones Químicos/Residuos)
+$tiene_acceso_cqr = false;
+$contador_cqr_pendientes = 0;
+
+try {
+    // Verificar permisos CQR del usuario
+    $stmt_cqr = $pdo->prepare("
+        SELECT lector, creador, editor 
+        FROM permisos_cqr 
+        WHERE user_id = :usuario_id
+    ");
+    $stmt_cqr->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $permisos_cqr = $stmt_cqr->fetch(PDO::FETCH_ASSOC);
+    
+    if ($permisos_cqr && ($permisos_cqr['lector'] == 1 || $permisos_cqr['creador'] == 1 || $permisos_cqr['editor'] == 1)) {
+        $tiene_acceso_cqr = true;
+        
+        // Obtener departamento del usuario para determinar qué contador mostrar
+        $depto_usuario = strtolower($_SESSION['departamento'] ?? '');
+        
+        if (strpos($depto_usuario, 'ventas') !== false) {
+            // Para Ventas: contar sus cotizaciones pendientes de respuesta
+            $stmt_contador = $pdo->prepare("
+                SELECT COUNT(*) as total 
+                FROM cotizaciones_quimicos_residuos 
+                WHERE usuario_creador_id = :usuario_id 
+                AND estado IN ('enviada', 'en_revision')
+                AND ubicacion = 'local'
+            ");
+            $stmt_contador->execute([':usuario_id' => $_SESSION['usuario_id']]);
+        } else if (strpos($depto_usuario, 'normatividad') !== false) {
+            // Para Normatividad: contar cotizaciones pendientes de revisar
+            $stmt_contador = $pdo->prepare("
+                SELECT COUNT(*) as total 
+                FROM cotizaciones_quimicos_residuos 
+                WHERE estado = 'enviada'
+                AND ubicacion = 'local'
+            ");
+            $stmt_contador->execute();
+        }
+        
+        if (isset($stmt_contador)) {
+            $contador_cqr_pendientes = $stmt_contador->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        }
+    }
+} catch (Exception $e) {
+    $tiene_acceso_cqr = false;
+    $contador_cqr_pendientes = 0;
 }
 ?>
 
@@ -106,6 +158,25 @@ try {
                     <i class="bi bi-file-earmark-text"></i> Documentos SSC
                 </a>
             </li>
+            
+            <?php if ($tiene_acceso_cqr): ?>
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- MÓDULO CQR - Solo visible para Normatividad y Ventas -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">COTIZACIONES QUÍMICOS</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['cotizaciones_qr.php', 'ver_cotizacion_qr.php', 'nueva_cotizacion_qr.php']) ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php">
+                    <i class="bi bi-flask"></i> Cotizaciones QR
+                    <?php if ($contador_cqr_pendientes > 0): ?>
+                    <span class="badge bg-warning text-dark ms-2"><?php echo $contador_cqr_pendientes; ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- ═══════════════════════════════════════════════════════════════ -->
             
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
