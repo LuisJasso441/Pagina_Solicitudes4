@@ -89,7 +89,7 @@ function obtener_cotizacion_qr_por_id($id) {
         SELECT 
             c.*,
             uc.nombre_completo as creador_nombre,
-            uc.email as creador_email,
+            uc.departamento as creador_departamento,
             un.nombre_completo as normatividad_nombre,
             d.nombre as departamento_nombre
         FROM cotizaciones_quimicos_residuos c
@@ -362,7 +362,7 @@ function obtener_usuarios_normatividad() {
     $pdo = conectarDB();
     
     $stmt = $pdo->query("
-        SELECT u.id, u.nombre_completo, u.email
+        SELECT u.id, u.nombre_completo, u.departamento
         FROM usuarios u
         INNER JOIN departamentos d ON u.departamento_id = d.id
         WHERE LOWER(d.codigo) = 'normatividad'
@@ -392,8 +392,8 @@ function procesar_archivo_cqr($archivo, $tipo) {
         return ['error' => 'El archivo excede el tamaño máximo permitido (10MB)'];
     }
     
-    // Directorio de destino
-    $directorio = __DIR__ . '/../../uploads/cotizaciones_qr/';
+    // Directorio de destino (en raíz del proyecto como Imagenes_SSC y Imagenes_OSM)
+    $directorio = __DIR__ . '/../../Imagenes_QR/';
     if (!is_dir($directorio)) {
         mkdir($directorio, 0755, true);
     }
@@ -406,7 +406,7 @@ function procesar_archivo_cqr($archivo, $tipo) {
         return json_encode([
             'nombre_original' => $archivo['name'],
             'nombre_guardado' => $nombre_guardado,
-            'ruta' => 'uploads/cotizaciones_qr/' . $nombre_guardado,
+            'ruta' => 'Imagenes_QR/' . $nombre_guardado,
             'tipo' => $archivo['type'],
             'tamanio' => $archivo['size'],
             'extension' => $extension,

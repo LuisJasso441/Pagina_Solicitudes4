@@ -261,7 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Nombre <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">Nombre (Amigable) <span class="text-danger">*</span></label>
                             <input type="text" name="nombre_amigable" class="form-control" 
                                    value="<?php echo htmlspecialchars($datos['nombre_amigable'] ?? ''); ?>"
                                    placeholder="Nombre comercial del producto" required>
@@ -269,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Nombre Tecnico</label>
+                            <label class="form-label fw-bold">Nombre Real (Técnico)</label>
                             <input type="text" name="nombre_tecnico" class="form-control" 
                                    value="<?php echo htmlspecialchars($datos['nombre_tecnico'] ?? ''); ?>"
                                    placeholder="Nombre técnico/químico del producto">

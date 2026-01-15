@@ -2,7 +2,7 @@
 /**
  * Procesar actualización del Apartado 2
  * Solo usuarios de Laboratorio
- * ⭐ ACTUALIZADO - Incluye fecha_entrega y hora_entrega
+ * ⭐ VERSIÓN 2 - Preserva archivos existentes, reporta errores Y evita duplicados
  */
 
 // Deshabilitar output de errores PHP para que no rompa el JSON
@@ -21,46 +21,51 @@ try {
     require_once __DIR__ . '/../includes/colaborativo/documentos_colaborativos.php';
 
     // ⭐ FUNCIÓN: Limpiar y normalizar formato de hora
-    // Convierte formatos como "09:50 a. m.", "9:50 AM", "09:50 a.m." a formato 24h "09:50"
     function limpiar_formato_hora($hora) {
         if (empty($hora)) return '';
         
-        // Limpiar espacios extra
         $hora = trim($hora);
         
-        // Si ya está en formato 24h válido, devolverla tal cual
         if (preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora)) {
             return $hora;
         }
         
-        // Detectar si tiene indicador AM/PM (varios formatos)
         $es_pm = preg_match('/p\.?\s*m\.?/i', $hora);
         $es_am = preg_match('/a\.?\s*m\.?/i', $hora);
         
-        // Extraer solo los números (hora y minutos)
         if (preg_match('/(\d{1,2}):(\d{2})/', $hora, $matches)) {
             $horas = intval($matches[1]);
             $minutos = $matches[2];
             
-            // Convertir a formato 24 horas si es necesario
             if ($es_pm && $horas < 12) {
                 $horas += 12;
             } elseif ($es_am && $horas == 12) {
                 $horas = 0;
             }
             
-            // Formatear con ceros a la izquierda
             return sprintf('%02d:%s', $horas, $minutos);
         }
         
-        // Si no se pudo parsear, intentar con strtotime
         $timestamp = strtotime($hora);
         if ($timestamp !== false) {
             return date('H:i', $timestamp);
         }
         
-        // Devolver original si no se puede procesar
         return $hora;
+    }
+
+    // ⭐ FUNCIÓN: Obtener mensaje de error de upload legible
+    function obtener_mensaje_error_upload($error_code) {
+        $mensajes = [
+            UPLOAD_ERR_INI_SIZE => 'El archivo excede el tamaño máximo permitido por el servidor',
+            UPLOAD_ERR_FORM_SIZE => 'El archivo excede el tamaño máximo especificado en el formulario',
+            UPLOAD_ERR_PARTIAL => 'El archivo fue subido parcialmente. Intente de nuevo.',
+            UPLOAD_ERR_NO_FILE => 'No se seleccionó ningún archivo',
+            UPLOAD_ERR_NO_TMP_DIR => 'Error del servidor: Falta carpeta temporal',
+            UPLOAD_ERR_CANT_WRITE => 'Error del servidor: No se pudo escribir el archivo',
+            UPLOAD_ERR_EXTENSION => 'Una extensión de PHP detuvo la subida del archivo'
+        ];
+        return $mensajes[$error_code] ?? "Error desconocido (código: {$error_code})";
     }
 
     // Limpiar cualquier output buffer antes de continuar
@@ -146,7 +151,6 @@ try {
         exit;
     }
 
-    // ⭐ NORMALIZAR HORA - Limpiar formatos con AM/PM que envían algunos navegadores
     $hora_recibido = limpiar_formato_hora($hora_recibido);
     
     if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora_recibido)) {
@@ -154,7 +158,6 @@ try {
         exit;
     }
 
-    // Validar que la fecha no sea muy antigua (opcional: más de 1 año atrás)
     $timestamp_fecha = strtotime($fecha_recibido);
     $hace_un_ano = strtotime('-1 year');
     if ($timestamp_fecha < $hace_un_ano) {
@@ -162,7 +165,7 @@ try {
         exit;
     }
 
-    // ⭐ VALIDAR FECHA Y HORA DE ENTREGA (OPCIONALES)
+    // Validar fecha y hora de entrega (opcionales)
     $fecha_entrega = null;
     $hora_entrega = null;
     
@@ -175,7 +178,6 @@ try {
     }
     
     if (!empty($_POST['hora_entrega'])) {
-        // ⭐ NORMALIZAR HORA DE ENTREGA
         $hora_entrega = limpiar_formato_hora($_POST['hora_entrega']);
         
         if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $hora_entrega)) {
@@ -185,10 +187,28 @@ try {
     }
 
     // ===== MANEJO DE ARCHIVOS =====
-    $archivos_guardados = [];
+    $archivos_nuevos = [];
+    $errores_archivos = [];
 
+    // ⭐ OBTENER ARCHIVOS EXISTENTES DE LA BASE DE DATOS
+    $archivos_existentes = [];
+    if (!empty($documento['archivos_apartado2'])) {
+        $archivos_existentes = json_decode($documento['archivos_apartado2'], true);
+        if (!is_array($archivos_existentes)) {
+            $archivos_existentes = [];
+        }
+    }
+
+    // ⭐ CREAR ÍNDICE DE ARCHIVOS EXISTENTES POR nombre_archivo (para evitar duplicados)
+    $nombres_existentes = [];
+    foreach ($archivos_existentes as $archivo) {
+        if (!empty($archivo['nombre_archivo'])) {
+            $nombres_existentes[$archivo['nombre_archivo']] = true;
+        }
+    }
+
+    // Procesar nuevos archivos si se subieron
     if (!empty($_FILES['archivos_apartado2']['name'][0])) {
-        // ⭐ RUTA CORREGIDA - Carpeta en la raíz del proyecto
         $directorio_destino = __DIR__ . '/../Imagenes_SSC/';
         
         if (!is_dir($directorio_destino)) {
@@ -199,70 +219,99 @@ try {
             }
         }
         
-        // Procesar cada archivo (sin límite de cantidad ni tamaño)
         $total_archivos = count($_FILES['archivos_apartado2']['name']);
         
         for ($i = 0; $i < $total_archivos; $i++) {
-            if ($_FILES['archivos_apartado2']['error'][$i] === UPLOAD_ERR_OK) {
-                $nombre_original = basename($_FILES['archivos_apartado2']['name'][$i]);
-                $nombre_temporal = $_FILES['archivos_apartado2']['tmp_name'][$i];
-                $extension = strtolower(pathinfo($nombre_original, PATHINFO_EXTENSION));
-                $tipo_mime = $_FILES['archivos_apartado2']['type'][$i];
-                $tamanio = $_FILES['archivos_apartado2']['size'][$i];
-                
-                // Generar nombre único
-                $nombre_unico = uniqid('ssc_' . $documento_id . '_', true) . '.' . $extension;
-                $ruta_destino = $directorio_destino . $nombre_unico;
-                
-                // Mover archivo
-                if (move_uploaded_file($nombre_temporal, $ruta_destino)) {
-                    $archivos_guardados[] = [
-                        'nombre_original' => $nombre_original,
-                        'nombre_archivo' => $nombre_unico,
-                        'extension' => $extension,
-                        'tipo_mime' => $tipo_mime,
-                        'tamanio' => $tamanio,
-                        'fecha_subida' => date('Y-m-d H:i:s'),
-                        'subido_por' => $nombre_usuario
-                    ];
-                } else {
-                    error_log("Error al mover archivo: {$nombre_original}");
+            $error_code = $_FILES['archivos_apartado2']['error'][$i];
+            $nombre_original = basename($_FILES['archivos_apartado2']['name'][$i]);
+            
+            // Reportar errores de upload al usuario
+            if ($error_code !== UPLOAD_ERR_OK) {
+                if ($error_code !== UPLOAD_ERR_NO_FILE) {
+                    $mensaje_error = obtener_mensaje_error_upload($error_code);
+                    $errores_archivos[] = "Error en '{$nombre_original}': {$mensaje_error}";
+                    error_log("Error de upload en archivo '{$nombre_original}': código {$error_code}");
                 }
-            } elseif ($_FILES['archivos_apartado2']['error'][$i] !== UPLOAD_ERR_NO_FILE) {
-                // Log de error si no es "no file"
-                error_log("Error en archivo {$i}: " . $_FILES['archivos_apartado2']['error'][$i]);
+                continue;
+            }
+            
+            $nombre_temporal = $_FILES['archivos_apartado2']['tmp_name'][$i];
+            $extension = strtolower(pathinfo($nombre_original, PATHINFO_EXTENSION));
+            $tipo_mime = $_FILES['archivos_apartado2']['type'][$i];
+            $tamanio = $_FILES['archivos_apartado2']['size'][$i];
+            
+            // Generar nombre único
+            $nombre_unico = uniqid('ssc_' . $documento_id . '_', true) . '.' . $extension;
+            $ruta_destino = $directorio_destino . $nombre_unico;
+            
+            // ⭐ VERIFICAR QUE NO EXISTA YA (por si acaso)
+            if (isset($nombres_existentes[$nombre_unico])) {
+                error_log("Archivo ya existe, saltando: {$nombre_unico}");
+                continue;
+            }
+            
+            // Mover archivo
+            if (move_uploaded_file($nombre_temporal, $ruta_destino)) {
+                $archivos_nuevos[] = [
+                    'nombre_original' => $nombre_original,
+                    'nombre_archivo' => $nombre_unico,
+                    'extension' => $extension,
+                    'tipo_mime' => $tipo_mime,
+                    'tamanio' => $tamanio,
+                    'fecha_subida' => date('Y-m-d H:i:s'),
+                    'subido_por' => $nombre_usuario
+                ];
+                
+                // Agregar al índice para evitar duplicados en el mismo request
+                $nombres_existentes[$nombre_unico] = true;
+            } else {
+                $errores_archivos[] = "No se pudo guardar '{$nombre_original}' en el servidor";
+                error_log("Error al mover archivo: {$nombre_original} a {$ruta_destino}");
             }
         }
     }
 
-    // ⭐ PREPARAR DATOS - Incluye fecha_entrega y hora_entrega
+    // ⭐ COMBINAR: archivos existentes + solo los nuevos que realmente se subieron
+    // NO habrá duplicados porque los nuevos tienen nombres únicos generados con uniqid()
+    $todos_los_archivos = array_merge($archivos_existentes, $archivos_nuevos);
+
+    // Preparar datos
     $datos = [
         'recibe_solicitud' => trim($_POST['recibe_solicitud']),
         'resumen_resultados' => trim($_POST['resumen_resultados']),
         'fecha_recibido' => $fecha_recibido,
         'hora_recibido' => $hora_recibido,
-        'archivos_apartado2' => !empty($archivos_guardados) ? json_encode($archivos_guardados) : null,
+        'archivos_apartado2' => !empty($todos_los_archivos) ? json_encode($todos_los_archivos) : null,
         'fecha_entrega' => $fecha_entrega,
         'hora_entrega' => $hora_entrega
     ];
 
     // Log de la operación
     error_log("Usuario {$usuario_id} (Laboratorio) actualizando Apartado 2 del documento {$documento_id}");
+    error_log("Archivos: existentes=" . count($archivos_existentes) . ", nuevos=" . count($archivos_nuevos) . ", total=" . count($todos_los_archivos));
 
-    // Actualizar documento (SIN NOTIFICACIÓN SSE)
+    // Actualizar documento
     $resultado = actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuario);
 
-    // Limpiar output buffer y enviar respuesta limpia
+    // Añadir info de archivos al resultado
+    if ($resultado['success']) {
+        $resultado['archivos_nuevos'] = count($archivos_nuevos);
+        $resultado['archivos_totales'] = count($todos_los_archivos);
+        
+        if (!empty($errores_archivos)) {
+            $resultado['advertencias'] = $errores_archivos;
+            $resultado['message'] = ($resultado['message'] ?? 'Apartado 2 guardado') . 
+                '. ADVERTENCIA: Algunos archivos no se subieron: ' . implode('; ', $errores_archivos);
+        }
+    }
+
+    // Limpiar output buffer y enviar respuesta
     ob_end_clean();
-    
-    // Liberar sesión para evitar bloqueo con SSE
     session_write_close();
 
-    // Enviar respuesta
     echo json_encode($resultado);
 
 } catch (Exception $e) {
-    // Capturar cualquier error y devolver JSON válido
     ob_end_clean();
     error_log("Error en procesar_apartado2.php: " . $e->getMessage());
     echo json_encode([
