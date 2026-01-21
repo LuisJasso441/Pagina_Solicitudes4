@@ -5,6 +5,7 @@
  * VERSIÓN ACTUALIZADA - Incluye: fecha_entrega + hora_entrega en Apartado 2
  * ✅ CORREGIDO - Filtro de cliente implementado en listar_documentos()
  * ⭐ ACTUALIZADO - Permisos basados en permisos_ssc (lector, creador, editor)
+ * ✅ CORREGIDO - Eliminada doble combinación de archivos en actualizar_apartado2()
  */
 
 require_once __DIR__ . '/../../config/database.php';
@@ -128,7 +129,7 @@ function verificar_permisos_edicion($usuario_id, $departamento, $documento) {
     // 3. Tiene permiso de EDITOR en permisos_ssc
     if ($documento['estado'] != 'completado') {
         // Departamentos que pueden editar Apartado 1
-        $deptos_apartado1 = ['normatividad', 'ventas'];
+        $deptos_apartado1 = ['normatividad', 'ventas', 'direccion', 'dirección'];
         
         if (in_array($dept_usuario, $deptos_apartado1) && $dept_usuario == $dept_documento) {
             // Es del mismo departamento que creó el documento
@@ -167,12 +168,12 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
     try {
         $pdo = conectarDB();
         
-        // Verificar que el usuario tenga permiso (Normatividad o Ventas)
+        // Verificar que el usuario tenga permiso (Normatividad, Ventas o Dirección)
         $dept_lower = strtolower($departamento);
-        if (!in_array($dept_lower, ['normatividad', 'ventas'])) {
+        if (!in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección'])) {
             return [
                 'success' => false,
-                'message' => 'Solo Normatividad y Ventas pueden crear documentos colaborativos'
+                'message' => 'Solo Normatividad, Ventas y Dirección pueden crear documentos colaborativos'
             ];
         }
         
@@ -224,7 +225,7 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
                 $documento_id,
                 $folio,
                 $usuario_id,
-                $datos['solicitado_por'],
+                $_SESSION['nombre_completo'] ?? 'Usuario',
                 $departamento,
                 'creado',
                 null,
@@ -232,22 +233,19 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
                 'Documento creado'
             );
             
-            // Notificar a Laboratorio
-            notificar_laboratorio_nuevo_documento($documento_id, $folio, $departamento);
-            
             return [
                 'success' => true,
                 'message' => 'Documento creado exitosamente',
-                'folio' => $folio,
-                'documento_id' => $documento_id
+                'documento_id' => $documento_id,
+                'folio' => $folio
             ];
         }
         
-        return ['success' => false, 'message' => 'Error al crear el documento'];
+        return ['success' => false, 'message' => 'Error al crear documento'];
         
     } catch (Exception $e) {
-        error_log("Error al crear documento colaborativo: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Error del sistema: ' . $e->getMessage()];
+        error_log("Error al crear documento: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Error del sistema'];
     }
 }
 
@@ -257,9 +255,12 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
 function obtener_documento($documento_id) {
     try {
         $pdo = conectarDB();
+        
         $stmt = $pdo->prepare("SELECT * FROM documentos_colaborativos WHERE id = ?");
         $stmt->execute([$documento_id]);
+        
         return $stmt->fetch(PDO::FETCH_ASSOC);
+        
     } catch (Exception $e) {
         error_log("Error al obtener documento: " . $e->getMessage());
         return null;
@@ -267,62 +268,50 @@ function obtener_documento($documento_id) {
 }
 
 /**
- * Listar documentos con filtros
- * ✅ CORREGIDO - Ahora incluye filtro por cliente (nombre_cliente)
+ * Listar documentos según filtros
+ * ⭐ ACTUALIZADO - Incluye filtro por cliente
  */
 function listar_documentos($filtros = [], $usuario_id = null, $departamento = null) {
     try {
         $pdo = conectarDB();
         
-        $where = [];
+        $sql = "SELECT * FROM documentos_colaborativos WHERE 1=1";
         $params = [];
         
-        // Filtro por ubicación (local/global)
-        if (isset($filtros['ubicacion'])) {
-            $where[] = "ubicacion = ?";
+        // Filtro por ubicación
+        if (!empty($filtros['ubicacion'])) {
+            $sql .= " AND ubicacion = ?";
             $params[] = $filtros['ubicacion'];
         }
         
-        // Filtro por departamento creador
-        if (isset($filtros['departamento'])) {
-            $where[] = "departamento_creador = ?";
-            $params[] = $filtros['departamento'];
-        }
-        
         // Filtro por estado
-        if (isset($filtros['estado'])) {
-            $where[] = "estado = ?";
+        if (!empty($filtros['estado'])) {
+            $sql .= " AND estado = ?";
             $params[] = $filtros['estado'];
         }
         
-        // Filtro por rango de fechas
-        if (isset($filtros['fecha_desde'])) {
-            $where[] = "fecha_solicitud >= ?";
-            $params[] = $filtros['fecha_desde'];
-        }
-        
-        if (isset($filtros['fecha_hasta'])) {
-            $where[] = "fecha_solicitud <= ?";
-            $params[] = $filtros['fecha_hasta'];
-        }
-        
-        // ✅ NUEVO: Filtro por cliente (nombre_cliente)
-        if (isset($filtros['cliente']) && !empty($filtros['cliente'])) {
-            $where[] = "nombre_cliente = ?";
+        // ⭐ Filtro por cliente
+        if (!empty($filtros['cliente'])) {
+            $sql .= " AND nombre_cliente = ?";
             $params[] = $filtros['cliente'];
         }
         
-        // Filtro por usuario específico
-        if (isset($filtros['usuario_id'])) {
-            $where[] = "(usuario_creador_id = ? OR usuario_seguimiento_id = ?)";
-            $params[] = $filtros['usuario_id'];
-            $params[] = $filtros['usuario_id'];
+        // Filtro por departamento
+        if (!empty($filtros['departamento'])) {
+            $sql .= " AND departamento_creador = ?";
+            $params[] = $filtros['departamento'];
         }
         
-        $sql = "SELECT * FROM documentos_colaborativos";
+        // Filtro por fecha desde
+        if (!empty($filtros['fecha_desde'])) {
+            $sql .= " AND fecha_creacion >= ?";
+            $params[] = $filtros['fecha_desde'];
+        }
         
-        if (!empty($where)) {
-            $sql .= " WHERE " . implode(" AND ", $where);
+        // Filtro por fecha hasta
+        if (!empty($filtros['fecha_hasta'])) {
+            $sql .= " AND fecha_creacion <= ?";
+            $params[] = $filtros['fecha_hasta'];
         }
         
         $sql .= " ORDER BY fecha_creacion DESC";
@@ -339,93 +328,78 @@ function listar_documentos($filtros = [], $usuario_id = null, $departamento = nu
 }
 
 /**
- * Registrar en historial
+ * Enviar documento a Laboratorio
  */
-function registrar_historial_documento($doc_id, $folio, $user_id, $user_nombre, $dept, $accion, $estado_ant, $estado_nuevo, $detalles) {
+function enviar_documento_laboratorio($documento_id, $usuario_id, $nombre_usuario) {
     try {
         $pdo = conectarDB();
+        
+        $documento = obtener_documento($documento_id);
+        if (!$documento) {
+            return ['success' => false, 'message' => 'Documento no encontrado'];
+        }
+        
+        if ($documento['estado'] != 'borrador') {
+            return ['success' => false, 'message' => 'Solo se pueden enviar documentos en borrador'];
+        }
+        
         $stmt = $pdo->prepare("
-            INSERT INTO documentos_historial 
-            (documento_id, folio_documento, usuario_id, usuario_nombre, departamento, 
-             accion, estado_anterior, estado_nuevo, detalles, fecha_hora)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            UPDATE documentos_colaborativos SET
+                estado = 'enviado',
+                fecha_ultima_edicion = NOW()
+            WHERE id = ?
         ");
         
-        return $stmt->execute([
-            $doc_id, $folio, $user_id, $user_nombre, $dept,
-            $accion, $estado_ant, $estado_nuevo, $detalles
-        ]);
+        $resultado = $stmt->execute([$documento_id]);
+        
+        if ($resultado) {
+            registrar_historial_documento(
+                $documento_id,
+                $documento['folio'],
+                $usuario_id,
+                $nombre_usuario,
+                $documento['departamento_creador'],
+                'enviado',
+                'borrador',
+                'enviado',
+                'Documento enviado a Laboratorio'
+            );
+            
+            // Notificar a Laboratorio
+            notificar_laboratorio_nuevo_documento($documento_id, $documento['folio'], $documento['departamento_creador']);
+            
+            return ['success' => true, 'message' => 'Documento enviado a Laboratorio'];
+        }
+        
+        return ['success' => false, 'message' => 'Error al enviar documento'];
+        
     } catch (Exception $e) {
-        error_log("Error al registrar historial: " . $e->getMessage());
-        return false;
+        error_log("Error al enviar documento: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Error del sistema'];
     }
 }
 
 /**
  * Actualizar Apartado 1 (Normatividad/Ventas)
- * ⭐ ACTUALIZADO - Valida permisos de editor y mismo departamento
  */
-function actualizar_apartado1($documento_id, $datos, $usuario_id) {
+function actualizar_apartado1($documento_id, $datos, $usuario_id, $nombre_usuario) {
     try {
         $pdo = conectarDB();
         
-        // Obtener documento
         $documento = obtener_documento($documento_id);
         if (!$documento) {
             return ['success' => false, 'message' => 'Documento no encontrado'];
         }
         
         if ($documento['estado'] == 'completado') {
-            return ['success' => false, 'message' => 'El documento ya está completado y no puede editarse'];
+            return ['success' => false, 'message' => 'El documento ya está completado'];
         }
-        
-        // ========================================
-        // VALIDACIÓN DE PERMISOS ACTUALIZADA
-        // ========================================
-        
-        // Obtener departamento del usuario
-        $stmt_user = $pdo->prepare("SELECT departamento FROM usuarios WHERE id = ?");
-        $stmt_user->execute([$usuario_id]);
-        $user_data = $stmt_user->fetch(PDO::FETCH_ASSOC);
-        $dept_usuario = strtolower(trim($user_data['departamento'] ?? ''));
-        $dept_documento = strtolower(trim($documento['departamento_creador']));
-        
-        // Verificar que sea de un departamento permitido
-        $deptos_permitidos = ['normatividad', 'ventas'];
-        if (!in_array($dept_usuario, $deptos_permitidos)) {
-            return ['success' => false, 'message' => 'Su departamento no puede editar el Apartado 1'];
-        }
-        
-        // Verificar que sea del mismo departamento que creó el documento
-        if ($dept_usuario != $dept_documento) {
-            return ['success' => false, 'message' => 'Solo usuarios del departamento ' . $documento['departamento_creador'] . ' pueden editar este documento'];
-        }
-        
-        // Verificar permiso de EDITOR en permisos_ssc
-        $permisos_ssc = obtener_permisos_ssc_usuario($usuario_id);
-        if ($permisos_ssc['editor'] != 1) {
-            return ['success' => false, 'message' => 'No tiene permisos de Editor para modificar documentos SSC'];
-        }
-        
-        // ========================================
-        // VALIDACIÓN DE DATOS
-        // ========================================
         
         // Validar servicio "otro"
         $servicio_otro = null;
         if ($datos['servicio_solicitado'] == 'otro' && !empty($datos['servicio_otro_especificar'])) {
             $servicio_otro = trim($datos['servicio_otro_especificar']);
         }
-        
-        // Validar servicios válidos (incluyendo revision_productos)
-        $servicios_validos = ['tratamiento_agua', 'revision_productos', 'calibracion_equipos', 'otro'];
-        if (!in_array($datos['servicio_solicitado'], $servicios_validos)) {
-            return ['success' => false, 'message' => 'Servicio no válido'];
-        }
-        
-        // ========================================
-        // ACTUALIZAR DOCUMENTO
-        // ========================================
         
         $stmt = $pdo->prepare("
             UPDATE documentos_colaborativos SET
@@ -436,7 +410,6 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
                 servicio_otro_especificar = ?,
                 prioridad = ?,
                 descripcion_servicio = ?,
-                estado = 'enviado',
                 fecha_ultima_edicion = NOW()
             WHERE id = ?
         ");
@@ -453,21 +426,16 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
         ]);
         
         if ($resultado) {
-            // Obtener nombre del usuario para historial
-            $stmt_nombre = $pdo->prepare("SELECT nombre_completo FROM usuarios WHERE id = ?");
-            $stmt_nombre->execute([$usuario_id]);
-            $nombre_usuario = $stmt_nombre->fetchColumn();
-            
             registrar_historial_documento(
                 $documento_id,
                 $documento['folio'],
                 $usuario_id,
                 $nombre_usuario,
-                $user_data['departamento'],
+                $documento['departamento_creador'],
                 'editado_apartado1',
                 $documento['estado'],
-                'enviado',
-                'Apartado 1 actualizado y enviado'
+                $documento['estado'],
+                'Apartado 1 actualizado'
             );
             
             return ['success' => true, 'message' => 'Apartado 1 actualizado exitosamente'];
@@ -484,6 +452,7 @@ function actualizar_apartado1($documento_id, $datos, $usuario_id) {
 /**
  * Actualizar Apartado 2 (Laboratorio)
  * ⭐ ACTUALIZADO - fecha_recibido + hora_recibido + archivos + fecha_entrega + hora_entrega
+ * ✅ CORREGIDO - Ya no duplica archivos (usa directamente el JSON de procesar_apartado2.php)
  */
 function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuario) {
     try {
@@ -498,26 +467,9 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
             return ['success' => false, 'message' => 'El documento ya está completado'];
         }
         
-        // ⭐ MANEJO DE ARCHIVOS - Combinar existentes con nuevos
-        $archivos_existentes = [];
-        if (!empty($documento['archivos_apartado2'])) {
-            $archivos_existentes = json_decode($documento['archivos_apartado2'], true);
-            if (!is_array($archivos_existentes)) {
-                $archivos_existentes = [];
-            }
-        }
-        
-        // Combinar con nuevos archivos si los hay
-        $archivos_nuevos = [];
-        if (!empty($datos['archivos_apartado2'])) {
-            $archivos_nuevos = json_decode($datos['archivos_apartado2'], true);
-            if (is_array($archivos_nuevos)) {
-                $archivos_existentes = array_merge($archivos_existentes, $archivos_nuevos);
-            }
-        }
-        
-        // Codificar todos los archivos
-        $archivos_json = !empty($archivos_existentes) ? json_encode($archivos_existentes) : null;
+        // ✅ CORREGIDO - Usar directamente el JSON que viene de procesar_apartado2.php
+        // (ya viene combinado con los existentes, no volver a combinar para evitar duplicados)
+        $archivos_json = $datos['archivos_apartado2'] ?? null;
         
         // ⭐ ACTUALIZADO - Incluye fecha_entrega y hora_entrega
         $stmt = $pdo->prepare("
@@ -565,8 +517,7 @@ function actualizar_apartado2($documento_id, $datos, $usuario_id, $nombre_usuari
             
             return [
                 'success' => true, 
-                'message' => 'Apartado 2 actualizado exitosamente',
-                'archivos_subidos' => count($archivos_nuevos)
+                'message' => 'Apartado 2 actualizado exitosamente'
             ];
         }
         
@@ -634,6 +585,38 @@ function completar_documento($documento_id, $usuario_id) {
     } catch (Exception $e) {
         error_log("Error al completar documento: " . $e->getMessage());
         return ['success' => false, 'message' => 'Error del sistema'];
+    }
+}
+
+/**
+ * Registrar historial de documento
+ */
+function registrar_historial_documento($documento_id, $folio, $usuario_id, $usuario_nombre, $departamento, $accion, $estado_anterior, $estado_nuevo, $detalles = null) {
+    try {
+        $pdo = conectarDB();
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO documentos_historial (
+                documento_id, folio, usuario_id, usuario_nombre, departamento,
+                accion, estado_anterior, estado_nuevo, detalles, fecha_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        ");
+        
+        return $stmt->execute([
+            $documento_id,
+            $folio,
+            $usuario_id,
+            $usuario_nombre,
+            $departamento,
+            $accion,
+            $estado_anterior,
+            $estado_nuevo,
+            $detalles
+        ]);
+        
+    } catch (Exception $e) {
+        error_log("Error al registrar historial: " . $e->getMessage());
+        return false;
     }
 }
 

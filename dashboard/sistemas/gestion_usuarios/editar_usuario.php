@@ -33,7 +33,7 @@ $usuario_id = (int)$_GET['id'];
 // Conexión a BD
 $pdo = conectarDB();
 
-// Obtener datos del usuario
+// Obtener datos del usuario CON permisos CQR
 $sql = "SELECT 
             u.*,
             d.nombre AS departamento_nombre,
@@ -44,13 +44,17 @@ $sql = "SELECT
             ps.editor AS ssc_editor,
             po.lector AS osm_lector,
             po.creador AS osm_creador,
-            po.editor AS osm_editor
+            po.editor AS osm_editor,
+            pc.lector AS cqr_lector,
+            pc.creador AS cqr_creador,
+            pc.editor AS cqr_editor
         FROM usuarios u
         LEFT JOIN departamentos d ON u.departamento_id = d.id
         LEFT JOIN usuarios uc ON u.created_by = uc.id
         LEFT JOIN usuarios uu ON u.updated_by = uu.id
         LEFT JOIN permisos_ssc ps ON u.id = ps.user_id
         LEFT JOIN permisos_osm po ON u.id = po.user_id
+        LEFT JOIN permisos_cqr pc ON u.id = pc.user_id
         WHERE u.id = ?";
 
 $stmt = $pdo->prepare($sql);
@@ -171,6 +175,26 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                     </div>
                 </div>
 
+                <!-- Mostrar mensajes -->
+                <?php if (isset($_GET['msg'])): ?>
+                    <?php if ($_GET['msg'] === 'actualizado'): ?>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>Usuario actualizado correctamente.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php elseif ($_GET['msg'] === 'activado'): ?>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>Usuario activado correctamente.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php elseif ($_GET['msg'] === 'desactivado'): ?>
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>Usuario desactivado correctamente.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
                 <!-- Mostrar errores -->
                 <?php if (!empty($errores)): ?>
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -182,24 +206,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                         </ul>
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
-                <?php endif; ?>
-
-                <?php if (isset($_GET['msg'])): ?>
-                    <?php
-                    $mensajes_alerta = [
-                        'actualizado' => ['success', 'Usuario actualizado correctamente.'],
-                        'activado' => ['success', 'Usuario activado correctamente.'],
-                        'desactivado' => ['warning', 'Usuario desactivado correctamente.'],
-                        'error' => ['danger', 'Ocurrió un error. Intente nuevamente.'],
-                    ];
-                    $msg = $_GET['msg'];
-                    if (isset($mensajes_alerta[$msg])):
-                    ?>
-                        <div class="alert alert-<?php echo $mensajes_alerta[$msg][0]; ?> alert-dismissible fade show" role="alert">
-                            <?php echo $mensajes_alerta[$msg][1]; ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
                 <?php endif; ?>
 
                 <form action="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/procesar_usuario.php" method="POST" id="formEditarUsuario">
@@ -214,23 +220,19 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                     <i class="bi bi-person me-2"></i>Información del Usuario
                                 </div>
                                 <div class="row g-3">
-                                    <div class="col-md-2">
-                                        <label class="form-label">ID</label>
-                                        <input type="text" class="form-control" value="<?php echo $usuario['id']; ?>" disabled>
-                                    </div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-6">
                                         <label class="form-label required">Nombre Completo</label>
                                         <input type="text" name="nombre_completo" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['nombre_completo']); ?>"
+                                               value="<?php echo htmlspecialchars($form_data['nombre_completo'] ?? ''); ?>"
                                                required maxlength="150">
                                     </div>
-                                    <div class="col-md-5">
+                                    <div class="col-md-6">
                                         <label class="form-label required">Nombre de Usuario</label>
                                         <input type="text" name="usuario" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['usuario']); ?>"
+                                               value="<?php echo htmlspecialchars($form_data['usuario'] ?? ''); ?>"
                                                required maxlength="50"
-                                               pattern="^[a-zA-Z0-9_-]+$" title="Solo letras, números, guión y guión bajo. Sin espacios.">
-                                        <small class="text-muted">Solo letras, números, guión (-) y guión bajo (_).</small>
+                                               pattern="[A-Za-z0-9_-]+" title="Solo letras, números, guión y guión bajo">
+                                        <small class="text-muted">Sin espacios. Se convertirá a mayúsculas.</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label required">Departamento</label>
@@ -238,8 +240,7 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                             <option value="">Seleccionar departamento...</option>
                                             <?php foreach ($departamentos as $depto): ?>
                                                 <option value="<?php echo $depto['id']; ?>" 
-                                                        data-codigo="<?php echo htmlspecialchars($depto['codigo']); ?>"
-                                                        <?php echo ($form_data['departamento_id'] == $depto['id']) ? 'selected' : ''; ?>>
+                                                        <?php echo (($form_data['departamento_id'] ?? '') == $depto['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($depto['nombre']); ?>
                                                 </option>
                                             <?php endforeach; ?>
@@ -248,19 +249,18 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                 </div>
                             </div>
 
-                            <!-- Cambiar Contraseña (Opcional) -->
+                            <!-- Contraseña (opcional) -->
                             <div class="form-section">
                                 <div class="form-section-title">
-                                    <i class="bi bi-shield-lock me-2"></i>Cambiar Contraseña <small class="text-muted fw-normal">(opcional)</small>
+                                    <i class="bi bi-shield-lock me-2"></i>Cambiar Contraseña
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label">Nueva Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password" class="form-control" 
-                                                   id="inputPassword" minlength="8"
-                                                   placeholder="Dejar vacío para mantener actual">
-                                            <button class="btn btn-outline-secondary password-toggle" type="button" 
+                                                   id="inputPassword" minlength="8" placeholder="Dejar vacío para no cambiar">
+                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
                                                     onclick="togglePassword('inputPassword', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
@@ -270,9 +270,8 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <label class="form-label">Confirmar Nueva Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password_confirm" class="form-control" 
-                                                   id="inputPasswordConfirm" minlength="8"
-                                                   placeholder="Repetir nueva contraseña">
-                                            <button class="btn btn-outline-secondary password-toggle" type="button" 
+                                                   id="inputPasswordConfirm" minlength="8" placeholder="Repetir contraseña">
+                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
                                                     onclick="togglePassword('inputPasswordConfirm', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
@@ -347,8 +346,34 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                 </div>
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <td><strong>Cotizaciones CQR</strong><br><small class="text-muted">Cotizaciones de Químicos y/o Residuos</small></td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="cqr_lector_visual" value="1" class="form-check-input" 
+                                                           id="cqr_lector" checked disabled>
+                                                </div>
+                                                <input type="hidden" name="cqr_lector" value="1">
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="cqr_creador" value="1" class="form-check-input" 
+                                                           id="cqr_creador" <?php echo ($form_data['cqr_creador'] ?? 0) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="cqr_editor" value="1" class="form-check-input" 
+                                                           id="cqr_editor" <?php echo ($form_data['cqr_editor'] ?? 0) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="bi bi-lightbulb me-1"></i>
+                                    <strong>CQR:</strong> Creador = Ventas (crea solicitudes), Editor = Normatividad (responde solicitudes)
+                                </small>
                             </div>
 
                             <!-- Botones de acción -->

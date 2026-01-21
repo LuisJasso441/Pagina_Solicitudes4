@@ -109,6 +109,13 @@ $departamentos = [
         'icono' => 'bi-cart',
         'color' => '#d946ef',
         'colaborativo' => true
+    ],
+    'direccion' => [
+        'nombre' => 'Dirección',
+        'codigo' => 'DIR',
+        'icono' => 'bi-building',
+        'color' => '#1e40af',
+        'colaborativo' => true
     ]
 ];
 
@@ -117,7 +124,7 @@ $departamentos = [
 // ====================================
 
 // Departamentos que comparten base de datos colaborativa
-$departamentos_colaborativos = ['normatividad', 'ventas', 'laboratorio'];
+$departamentos_colaborativos = ['normatividad', 'ventas', 'laboratorio', 'direccion', 'dirección'];
 
 // ====================================
 // FUNCIONES AUXILIARES

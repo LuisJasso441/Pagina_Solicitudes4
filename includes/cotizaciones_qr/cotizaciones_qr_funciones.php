@@ -1,8 +1,19 @@
 <?php
 /**
- * Funciones para el módulo de Cotizaciones de Químicos y/o Residuos (CQR)
+ * Funciones para el módulo de Cotizaciones de Químicos y/o Residuos (CQR) v2.0
  * Ubicación: includes/cotizaciones_qr/cotizaciones_qr_funciones.php
+ * 
+ * Flujo:
+ * 1. Ventas crea y envía solicitud → Normatividad recibe notificación
+ * 2. Normatividad revisa y llena su formulario + Aceptada/Rechazada + Comentarios
+ * 3. Ventas recibe notificación → FIN
+ * 
+ * Departamentos: Ventas (creador), Normatividad (editor), Laboratorio y Dirección (lectores)
  */
+
+// =====================================================
+// FUNCIONES DE PERMISOS
+// =====================================================
 
 /**
  * Verificar permisos del usuario para el módulo CQR
@@ -21,13 +32,37 @@ function verificar_permisos_cqr($usuario_id) {
     return [
         'tiene_acceso' => $permisos ? ($permisos['lector'] || $permisos['creador'] || $permisos['editor']) : false,
         'puede_leer' => $permisos['lector'] ?? false,
-        'puede_crear' => $permisos['creador'] ?? false,
-        'puede_editar' => $permisos['editor'] ?? false
+        'puede_crear' => $permisos['creador'] ?? false,  // Ventas
+        'puede_editar' => $permisos['editor'] ?? false,  // Normatividad
+        'puede_comentar' => $permisos ? ($permisos['lector'] || $permisos['creador'] || $permisos['editor']) : false
     ];
 }
 
 /**
- * Obtener cotizaciones según ubicación (local/global) y rol del usuario
+ * Verificar si el usuario pertenece a un departamento específico del módulo CQR
+ */
+function obtener_rol_cqr($departamento) {
+    $depto = strtolower($departamento);
+    
+    if (strpos($depto, 'ventas') !== false) {
+        return 'ventas';
+    } elseif (strpos($depto, 'normatividad') !== false) {
+        return 'normatividad';
+    } elseif (strpos($depto, 'laboratorio') !== false) {
+        return 'laboratorio';
+    } elseif (strpos($depto, 'direccion') !== false || strpos($depto, 'dirección') !== false) {
+        return 'direccion';
+    }
+    
+    return 'otro';
+}
+
+// =====================================================
+// FUNCIONES DE CONSULTA
+// =====================================================
+
+/**
+ * Obtener cotizaciones según ubicación y filtros
  */
 function obtener_cotizaciones_qr($ubicacion = 'local', $usuario_id = null, $departamento = null, $filtros = []) {
     $pdo = conectarDB();
@@ -55,6 +90,12 @@ function obtener_cotizaciones_qr($ubicacion = 'local', $usuario_id = null, $depa
     if (!empty($filtros['fecha_hasta'])) {
         $where[] = "DATE(c.fecha_creacion) <= :fecha_hasta";
         $params[':fecha_hasta'] = $filtros['fecha_hasta'];
+    }
+    
+    // Filtro por estado de respuesta de Normatividad
+    if (!empty($filtros['estado_normatividad'])) {
+        $where[] = "c.estado_normatividad = :estado_normatividad";
+        $params[':estado_normatividad'] = $filtros['estado_normatividad'];
     }
     
     $where_sql = implode(' AND ', $where);
@@ -125,148 +166,298 @@ function obtener_cotizacion_qr_por_folio($folio) {
 }
 
 /**
- * Crear nueva cotización
+ * Obtener estadísticas del módulo CQR
+ */
+function obtener_estadisticas_cqr($usuario_id = null, $departamento = null) {
+    $pdo = conectarDB();
+    
+    $sql = "
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN estado = 'enviada' THEN 1 ELSE 0 END) as enviadas,
+            SUM(CASE WHEN estado = 'en_revision' THEN 1 ELSE 0 END) as en_revision,
+            SUM(CASE WHEN estado = 'finalizada' THEN 1 ELSE 0 END) as finalizadas,
+            SUM(CASE WHEN estado_normatividad = 'pendiente' OR estado_normatividad IS NULL THEN 1 ELSE 0 END) as pendientes_respuesta,
+            SUM(CASE WHEN decision = 'aceptada' THEN 1 ELSE 0 END) as aceptadas,
+            SUM(CASE WHEN decision = 'rechazada' THEN 1 ELSE 0 END) as rechazadas
+        FROM cotizaciones_quimicos_residuos
+        WHERE ubicacion = 'local'
+    ";
+    
+    $stmt = $pdo->query($sql);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// =====================================================
+// FUNCIONES DE CREACIÓN Y ACTUALIZACIÓN
+// =====================================================
+
+/**
+ * Crear nueva cotización (Ventas)
  */
 function crear_cotizacion_qr($datos) {
     $pdo = conectarDB();
     
-    // Verificar que el folio no exista
-    $existe = obtener_cotizacion_qr_por_folio($datos['folio']);
-    if ($existe) {
-        return ['success' => false, 'error' => 'El folio ya existe en el sistema'];
-    }
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO cotizaciones_quimicos_residuos (
-            folio, fecha_solicitud, nombre_amigable, nombre_tecnico,
-            categoria, comentarios_ventas, ficha_tecnica, formato_descripcion,
-            usuario_creador_id, departamento_creador, departamento_id,
-            estado, ubicacion, fecha_creacion, fecha_enviada
-        ) VALUES (
-            :folio, :fecha_solicitud, :nombre_amigable, :nombre_tecnico,
-            :categoria, :comentarios_ventas, :ficha_tecnica, :formato_descripcion,
-            :usuario_creador_id, :departamento_creador, :departamento_id,
-            'enviada', 'local', NOW(), NOW()
-        )
-    ");
-    
-    $resultado = $stmt->execute([
-        ':folio' => $datos['folio'],
-        ':fecha_solicitud' => $datos['fecha_solicitud'],
-        ':nombre_amigable' => $datos['nombre_amigable'],
-        ':nombre_tecnico' => $datos['nombre_tecnico'] ?? null,
-        ':categoria' => $datos['categoria'] ?? null,
-        ':comentarios_ventas' => $datos['comentarios_ventas'] ?? null,
-        ':ficha_tecnica' => $datos['ficha_tecnica'] ?? null,
-        ':formato_descripcion' => $datos['formato_descripcion'] ?? null,
-        ':usuario_creador_id' => $datos['usuario_creador_id'],
-        ':departamento_creador' => $datos['departamento_creador'],
-        ':departamento_id' => $datos['departamento_id'] ?? null
-    ]);
-    
-    if ($resultado) {
+    try {
+        $pdo->beginTransaction();
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO cotizaciones_quimicos_residuos (
+                folio, fecha_solicitud, nombre_amigable, nombre_tecnico, 
+                categoria, comentarios_ventas,
+                ficha_tecnica, formato_descripcion,
+                usuario_creador_id, departamento_creador, departamento_id,
+                estado, estado_normatividad, ubicacion, fecha_enviada
+            ) VALUES (
+                :folio, :fecha_solicitud, :nombre_amigable, :nombre_tecnico,
+                :categoria, :comentarios_ventas,
+                :ficha_tecnica, :formato_descripcion,
+                :usuario_creador_id, :departamento_creador, :departamento_id,
+                'enviada', 'pendiente', 'local', NOW()
+            )
+        ");
+        
+        $stmt->execute([
+            ':folio' => $datos['folio'],
+            ':fecha_solicitud' => $datos['fecha_solicitud'] ?? date('Y-m-d'),
+            ':nombre_amigable' => $datos['nombre_amigable'],
+            ':nombre_tecnico' => $datos['nombre_tecnico'] ?? null,
+            ':categoria' => $datos['categoria'] ?? null,
+            ':comentarios_ventas' => $datos['comentarios_ventas'] ?? null,
+            ':ficha_tecnica' => $datos['ficha_tecnica'] ?? null,
+            ':formato_descripcion' => $datos['formato_descripcion'] ?? null,
+            ':usuario_creador_id' => $datos['usuario_creador_id'],
+            ':departamento_creador' => $datos['departamento_creador'] ?? 'ventas',
+            ':departamento_id' => $datos['departamento_id'] ?? null
+        ]);
+        
         $cotizacion_id = $pdo->lastInsertId();
         
         // Registrar en historial
-        registrar_historial_cqr($cotizacion_id, $datos['folio'], $datos['usuario_creador_id'], 
-            $datos['usuario_nombre'], $datos['departamento_creador'], 
-            'creada', null, 'enviada', 'Cotización creada y enviada a Normatividad');
+        registrar_historial_cqr($cotizacion_id, $datos['usuario_creador_id'], 'creada', 'Solicitud creada y enviada a Normatividad');
+        
+        // Enviar notificaciones a usuarios de Normatividad
+        $usuarios_normatividad = obtener_usuarios_normatividad();
+        $creador_nombre = $datos['creador_nombre'] ?? 'Ventas';
+        foreach ($usuarios_normatividad as $usuario) {
+            crear_notificacion_cqr(
+                $usuario['id'],
+                'cqr_nueva',
+                $cotizacion_id,
+                "Nueva solicitud de cotización ({$datos['folio']}) enviada por {$creador_nombre}",
+                $datos['folio']
+            );
+        }
+        
+        $pdo->commit();
         
         return ['success' => true, 'id' => $cotizacion_id];
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return ['success' => false, 'error' => $e->getMessage()];
     }
-    
-    return ['success' => false, 'error' => 'Error al crear la cotización'];
 }
 
 /**
- * Actualizar cotización por Normatividad
+ * Responder cotización (Normatividad)
+ * Llena su formulario espejo + decisión + comentarios
  */
-function actualizar_cotizacion_qr_normatividad($id, $datos) {
+function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
     $pdo = conectarDB();
     
-    // Obtener cotización actual
-    $cotizacion = obtener_cotizacion_qr_por_id($id);
-    if (!$cotizacion) {
-        return ['success' => false, 'error' => 'Cotización no encontrada'];
-    }
-    
-    $estado_anterior = $cotizacion['estado'];
-    $nuevo_estado = $datos['estado_normatividad'];
-    
-    // Determinar si se finaliza
-    $ubicacion = ($nuevo_estado === 'finalizada') ? 'global' : 'local';
-    $fecha_finalizada = ($nuevo_estado === 'finalizada') ? 'NOW()' : 'NULL';
-    
-    $sql = "
-        UPDATE cotizaciones_quimicos_residuos SET
-            resultados = :resultados,
-            estado_normatividad = :estado_normatividad,
-            estado = :estado,
-            usuario_normatividad_id = :usuario_normatividad_id,
-            ubicacion = :ubicacion,
-            fecha_ultima_edicion = NOW()
-    ";
-    
-    if ($nuevo_estado === 'en_revision' && $cotizacion['fecha_en_revision'] === null) {
-        $sql .= ", fecha_en_revision = NOW()";
-    }
-    
-    if ($nuevo_estado === 'finalizada') {
-        $sql .= ", fecha_finalizada = NOW()";
-    }
-    
-    $sql .= " WHERE id = :id";
-    
-    $stmt = $pdo->prepare($sql);
-    $resultado = $stmt->execute([
-        ':resultados' => $datos['resultados'],
-        ':estado_normatividad' => $nuevo_estado,
-        ':estado' => $nuevo_estado,
-        ':usuario_normatividad_id' => $datos['usuario_normatividad_id'],
-        ':ubicacion' => $ubicacion,
-        ':id' => $id
-    ]);
-    
-    if ($resultado) {
-        // Registrar en historial
-        $accion = ($nuevo_estado === 'finalizada') ? 'finalizada' : 'actualizada';
-        registrar_historial_cqr($id, $cotizacion['folio'], $datos['usuario_normatividad_id'],
-            $datos['usuario_nombre'], 'normatividad',
-            $accion, $estado_anterior, $nuevo_estado, $datos['resultados']);
+    try {
+        $pdo->beginTransaction();
         
-        return ['success' => true, 'estado_cambiado' => ($estado_anterior !== $nuevo_estado)];
+        $stmt = $pdo->prepare("
+            UPDATE cotizaciones_quimicos_residuos SET
+                norm_nombre_amigable = :norm_nombre_amigable,
+                norm_nombre_tecnico = :norm_nombre_tecnico,
+                norm_categoria = :norm_categoria,
+                norm_ficha_tecnica = :norm_ficha_tecnica,
+                norm_formato_descripcion = :norm_formato_descripcion,
+                decision = :decision,
+                comentarios_normatividad = :comentarios_normatividad,
+                usuario_normatividad_id = :usuario_normatividad_id,
+                estado = 'finalizada',
+                estado_normatividad = 'completado',
+                ubicacion = 'global',
+                fecha_respuesta_normatividad = NOW(),
+                fecha_finalizada = NOW()
+            WHERE id = :id
+        ");
+        
+        $stmt->execute([
+            ':norm_nombre_amigable' => $datos['norm_nombre_amigable'] ?? null,
+            ':norm_nombre_tecnico' => $datos['norm_nombre_tecnico'] ?? null,
+            ':norm_categoria' => $datos['norm_categoria'] ?? null,
+            ':norm_ficha_tecnica' => $datos['norm_ficha_tecnica'] ?? null,
+            ':norm_formato_descripcion' => $datos['norm_formato_descripcion'] ?? null,
+            ':decision' => $datos['decision'],
+            ':comentarios_normatividad' => $datos['comentarios_normatividad'] ?? null,
+            ':usuario_normatividad_id' => $usuario_id,
+            ':id' => $cotizacion_id
+        ]);
+        
+        // Determinar acción para historial
+        $accion = ($datos['decision'] === 'aceptada') ? 'aceptada' : 'rechazada';
+        $descripcion = "Cotización {$accion} por Normatividad";
+        if (!empty($datos['comentarios_normatividad'])) {
+            $descripcion .= ": " . substr($datos['comentarios_normatividad'], 0, 100);
+        }
+        
+        registrar_historial_cqr($cotizacion_id, $usuario_id, $accion, $descripcion);
+        
+        // Obtener creador para notificarle
+        $creador = obtener_creador_cotizacion_cqr($cotizacion_id);
+        if ($creador) {
+            // Obtener folio
+            $stmt = $pdo->prepare("SELECT folio FROM cotizaciones_quimicos_residuos WHERE id = :id");
+            $stmt->execute([':id' => $cotizacion_id]);
+            $cot = $stmt->fetch(PDO::FETCH_ASSOC);
+            $folio = $cot['folio'] ?? '';
+            
+            $estado_texto = ($datos['decision'] === 'aceptada') ? 'ACEPTADA ✅' : 'RECHAZADA ❌';
+            crear_notificacion_cqr(
+                $creador['id'],
+                'cqr_respuesta',
+                $cotizacion_id,
+                "Tu cotización ({$folio}) ha sido {$estado_texto} por Normatividad",
+                $folio
+            );
+        }
+        
+        $pdo->commit();
+        
+        return ['success' => true];
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return ['success' => false, 'error' => $e->getMessage()];
     }
-    
-    return ['success' => false, 'error' => 'Error al actualizar la cotización'];
 }
 
 /**
- * Registrar en historial de cambios
+ * Marcar cotización como "en revisión" (cuando Normatividad abre la cotización)
  */
-function registrar_historial_cqr($cotizacion_id, $folio, $usuario_id, $usuario_nombre, $departamento, $accion, $estado_anterior, $estado_nuevo, $detalles = null) {
+function marcar_en_revision_cqr($cotizacion_id, $usuario_id) {
+    $pdo = conectarDB();
+    
+    // Solo marcar si está en estado 'enviada'
+    $stmt = $pdo->prepare("
+        UPDATE cotizaciones_quimicos_residuos 
+        SET estado = 'en_revision', fecha_en_revision = NOW()
+        WHERE id = :id AND estado = 'enviada'
+    ");
+    $stmt->execute([':id' => $cotizacion_id]);
+    
+    if ($stmt->rowCount() > 0) {
+        registrar_historial_cqr($cotizacion_id, $usuario_id, 'en_revision', 'Normatividad comenzó la revisión');
+    }
+}
+
+// =====================================================
+// FUNCIONES DE COMENTARIOS GENERALES
+// =====================================================
+
+/**
+ * Agregar comentario general a una cotización
+ * Disponible para: Ventas, Normatividad, Laboratorio, Dirección
+ */
+function agregar_comentario_cqr($cotizacion_id, $usuario_id, $departamento, $comentario) {
     $pdo = conectarDB();
     
     $stmt = $pdo->prepare("
-        INSERT INTO cotizaciones_qr_historial (
-            cotizacion_id, folio_cotizacion, usuario_id, usuario_nombre,
-            departamento, accion, estado_anterior, estado_nuevo, detalles, fecha_hora
-        ) VALUES (
-            :cotizacion_id, :folio, :usuario_id, :usuario_nombre,
-            :departamento, :accion, :estado_anterior, :estado_nuevo, :detalles, NOW()
-        )
+        INSERT INTO comentarios_cqr (cotizacion_id, usuario_id, departamento, comentario)
+        VALUES (:cotizacion_id, :usuario_id, :departamento, :comentario)
     ");
     
-    return $stmt->execute([
+    $stmt->execute([
         ':cotizacion_id' => $cotizacion_id,
-        ':folio' => $folio,
         ':usuario_id' => $usuario_id,
-        ':usuario_nombre' => $usuario_nombre,
         ':departamento' => $departamento,
-        ':accion' => $accion,
-        ':estado_anterior' => $estado_anterior,
-        ':estado_nuevo' => $estado_nuevo,
-        ':detalles' => $detalles
+        ':comentario' => $comentario
     ]);
+    
+    return $pdo->lastInsertId();
+}
+
+/**
+ * Obtener comentarios de una cotización
+ */
+function obtener_comentarios_cqr($cotizacion_id) {
+    $pdo = conectarDB();
+    
+    $stmt = $pdo->prepare("
+        SELECT 
+            c.*,
+            u.nombre_completo as usuario_nombre
+        FROM comentarios_cqr c
+        INNER JOIN usuarios u ON c.usuario_id = u.id
+        WHERE c.cotizacion_id = :cotizacion_id
+        ORDER BY c.fecha_creacion ASC
+    ");
+    $stmt->execute([':cotizacion_id' => $cotizacion_id]);
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Contar comentarios de una cotización
+ */
+function contar_comentarios_cqr($cotizacion_id) {
+    $pdo = conectarDB();
+    
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM comentarios_cqr WHERE cotizacion_id = :id");
+    $stmt->execute([':id' => $cotizacion_id]);
+    
+    return $stmt->fetchColumn();
+}
+
+// =====================================================
+// FUNCIONES DE HISTORIAL
+// =====================================================
+
+/**
+ * Registrar acción en historial
+ */
+function registrar_historial_cqr($cotizacion_id, $usuario_id, $accion, $descripcion = '') {
+    $pdo = conectarDB();
+    
+    try {
+        // Obtener info del usuario y cotización
+        $stmt = $pdo->prepare("SELECT nombre_completo, departamento FROM usuarios WHERE id = :id");
+        $stmt->execute([':id' => $usuario_id]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $stmt = $pdo->prepare("SELECT folio, estado FROM cotizaciones_quimicos_residuos WHERE id = :id");
+        $stmt->execute([':id' => $cotizacion_id]);
+        $cotizacion = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO cotizaciones_qr_historial (
+                cotizacion_id, folio_cotizacion, usuario_id, usuario_nombre, 
+                departamento, accion, estado_nuevo, detalles
+            ) VALUES (
+                :cotizacion_id, :folio, :usuario_id, :usuario_nombre,
+                :departamento, :accion, :estado_nuevo, :detalles
+            )
+        ");
+        
+        $stmt->execute([
+            ':cotizacion_id' => $cotizacion_id,
+            ':folio' => $cotizacion['folio'] ?? '',
+            ':usuario_id' => $usuario_id,
+            ':usuario_nombre' => $usuario['nombre_completo'] ?? 'Desconocido',
+            ':departamento' => $usuario['departamento'] ?? 'desconocido',
+            ':accion' => $accion,
+            ':estado_nuevo' => $cotizacion['estado'] ?? null,
+            ':detalles' => $descripcion
+        ]);
+    } catch (Exception $e) {
+        // Si falla el historial, no interrumpir el proceso principal
+        error_log("Error al registrar historial CQR: " . $e->getMessage());
+    }
 }
 
 /**
@@ -276,7 +467,8 @@ function obtener_historial_cqr($cotizacion_id) {
     $pdo = conectarDB();
     
     $stmt = $pdo->prepare("
-        SELECT * FROM cotizaciones_qr_historial
+        SELECT *
+        FROM cotizaciones_qr_historial
         WHERE cotizacion_id = :cotizacion_id
         ORDER BY fecha_hora DESC
     ");
@@ -285,75 +477,9 @@ function obtener_historial_cqr($cotizacion_id) {
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/**
- * Obtener estadísticas del módulo CQR
- */
-function obtener_estadisticas_cqr($usuario_id = null, $departamento = null) {
-    $pdo = conectarDB();
-    
-    $stats = [
-        'total' => 0,
-        'enviadas' => 0,
-        'en_revision' => 0,
-        'finalizadas' => 0
-    ];
-    
-    $stmt = $pdo->query("
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN estado = 'enviada' THEN 1 ELSE 0 END) as enviadas,
-            SUM(CASE WHEN estado = 'en_revision' THEN 1 ELSE 0 END) as en_revision,
-            SUM(CASE WHEN estado = 'finalizada' THEN 1 ELSE 0 END) as finalizadas
-        FROM cotizaciones_quimicos_residuos
-    ");
-    
-    $result = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($result) {
-        $stats = array_merge($stats, $result);
-    }
-    
-    return $stats;
-}
-
-/**
- * Enviar notificación CQR
- */
-function enviar_notificacion_cqr($tipo, $cotizacion, $usuario_destino_id, $datos_extra = []) {
-    $pdo = conectarDB();
-    
-    $titulos = [
-        'nueva_cotizacion' => '🧪 Nueva Cotización de Químicos',
-        'cotizacion_en_revision' => '📋 Cotización en Revisión',
-        'cotizacion_finalizada' => '✅ Cotización Finalizada',
-        'cotizacion_actualizada' => '🔄 Cotización Actualizada'
-    ];
-    
-    $mensajes = [
-        'nueva_cotizacion' => "Nueva cotización {$cotizacion['folio']} de Ventas requiere revisión",
-        'cotizacion_en_revision' => "Tu cotización {$cotizacion['folio']} está siendo revisada por Normatividad",
-        'cotizacion_finalizada' => "Tu cotización {$cotizacion['folio']} ha sido finalizada",
-        'cotizacion_actualizada' => "Tu cotización {$cotizacion['folio']} ha sido actualizada"
-    ];
-    
-    $datos_json = json_encode([
-        'cotizacion_id' => $cotizacion['id'],
-        'folio' => $cotizacion['folio'],
-        'url' => URL_BASE . "dashboard/cotizaciones_qr/ver_cotizacion_qr.php?id={$cotizacion['id']}"
-    ]);
-    
-    $stmt = $pdo->prepare("
-        INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion)
-        VALUES (:tipo, :titulo, :mensaje, :usuario_destino, :datos_json, NOW())
-    ");
-    
-    return $stmt->execute([
-        ':tipo' => $tipo,
-        ':titulo' => $titulos[$tipo] ?? 'Notificación CQR',
-        ':mensaje' => $mensajes[$tipo] ?? 'Actualización en cotización',
-        ':usuario_destino' => $usuario_destino_id,
-        ':datos_json' => $datos_json
-    ]);
-}
+// =====================================================
+// FUNCIONES DE NOTIFICACIONES
+// =====================================================
 
 /**
  * Obtener usuarios de Normatividad para notificaciones
@@ -371,6 +497,71 @@ function obtener_usuarios_normatividad() {
     
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+
+/**
+ * Obtener el creador de una cotización para notificarle
+ */
+function obtener_creador_cotizacion_cqr($cotizacion_id) {
+    $pdo = conectarDB();
+    
+    $stmt = $pdo->prepare("
+        SELECT u.id, u.nombre_completo, u.departamento
+        FROM cotizaciones_quimicos_residuos c
+        INNER JOIN usuarios u ON c.usuario_creador_id = u.id
+        WHERE c.id = :id
+    ");
+    $stmt->execute([':id' => $cotizacion_id]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Crear notificación para el módulo CQR
+ */
+function crear_notificacion_cqr($usuario_destino_id, $tipo, $cotizacion_id, $mensaje, $folio = '') {
+    $pdo = conectarDB();
+    
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (:tipo, :titulo, :mensaje, :usuario_destino, :datos_json, 0, NOW())
+        ");
+        
+        $url = URL_BASE . "dashboard/cotizaciones_qr/ver_cotizacion_qr.php?id=" . $cotizacion_id;
+        
+        $datos = json_encode([
+            'cotizacion_id' => $cotizacion_id,
+            'folio' => $folio,
+            'url' => $url
+        ]);
+        
+        // Determinar título según tipo
+        $titulos = [
+            'cqr_nueva' => '📋 Nueva Cotización QR',
+            'cqr_respuesta' => '✅ Respuesta a Cotización QR',
+            'cqr_comentario' => '💬 Nuevo Comentario en Cotización QR'
+        ];
+        $titulo = $titulos[$tipo] ?? '📋 Cotización QR';
+        
+        $stmt->execute([
+            ':tipo' => $tipo,
+            ':titulo' => $titulo,
+            ':mensaje' => $mensaje,
+            ':usuario_destino' => $usuario_destino_id,
+            ':datos_json' => $datos
+        ]);
+        
+        return true;
+    } catch (Exception $e) {
+        // Si falla la notificación, no interrumpir el proceso principal
+        error_log("Error al crear notificación CQR: " . $e->getMessage());
+        return false;
+    }
+}
+
+// =====================================================
+// FUNCIONES DE ARCHIVOS
+// =====================================================
 
 /**
  * Procesar archivo subido para CQR
@@ -417,6 +608,39 @@ function procesar_archivo_cqr($archivo, $tipo) {
     return ['error' => 'Error al guardar el archivo'];
 }
 
+// =====================================================
+// FUNCIONES DE UTILIDAD / HELPERS
+// =====================================================
+
+/**
+ * Generar folio automático para cotización
+ */
+function generar_folio_cqr($departamento = 'VTS') {
+    $pdo = conectarDB();
+    
+    $prefijo = strtoupper(substr($departamento, 0, 3));
+    $fecha = date('dmY');
+    
+    // Obtener el último número del día
+    $stmt = $pdo->prepare("
+        SELECT folio FROM cotizaciones_quimicos_residuos 
+        WHERE folio LIKE :patron 
+        ORDER BY id DESC LIMIT 1
+    ");
+    $stmt->execute([':patron' => $prefijo . '-%' . $fecha]);
+    $ultimo = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($ultimo) {
+        // Extraer número y aumentar
+        preg_match('/(\d+)-' . $fecha . '$/', $ultimo['folio'], $matches);
+        $numero = isset($matches[1]) ? intval($matches[1]) + 1 : 1;
+    } else {
+        $numero = 1;
+    }
+    
+    return $prefijo . '-' . str_pad($numero, 3, '0', STR_PAD_LEFT) . '-' . $fecha;
+}
+
 /**
  * Obtener etiqueta de estado con color
  */
@@ -427,19 +651,67 @@ function obtener_badge_estado_cqr($estado) {
         'finalizada' => '<span class="badge bg-success">Finalizada</span>'
     ];
     
-    return $badges[$estado] ?? '<span class="badge bg-secondary">Desconocido</span>';
+    return $badges[$estado] ?? '<span class="badge bg-secondary">' . ucfirst($estado) . '</span>';
 }
 
 /**
- * Obtener etiqueta de categoría
+ * Obtener etiqueta de decisión con color
+ */
+function obtener_badge_decision_cqr($decision) {
+    if ($decision === 'aceptada') {
+        return '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Aceptada</span>';
+    } elseif ($decision === 'rechazada') {
+        return '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rechazada</span>';
+    }
+    return '<span class="badge bg-secondary">Pendiente</span>';
+}
+
+/**
+ * Obtener etiqueta de estado de respuesta de Normatividad
+ */
+function obtener_badge_estado_normatividad($estado_normatividad) {
+    if ($estado_normatividad === 'completado') {
+        return '<span class="badge bg-success">Completado</span>';
+    }
+    return '<span class="badge bg-warning text-dark">Pendiente</span>';
+}
+
+/**
+ * Obtener nombre legible de categoría
  */
 function obtener_nombre_categoria_cqr($categoria) {
     $categorias = [
-        'en_espera_1' => 'En espera',
-        'en_espera_2' => 'En espera',
-        'en_espera_3' => 'En espera',
-        'en_espera_4' => 'En espera'
+        'en_espera_1' => 'Categoría 1',
+        'en_espera_2' => 'Categoría 2',
+        'en_espera_3' => 'Categoría 3',
+        'en_espera_4' => 'Categoría 4'
     ];
     
-    return $categorias[$categoria] ?? 'Sin categoría';
+    return $categorias[$categoria] ?? $categoria;
+}
+
+/**
+ * Obtener color del departamento para comentarios
+ */
+function obtener_color_departamento_cqr($departamento) {
+    $depto = strtolower($departamento);
+    
+    if (strpos($depto, 'ventas') !== false) {
+        return '#0d6efd'; // Azul
+    } elseif (strpos($depto, 'normatividad') !== false) {
+        return '#198754'; // Verde
+    } elseif (strpos($depto, 'laboratorio') !== false) {
+        return '#6f42c1'; // Púrpura
+    } elseif (strpos($depto, 'direccion') !== false || strpos($depto, 'dirección') !== false) {
+        return '#dc3545'; // Rojo
+    }
+    
+    return '#6c757d'; // Gris
+}
+
+/**
+ * Verificar si Normatividad ya respondió
+ */
+function normatividad_respondio_cqr($cotizacion) {
+    return !empty($cotizacion['decision']) && $cotizacion['estado_normatividad'] === 'completado';
 }

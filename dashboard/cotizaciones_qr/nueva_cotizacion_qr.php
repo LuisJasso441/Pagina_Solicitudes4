@@ -37,6 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $datos['nombre_amigable'] = trim($_POST['nombre_amigable'] ?? '');
     $datos['nombre_tecnico'] = trim($_POST['nombre_tecnico'] ?? '');
     $datos['categoria'] = $_POST['categoria'] ?? '';
+    $datos['presentacion'] = trim($_POST['presentacion'] ?? '');
+    $datos['uso'] = trim($_POST['uso'] ?? '');
     $datos['comentarios_ventas'] = trim($_POST['comentarios_ventas'] ?? '');
     
     // Validaciones
@@ -86,19 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $datos['usuario_creador_id'] = $_SESSION['usuario_id'];
         $datos['departamento_creador'] = $_SESSION['departamento'];
         $datos['departamento_id'] = $_SESSION['departamento_id'] ?? null;
-        $datos['usuario_nombre'] = $_SESSION['nombre_completo'];
+        $datos['creador_nombre'] = $_SESSION['nombre_completo'];
         
         $resultado = crear_cotizacion_qr($datos);
         
         if ($resultado['success']) {
-            // Enviar notificaciones a Normatividad
-            $cotizacion = obtener_cotizacion_qr_por_id($resultado['id']);
-            $usuarios_normatividad = obtener_usuarios_normatividad();
-            
-            foreach ($usuarios_normatividad as $usuario) {
-                enviar_notificacion_cqr('nueva_cotizacion', $cotizacion, $usuario['id']);
-            }
-            
             $_SESSION['success'] = "Cotización creada exitosamente. Se ha notificado a Normatividad.";
             header('Location: ' . URL_BASE . 'dashboard/cotizaciones_qr/ver_cotizacion_qr.php?id=' . $resultado['id']);
             exit;
@@ -240,17 +234,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    value="<?php echo htmlspecialchars($datos['fecha_solicitud'] ?? date('Y-m-d')); ?>"
                                    required>
                         </div>
-                        
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Categoría</label>
-                            <select name="categoria" class="form-select">
-                                <option value="">Seleccione una categoría</option>
-                                <option value="en_espera_1" <?php echo ($datos['categoria'] ?? '') === 'en_espera_1' ? 'selected' : ''; ?>>En espera</option>
-                                <option value="en_espera_2" <?php echo ($datos['categoria'] ?? '') === 'en_espera_2' ? 'selected' : ''; ?>>En espera</option>
-                                <option value="en_espera_3" <?php echo ($datos['categoria'] ?? '') === 'en_espera_3' ? 'selected' : ''; ?>>En espera</option>
-                                <option value="en_espera_4" <?php echo ($datos['categoria'] ?? '') === 'en_espera_4' ? 'selected' : ''; ?>>En espera</option>
-                            </select>
-                        </div>
                     </div>
                     
                     <!-- Sección: Datos del Producto -->
@@ -276,6 +259,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <small class="text-muted">Nombre técnico o químico del producto</small>
                         </div>
                     </div>
+
+                    <div class="col-md-4">
+                            <label class="form-label fw-bold">Categoría</label>
+                            <select name="categoria" class="form-select">
+                                <option value="">Seleccione una categoría</option>
+                                <option value="en_espera_1" <?php echo ($datos['categoria'] ?? '') === 'en_espera_1' ? 'selected' : ''; ?>>En espera</option>
+                                <option value="en_espera_2" <?php echo ($datos['categoria'] ?? '') === 'en_espera_2' ? 'selected' : ''; ?>>En espera</option>
+                                <option value="en_espera_3" <?php echo ($datos['categoria'] ?? '') === 'en_espera_3' ? 'selected' : ''; ?>>En espera</option>
+                                <option value="en_espera_4" <?php echo ($datos['categoria'] ?? '') === 'en_espera_4' ? 'selected' : ''; ?>>En espera</option>
+                            </select>
+                        </div>
                     
                     <div class="row mb-4">
                         <div class="col-12">

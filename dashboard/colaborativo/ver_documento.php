@@ -251,7 +251,6 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
     <?php include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; ?>
     
     <div class="main-content">
-        <?php include __DIR__ . '/../../includes/header.php'; ?>
         
         <div class="container-fluid p-4">
             <!-- Header del documento -->
@@ -304,7 +303,7 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                                 </label>
                             </div>
                             <?php else: ?>
-                            <!-- Normatividad/Ventas: Solo visualización -->
+                            <!-- Normatividad/Ventas/Dirección: Solo visualización -->
                             <?php if ($documento['marcado_visto']): ?>
                                 <span class="badge bg-success">
                                     <i class="bi bi-check-circle"></i> Sí

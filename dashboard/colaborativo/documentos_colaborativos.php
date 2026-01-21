@@ -22,16 +22,17 @@ $nombre_usuario = $_SESSION['nombre_completo'];
 $departamento = $_SESSION['departamento'];
 $dept_lower = strtolower($departamento);
 
-// Verificar que el usuario tenga acceso (Normatividad, Ventas o Laboratorio)
-$departamentos_permitidos = ['normatividad', 'ventas', 'laboratorio'];
+// Verificar que el usuario tenga acceso (Normatividad, Ventas, Laboratorio o Dirección)
+$departamentos_permitidos = ['normatividad', 'ventas', 'laboratorio', 'direccion', 'dirección'];
 if (!in_array($dept_lower, $departamentos_permitidos)) {
     header('Location: ' . URL_BASE . 'dashboard/departamento.php');
     exit;
 }
 
 // Determinar vista y permisos
-$puede_crear = in_array($dept_lower, ['normatividad', 'ventas']);
+$puede_crear = in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección']);
 $es_laboratorio = $dept_lower == 'laboratorio';
+$es_direccion = in_array($dept_lower, ['direccion', 'dirección']);
 
 // Obtener filtros
 $filtro_ubicacion = $_GET['ubicacion'] ?? 'local';
@@ -65,7 +66,8 @@ if (!empty($filtro_fecha_hasta)) {
 }
 
 // Si es base local, mostrar solo del departamento del usuario
-if ($filtro_ubicacion == 'local' && !$es_laboratorio) {
+// Excepción: Laboratorio y Dirección ven TODAS las solicitudes
+if ($filtro_ubicacion == 'local' && !$es_laboratorio && !$es_direccion) {
     $filtros['departamento'] = $departamento;
 }
 
@@ -99,6 +101,30 @@ try {
                                AND YEAR(fecha_completado) = YEAR(CURRENT_DATE())";
         $stmt = $pdo->query($sql_completadas_mes);
         $count_completadas_mes = $stmt->fetchColumn();
+        
+    } elseif ($es_direccion) {
+        // ⭐ Dirección: Ve TODAS las solicitudes de todos los departamentos
+        
+        // Solicitudes pendientes (todas, enviadas pero no completadas)
+        $sql_pendientes = "SELECT COUNT(*) FROM documentos_colaborativos 
+                          WHERE estado IN ('enviado', 'en_seguimiento') 
+                          AND ubicacion = 'local'";
+        $stmt = $pdo->query($sql_pendientes);
+        $count_pendientes_direccion = $stmt->fetchColumn();
+        
+        // Solicitudes en seguimiento (todas)
+        $sql_seguimiento = "SELECT COUNT(*) FROM documentos_colaborativos 
+                           WHERE estado = 'en_seguimiento' 
+                           AND ubicacion = 'local'";
+        $stmt = $pdo->query($sql_seguimiento);
+        $count_seguimiento_direccion = $stmt->fetchColumn();
+        
+        // Solicitudes finalizadas (todas, de todos los departamentos)
+        $sql_finalizadas = "SELECT COUNT(*) FROM documentos_colaborativos 
+                           WHERE estado = 'completado'";
+        $stmt = $pdo->query($sql_finalizadas);
+        $count_finalizadas_global = $stmt->fetchColumn();
+        
     } else {
         // Ventas/Normatividad: Solicitudes enviadas (del departamento del usuario)
         $sql_enviadas = "SELECT COUNT(*) FROM documentos_colaborativos 
@@ -142,6 +168,8 @@ try {
     $count_pendientes = 0;
     $count_finalizadas_global = 0;
     $count_completadas_mes = 0;
+    $count_pendientes_direccion = 0;
+    $count_seguimiento_direccion = 0;
     $clientes_lista = [];
 }
 ?>
@@ -326,7 +354,60 @@ try {
                  ======================================== -->
             <?php if ($filtro_ubicacion == 'local'): ?>
                 <!-- STAT CARDS PARA BASE LOCAL -->
-                <?php if (!$es_laboratorio): ?>
+                <?php if ($es_laboratorio): ?>
+                <!-- Laboratorio en Base Local -->
+                <div class="row mb-3">
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card pendientes">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-hourglass-split"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_pendientes ?></div>
+                                        <div class="stat-label">Solicitudes Pendientes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php elseif ($es_direccion): ?>
+                <!-- ⭐ Dirección en Base Local - Ve TODAS las solicitudes -->
+                <div class="row mb-3">
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card pendientes">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-hourglass-split"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_pendientes_direccion ?></div>
+                                        <div class="stat-label">Pendientes (Todas)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3 mb-2">
+                        <div class="card stat-card seguimiento">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <div class="stat-icon me-3">
+                                        <i class="bi bi-eye"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-number"><?= $count_seguimiento_direccion ?></div>
+                                        <div class="stat-label">En Seguimiento (Todas)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
                 <!-- Ventas/Normatividad en Base Local -->
                 <div class="row mb-3">
                     <div class="col-6 col-md-3 mb-2">
@@ -360,25 +441,6 @@ try {
                         </div>
                     </div>
                 </div>
-                <?php else: ?>
-                <!-- Laboratorio en Base Local -->
-                <div class="row mb-3">
-                    <div class="col-6 col-md-3 mb-2">
-                        <div class="card stat-card pendientes">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center">
-                                    <div class="stat-icon me-3">
-                                        <i class="bi bi-hourglass-split"></i>
-                                    </div>
-                                    <div>
-                                        <div class="stat-number"><?= $count_pendientes ?></div>
-                                        <div class="stat-label">Solicitudes Pendientes</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <?php endif; ?>
             <?php else: ?>
                 <!-- STAT CARDS PARA BASE GLOBAL -->
@@ -391,7 +453,7 @@ try {
                                         <i class="bi bi-check-circle"></i>
                                     </div>
                                     <div>
-                                        <?php if ($es_laboratorio): ?>
+                                        <?php if ($es_laboratorio || $es_direccion): ?>
                                         <div class="stat-number"><?= $count_finalizadas_global ?></div>
                                         <?php else: ?>
                                         <div class="stat-number"><?= $count_finalizadas ?></div>

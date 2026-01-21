@@ -18,11 +18,11 @@ require_once __DIR__ . '/../csrf.php';
 // ========================================
 $puede_crear_ssc = false;
 
-// Verificar que sea de departamentos permitidos (Normatividad o Ventas)
+// Verificar que sea de departamentos permitidos (Normatividad, Ventas o Dirección)
 $departamento = $_SESSION['departamento'] ?? '';
 $dept_lower = strtolower($departamento);
 
-if (in_array($dept_lower, ['normatividad', 'ventas'])) {
+if (in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección'])) {
     try {
         require_once __DIR__ . '/../../config/database.php';
         $pdo_modal = conectarDB();

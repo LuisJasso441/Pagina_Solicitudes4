@@ -151,28 +151,27 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <label class="form-label required">Nombre de Usuario</label>
                                         <input type="text" name="usuario" class="form-control" 
                                                value="<?php echo htmlspecialchars($form_data['usuario'] ?? ''); ?>"
-                                               required maxlength="50" placeholder="Ej: GVSIS01"
-                                               pattern="^[a-zA-Z0-9_-]+$" title="Solo letras, números, guión y guión bajo. Sin espacios.">
-                                        <small class="text-muted">Solo letras, números, guión (-) y guión bajo (_). Sin espacios.</small>
+                                               required maxlength="50" placeholder="Ej: GVSIS01" 
+                                               pattern="[A-Za-z0-9_-]+" title="Solo letras, números, guión y guión bajo">
+                                        <small class="text-muted">Sin espacios. Se convertirá a mayúsculas.</small>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label required">Departamento</label>
-                                        <select name="departamento_id" class="form-select" required id="selectDepartamento">
+                                        <select name="departamento_id" class="form-select" required>
                                             <option value="">Seleccionar departamento...</option>
                                             <?php foreach ($departamentos as $depto): ?>
                                                 <option value="<?php echo $depto['id']; ?>" 
-                                                        data-codigo="<?php echo htmlspecialchars($depto['codigo']); ?>"
-                                                        <?php echo (isset($form_data['departamento_id']) && $form_data['departamento_id'] == $depto['id']) ? 'selected' : ''; ?>>
+                                                        <?php echo (($form_data['departamento_id'] ?? '') == $depto['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($depto['nombre']); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label required">Estado</label>
-                                        <select name="activo" class="form-select" required>
-                                            <option value="1" <?php echo (!isset($form_data['activo']) || $form_data['activo'] == '1') ? 'selected' : ''; ?>>Activo</option>
-                                            <option value="0" <?php echo (isset($form_data['activo']) && $form_data['activo'] == '0') ? 'selected' : ''; ?>>Inactivo</option>
+                                        <label class="form-label">Estado Inicial</label>
+                                        <select name="activo" class="form-select">
+                                            <option value="1" <?php echo (($form_data['activo'] ?? 1) == 1) ? 'selected' : ''; ?>>Activo</option>
+                                            <option value="0" <?php echo (($form_data['activo'] ?? 1) == 0) ? 'selected' : ''; ?>>Inactivo</option>
                                         </select>
                                     </div>
                                 </div>
@@ -188,9 +187,8 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <label class="form-label required">Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password" class="form-control" 
-                                                   id="inputPassword" required minlength="8"
-                                                   placeholder="Mínimo 8 caracteres">
-                                            <button class="btn btn-outline-secondary password-toggle" type="button" 
+                                                   id="inputPassword" required minlength="8" placeholder="Mínimo 8 caracteres">
+                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
                                                     onclick="togglePassword('inputPassword', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
@@ -200,9 +198,8 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <label class="form-label required">Confirmar Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password_confirm" class="form-control" 
-                                                   id="inputPasswordConfirm" required minlength="8"
-                                                   placeholder="Repetir contraseña">
-                                            <button class="btn btn-outline-secondary password-toggle" type="button" 
+                                                   id="inputPasswordConfirm" required minlength="8" placeholder="Repetir contraseña">
+                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
                                                     onclick="togglePassword('inputPasswordConfirm', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
@@ -281,8 +278,34 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                 </div>
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <td><strong>Cotizaciones CQR</strong><br><small class="text-muted">Cotizaciones de Químicos y/o Residuos</small></td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="cqr_lector_visual" value="1" class="form-check-input" 
+                                                           id="cqr_lector" checked disabled>
+                                                </div>
+                                                <input type="hidden" name="cqr_lector" value="1">
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="cqr_creador" value="1" class="form-check-input" 
+                                                           id="cqr_creador" <?php echo (isset($form_data['cqr_creador']) && $form_data['cqr_creador']) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="cqr_editor" value="1" class="form-check-input" 
+                                                           id="cqr_editor" <?php echo (isset($form_data['cqr_editor']) && $form_data['cqr_editor']) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="bi bi-lightbulb me-1"></i>
+                                    <strong>CQR:</strong> Creador = Ventas (crea solicitudes), Editor = Normatividad (responde solicitudes)
+                                </small>
                             </div>
                         </div>
 

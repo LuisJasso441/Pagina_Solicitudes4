@@ -34,8 +34,8 @@ $usuario_id = $_SESSION['usuario_id'];
 $departamento = $_SESSION['departamento'];
 $dept_lower = strtolower($departamento);
 
-// Verificar permisos de departamento (solo Normatividad y Ventas pueden crear)
-if (!in_array($dept_lower, ['normatividad', 'ventas'])) {
+// Verificar permisos de departamento (Normatividad, Ventas o Dirección pueden crear)
+if (!in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección'])) {
     echo json_encode(['success' => false, 'message' => 'No tienes permiso para crear documentos']);
     exit;
 }

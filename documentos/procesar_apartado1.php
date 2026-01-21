@@ -49,7 +49,7 @@ if (!$documento) {
 // ========================================
 
 // Verificar que sea de un departamento que puede editar Apartado 1
-$deptos_permitidos = ['normatividad', 'ventas'];
+$deptos_permitidos = ['normatividad', 'ventas', 'direccion', 'dirección'];
 if (!in_array($dept_lower, $deptos_permitidos)) {
     echo json_encode(['success' => false, 'message' => 'Su departamento no puede editar el Apartado 1']);
     exit;

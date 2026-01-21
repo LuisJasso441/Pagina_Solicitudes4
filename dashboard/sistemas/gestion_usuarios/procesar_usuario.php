@@ -106,13 +106,20 @@ if ($accion === 'crear') {
     $password_confirm = $_POST['password_confirm'] ?? '';
     $activo = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
     
-    // Permisos
+    // Permisos SSC
     $ssc_lector = 1; // Siempre activo por defecto
     $ssc_creador = isset($_POST['ssc_creador']) ? 1 : 0;
     $ssc_editor = isset($_POST['ssc_editor']) ? 1 : 0;
+    
+    // Permisos OSM
     $osm_lector = 1; // Siempre activo por defecto
     $osm_creador = isset($_POST['osm_creador']) ? 1 : 0;
     $osm_editor = isset($_POST['osm_editor']) ? 1 : 0;
+    
+    // Permisos CQR
+    $cqr_lector = 1; // Siempre activo por defecto
+    $cqr_creador = isset($_POST['cqr_creador']) ? 1 : 0;
+    $cqr_editor = isset($_POST['cqr_editor']) ? 1 : 0;
     
     // Validaciones
     if (empty($nombre_completo)) {
@@ -189,6 +196,11 @@ if ($accion === 'crear') {
         $stmt_osm = $pdo->prepare($sql_osm);
         $stmt_osm->execute([$nuevo_usuario_id, $osm_lector, $osm_creador, $osm_editor]);
         
+        // Insertar permisos CQR
+        $sql_cqr = "INSERT INTO permisos_cqr (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)";
+        $stmt_cqr = $pdo->prepare($sql_cqr);
+        $stmt_cqr->execute([$nuevo_usuario_id, $cqr_lector, $cqr_creador, $cqr_editor]);
+        
         $pdo->commit();
         
         header('Location: ' . URL_BASE . 'dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php?msg=creado');
@@ -223,13 +235,20 @@ elseif ($accion === 'editar') {
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
     
-    // Permisos
+    // Permisos SSC
     $ssc_lector = 1;
     $ssc_creador = isset($_POST['ssc_creador']) ? 1 : 0;
     $ssc_editor = isset($_POST['ssc_editor']) ? 1 : 0;
+    
+    // Permisos OSM
     $osm_lector = 1;
     $osm_creador = isset($_POST['osm_creador']) ? 1 : 0;
     $osm_editor = isset($_POST['osm_editor']) ? 1 : 0;
+    
+    // Permisos CQR
+    $cqr_lector = 1;
+    $cqr_creador = isset($_POST['cqr_creador']) ? 1 : 0;
+    $cqr_editor = isset($_POST['cqr_editor']) ? 1 : 0;
     
     // Validaciones
     if (empty($nombre_completo)) {
@@ -334,6 +353,13 @@ elseif ($accion === 'editar') {
                     ON DUPLICATE KEY UPDATE lector = ?, creador = ?, editor = ?, updated_at = NOW()";
         $stmt_osm = $pdo->prepare($sql_osm);
         $stmt_osm->execute([$id, $osm_lector, $osm_creador, $osm_editor, $osm_lector, $osm_creador, $osm_editor]);
+        
+        // Actualizar permisos CQR
+        $sql_cqr = "INSERT INTO permisos_cqr (user_id, lector, creador, editor, updated_at) 
+                    VALUES (?, ?, ?, ?, NOW())
+                    ON DUPLICATE KEY UPDATE lector = ?, creador = ?, editor = ?, updated_at = NOW()";
+        $stmt_cqr = $pdo->prepare($sql_cqr);
+        $stmt_cqr->execute([$id, $cqr_lector, $cqr_creador, $cqr_editor, $cqr_lector, $cqr_creador, $cqr_editor]);
         
         $pdo->commit();
         
