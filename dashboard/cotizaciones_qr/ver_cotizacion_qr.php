@@ -1,12 +1,13 @@
 <?php
 /**
- * Ver Detalle de Cotización - Químicos y/o Residuos
+ * Ver Detalle de Cotización - Químicos y/o Residuos v3.0
  * Ubicación: dashboard/cotizaciones_qr/ver_cotizacion_qr.php
  * 
- * Estructura:
- * 1. Formulario de Ventas (siempre visible)
- * 2. Formulario de Normatividad (visible cuando respondió) o mensaje "En revisión"
- * 3. Sección de Comentarios Generales (siempre disponible)
+ * ACTUALIZACIÓN 23/01/2026:
+ * - Campos renombrados: nombre_real_semarnat, nombre_ante_semarnat
+ * - Nuevos campos: tipo_cliente, nombre_cliente
+ * - Estados: enviada, en_revision, aceptada, rechazada
+ * - Acceso para Laboratorio y Dirección (lectores con comentarios)
  */
 
 session_start();
@@ -58,19 +59,20 @@ if (!$cotizacion) {
 $rol_usuario = obtener_rol_cqr($_SESSION['departamento'] ?? '');
 $es_normatividad = ($rol_usuario === 'normatividad');
 $es_ventas = ($rol_usuario === 'ventas');
+$es_laboratorio = ($rol_usuario === 'laboratorio');
+$es_direccion = ($rol_usuario === 'direccion');
 $normatividad_respondio = normatividad_respondio_cqr($cotizacion);
 
 // Si es Normatividad y aún no ha respondido, marcar como "en revisión"
 if ($es_normatividad && $cotizacion['estado'] === 'enviada') {
     marcar_en_revision_cqr($cotizacion_id, $_SESSION['usuario_id']);
-    // Recargar cotización
     $cotizacion = obtener_cotizacion_qr_por_id($cotizacion_id);
 }
 
 // Procesar formulario de respuesta de Normatividad
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
     
-    // Agregar comentario general
+    // Agregar comentario general (disponible para todos los departamentos con acceso)
     if ($_POST['accion'] === 'agregar_comentario' && $permisos['puede_comentar']) {
         $comentario = trim($_POST['comentario'] ?? '');
         if (!empty($comentario)) {
@@ -86,37 +88,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion'])) {
         exit;
     }
     
-    // Respuesta de Normatividad
+    // Respuesta de Normatividad (solo si tiene permiso de editor y no ha respondido)
     if ($_POST['accion'] === 'responder_normatividad' && $permisos['puede_editar'] && $es_normatividad && !$normatividad_respondio) {
         
         $datos_respuesta = [
-            'norm_nombre_amigable' => trim($_POST['norm_nombre_amigable'] ?? ''),
-            'norm_nombre_tecnico' => trim($_POST['norm_nombre_tecnico'] ?? ''),
-            'norm_categoria' => $_POST['norm_categoria'] ?? null,
-            'decision' => $_POST['decision'] ?? '',
-            'comentarios_normatividad' => trim($_POST['comentarios_normatividad'] ?? '')
+            'resultados' => trim($_POST['resultados'] ?? ''),
+            'decision' => $_POST['decision'] ?? ''
         ];
         
         // Validar decisión
         if (!in_array($datos_respuesta['decision'], ['aceptada', 'rechazada'])) {
-            $_SESSION['error'] = "Debes seleccionar Aceptada o Rechazada.";
+            $_SESSION['error'] = "Debes seleccionar un estado válido: Aceptada o Rechazada.";
             header('Location: ' . URL_BASE . 'dashboard/cotizaciones_qr/ver_cotizacion_qr.php?id=' . $cotizacion_id);
             exit;
-        }
-        
-        // Procesar archivos si se subieron
-        if (isset($_FILES['norm_ficha_tecnica']) && $_FILES['norm_ficha_tecnica']['error'] === UPLOAD_ERR_OK) {
-            $resultado = procesar_archivo_cqr($_FILES['norm_ficha_tecnica'], 'norm_ficha');
-            if (is_string($resultado)) {
-                $datos_respuesta['norm_ficha_tecnica'] = $resultado;
-            }
-        }
-        
-        if (isset($_FILES['norm_formato_descripcion']) && $_FILES['norm_formato_descripcion']['error'] === UPLOAD_ERR_OK) {
-            $resultado = procesar_archivo_cqr($_FILES['norm_formato_descripcion'], 'norm_formato');
-            if (is_string($resultado)) {
-                $datos_respuesta['norm_formato_descripcion'] = $resultado;
-            }
         }
         
         $resultado = responder_cotizacion_qr($cotizacion_id, $datos_respuesta, $_SESSION['usuario_id']);
@@ -163,39 +147,24 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     
     <style>
-        /* Estilos específicos del módulo */
         .detail-card {
-            border-radius: var(--border-radius-lg, 12px);
             border: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 1.5rem;
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 20px;
         }
         
         .detail-card .card-header {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-bottom: 1px solid #dee2e6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             font-weight: 600;
-        }
-        
-        .detail-card.ventas-card .card-header {
-            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
-            color: white;
-        }
-        
-        .detail-card.normatividad-card .card-header {
-            background: linear-gradient(135deg, #198754 0%, #157347 100%);
-            color: white;
-        }
-        
-        .detail-card.comentarios-card .card-header {
-            background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
-            color: white;
+            border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
         }
         
         .info-row {
             display: flex;
-            padding: 0.75rem 0;
             border-bottom: 1px solid #f0f0f0;
+            padding: 12px 0;
         }
         
         .info-row:last-child {
@@ -204,207 +173,223 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
         
         .info-label {
             font-weight: 600;
-            color: #495057;
-            min-width: 180px;
+            color: #666;
+            width: 180px;
+            flex-shrink: 0;
         }
         
         .info-value {
-            color: #212529;
-            flex: 1;
-        }
-        
-        /* Decision Box */
-        .decision-box {
-            border: 2px solid #dee2e6;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1rem 0;
-            background: #f8f9fa;
+            flex-grow: 1;
         }
         
         .decision-option {
-            display: flex;
-            align-items: center;
-            padding: 1rem;
-            margin: 0.5rem 0;
             border: 2px solid #dee2e6;
-            border-radius: 8px;
+            border-radius: var(--border-radius-lg);
+            padding: 15px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            text-align: center;
         }
         
         .decision-option:hover {
             border-color: #adb5bd;
         }
         
-        .decision-option.aceptada {
+        .decision-option.aceptada:hover,
+        .decision-option.aceptada.selected {
             border-color: #198754;
-            background: rgba(25, 135, 84, 0.05);
+            background-color: #d1e7dd;
         }
         
-        .decision-option.rechazada {
+        .decision-option.rechazada:hover,
+        .decision-option.rechazada.selected {
             border-color: #dc3545;
-            background: rgba(220, 53, 69, 0.05);
+            background-color: #f8d7da;
         }
         
         .decision-option input[type="radio"] {
-            width: 24px;
-            height: 24px;
-            margin-right: 1rem;
+            display: none;
         }
         
-        .decision-option input[type="radio"]:checked + .decision-text.aceptada {
-            color: #198754;
-            font-weight: 600;
+        .comentarios-lista {
+            max-height: 400px;
+            overflow-y: auto;
         }
         
-        .decision-option input[type="radio"]:checked + .decision-text.rechazada {
-            color: #dc3545;
-            font-weight: 600;
-        }
-        
-        /* Resultado de decisión */
-        .decision-result {
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-        
-        .decision-result.aceptada {
-            background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);
-            color: #0f5132;
-            border: 2px solid #198754;
-        }
-        
-        .decision-result.rechazada {
-            background: linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%);
-            color: #842029;
-            border: 2px solid #dc3545;
-        }
-        
-        /* En revisión */
-        .en-revision-box {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
-            border: 2px solid #ffc107;
-            border-radius: 12px;
-            padding: 2rem;
-            text-align: center;
-        }
-        
-        .en-revision-box i {
-            font-size: 3rem;
-            color: #856404;
-            margin-bottom: 1rem;
-        }
-        
-        /* Comentarios */
         .comentario-item {
-            border-left: 4px solid #6c757d;
-            padding: 1rem;
-            margin-bottom: 1rem;
             background: #f8f9fa;
-            border-radius: 0 8px 8px 0;
+            border-radius: var(--border-radius-lg);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #6c757d;
         }
         
-        .comentario-item.ventas {
-            border-left-color: #0d6efd;
-        }
-        
-        .comentario-item.normatividad {
-            border-left-color: #198754;
-        }
-        
-        .comentario-item.laboratorio {
-            border-left-color: #6f42c1;
-        }
-        
-        .comentario-item.direccion {
-            border-left-color: #dc3545;
-        }
+        .comentario-item.ventas { border-left-color: #0d6efd; }
+        .comentario-item.normatividad { border-left-color: #198754; }
+        .comentario-item.laboratorio { border-left-color: #6f42c1; }
+        .comentario-item.direccion { border-left-color: #dc3545; }
         
         .comentario-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 0.5rem;
+            align-items: center;
+            margin-bottom: 8px;
         }
         
         .comentario-autor {
             font-weight: 600;
         }
         
-        .comentario-fecha {
-            color: #6c757d;
-            font-size: 0.85rem;
-        }
-        
         .comentario-departamento {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             padding: 2px 8px;
-            border-radius: 4px;
+            border-radius: 10px;
             color: white;
         }
         
-        /* Archivo adjunto */
+        .comentario-fecha {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+        
+        .timeline-item {
+            position: relative;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #6c757d;
+        }
+        
         .archivo-link {
             display: inline-flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: #e9ecef;
-            border-radius: 6px;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #f8f9fa;
+            border-radius: var(--border-radius-md);
+            color: var(--text-primary);
             text-decoration: none;
-            color: #212529;
-            transition: background 0.2s;
+            transition: all 0.2s ease;
         }
         
         .archivo-link:hover {
-            background: #dee2e6;
-            color: #0d6efd;
+            background: #e9ecef;
+            color: var(--color-brand-dark);
         }
         
-        /* Status badges */
-        .status-badge {
-            padding: 0.5rem 1rem;
+        .imagen-residuo-thumb {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #dee2e6;
+            display: block;
+            transition: all 0.2s ease;
+        }
+        
+        .imagen-residuo-thumb:hover {
+            border-color: var(--color-brand-dark);
+            transform: scale(1.05);
+        }
+        
+        .imagen-residuo-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .imagen-residuo-thumb .imagen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .imagen-residuo-thumb:hover .imagen-overlay {
+            opacity: 1;
+        }
+        
+        .imagen-residuo-thumb .imagen-overlay i {
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .cliente-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
             border-radius: 20px;
-            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        
+        .cliente-badge.nuevo {
+            background: #cff4fc;
+            color: #055160;
+        }
+        
+        .cliente-badge.frecuente {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+        
+        @media (max-width: 991px) {
+            .info-row {
+                flex-direction: column;
+            }
+            .info-label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
         }
     </style>
 </head>
 <body>
+    <?php include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; ?>
     
-    <div class="dashboard-container">
-        
-        <!-- SIDEBAR -->
-        <?php include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; ?>
-
-        <!-- CONTENIDO PRINCIPAL -->
-        <main class="main-content">
-            <div class="content-wrapper">
-            
-            <!-- Encabezado -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <a href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php" class="btn btn-outline-secondary btn-sm mb-2">
-                        <i class="bi bi-arrow-left"></i> Volver al listado
-                    </a>
-                    <h2 class="mb-1">
-                        <i class="bi bi-flask text-primary"></i>
-                        <?php echo htmlspecialchars($cotizacion['folio']); ?>
-                    </h2>
-                    <p class="text-muted mb-0">
-                        Creada el <?php echo date('d/m/Y H:i', strtotime($cotizacion['fecha_creacion'])); ?>
-                    </p>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <?php echo obtener_badge_estado_cqr($cotizacion['estado']); ?>
-                    <?php if ($normatividad_respondio): ?>
-                        <?php echo obtener_badge_decision_cqr($cotizacion['decision']); ?>
-                    <?php else: ?>
-                        <?php echo obtener_badge_estado_normatividad($cotizacion['estado_normatividad']); ?>
-                    <?php endif; ?>
-                </div>
-            </div>
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- Navegación -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php">
+                            Cotizaciones QR
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active"><?php echo htmlspecialchars($cotizacion['folio']); ?></li>
+                </ol>
+            </nav>
             
             <!-- Alertas -->
             <?php if (isset($_SESSION['success'])): ?>
@@ -423,260 +408,248 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
             </div>
             <?php endif; ?>
             
+            <!-- Encabezado -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="bi bi-flask text-primary"></i>
+                        <?php echo htmlspecialchars($cotizacion['folio']); ?>
+                    </h2>
+                    <div class="d-flex gap-2 align-items-center">
+                        <?php echo obtener_badge_estado_cqr($cotizacion['estado']); ?>
+                        <?php echo obtener_badge_tipo_cliente($cotizacion['tipo_cliente']); ?>
+                        <span class="badge bg-<?php echo $cotizacion['ubicacion'] === 'global' ? 'success' : 'secondary'; ?>">
+                            <?php echo $cotizacion['ubicacion'] === 'global' ? 'Completado' : 'En Proceso'; ?>
+                        </span>
+                    </div>
+                </div>
+                <a href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
+            </div>
+            
             <div class="row">
                 <div class="col-lg-8">
                     
-                    <!-- ================================================== -->
-                    <!-- FORMULARIO DE VENTAS (Siempre visible) -->
-                    <!-- ================================================== -->
-                    <div class="card detail-card ventas-card">
+                    <!-- Card: Información de la Solicitud (Ventas) -->
+                    <div class="card detail-card">
                         <div class="card-header">
-                            <i class="bi bi-file-earmark-text me-2"></i>
+                            <i class="bi bi-file-text me-2"></i>
                             Solicitud de Ventas
                         </div>
                         <div class="card-body">
-                            <div class="info-row">
-                                <span class="info-label">Folio:</span>
-                                <span class="info-value"><strong><?php echo htmlspecialchars($cotizacion['folio']); ?></strong></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Fecha de Solicitud:</span>
-                                <span class="info-value"><?php echo date('d/m/Y', strtotime($cotizacion['fecha_solicitud'])); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Solicitante:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($cotizacion['creador_nombre']); ?> (<?php echo ucfirst($cotizacion['departamento_creador']); ?>)</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Nombre Amigable:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($cotizacion['nombre_amigable']); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Nombre Técnico:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($cotizacion['nombre_tecnico'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Categoría:</span>
-                                <span class="info-value"><?php echo obtener_nombre_categoria_cqr($cotizacion['categoria']); ?></span>
-                            </div>
-                            <?php if (!empty($cotizacion['comentarios_ventas'])): ?>
-                            <div class="info-row">
-                                <span class="info-label">Comentarios:</span>
-                                <span class="info-value"><?php echo nl2br(htmlspecialchars($cotizacion['comentarios_ventas'])); ?></span>
-                            </div>
-                            <?php endif; ?>
+                            <!-- Información del Cliente -->
+                            <h6 class="text-muted mb-3"><i class="bi bi-person-badge"></i> Información del Cliente</h6>
                             
-                            <!-- Archivos adjuntos -->
-                            <?php if (!empty($cotizacion['ficha_tecnica'])): ?>
-                            <?php $ficha = json_decode($cotizacion['ficha_tecnica'], true); ?>
                             <div class="info-row">
-                                <span class="info-label">Ficha Técnica:</span>
-                                <span class="info-value">
-                                    <a href="<?php echo URL_BASE . ($ficha['ruta'] ?? ''); ?>" target="_blank" class="archivo-link">
-                                        <i class="bi bi-file-earmark-arrow-down"></i>
-                                        <?php echo htmlspecialchars($ficha['nombre_original'] ?? 'Ver archivo'); ?>
-                                    </a>
-                                </span>
-                            </div>
-                            <?php endif; ?>
-                            
-                            <?php if (!empty($cotizacion['formato_descripcion'])): ?>
-                            <?php $formato = json_decode($cotizacion['formato_descripcion'], true); ?>
-                            <div class="info-row">
-                                <span class="info-label">Formato Descripción:</span>
-                                <span class="info-value">
-                                    <a href="<?php echo URL_BASE . ($formato['ruta'] ?? ''); ?>" target="_blank" class="archivo-link">
-                                        <i class="bi bi-file-earmark-arrow-down"></i>
-                                        <?php echo htmlspecialchars($formato['nombre_original'] ?? 'Ver archivo'); ?>
-                                    </a>
-                                </span>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    
-                    <!-- ================================================== -->
-                    <!-- FORMULARIO DE NORMATIVIDAD -->
-                    <!-- ================================================== -->
-                    <?php if ($normatividad_respondio): ?>
-                    <!-- Normatividad ya respondió - Mostrar respuesta -->
-                    <div class="card detail-card normatividad-card">
-                        <div class="card-header">
-                            <i class="bi bi-clipboard-check me-2"></i>
-                            Respuesta de Normatividad
-                        </div>
-                        <div class="card-body">
-                            <!-- Decisión -->
-                            <div class="mb-4">
-                                <div class="decision-result <?php echo $cotizacion['decision']; ?>">
-                                    <?php if ($cotizacion['decision'] === 'aceptada'): ?>
-                                        <i class="bi bi-check-circle-fill me-2"></i> SOLICITUD ACEPTADA
+                                <div class="info-label">Tipo de Cliente</div>
+                                <div class="info-value">
+                                    <?php if ($cotizacion['tipo_cliente'] === 'nuevo'): ?>
+                                    <span class="cliente-badge nuevo">
+                                        <i class="bi bi-person-plus"></i> Cliente Nuevo
+                                    </span>
                                     <?php else: ?>
-                                        <i class="bi bi-x-circle-fill me-2"></i> SOLICITUD RECHAZADA
+                                    <span class="cliente-badge frecuente">
+                                        <i class="bi bi-person-check"></i> Cliente Frecuente
+                                    </span>
                                     <?php endif; ?>
                                 </div>
                             </div>
                             
-                            <?php if (!empty($cotizacion['comentarios_normatividad'])): ?>
                             <div class="info-row">
-                                <span class="info-label">Comentarios:</span>
-                                <span class="info-value"><?php echo nl2br(htmlspecialchars($cotizacion['comentarios_normatividad'])); ?></span>
+                                <div class="info-label">Nombre del Cliente</div>
+                                <div class="info-value"><strong><?php echo htmlspecialchars($cotizacion['nombre_cliente']); ?></strong></div>
+                            </div>
+                            
+                            <hr class="my-3">
+                            
+                            <!-- Información del Producto -->
+                            <h6 class="text-muted mb-3"><i class="bi bi-box-seam"></i> Datos del Producto</h6>
+                            
+                            <div class="info-row">
+                                <div class="info-label">Nombre real (SEMARNAT)</div>
+                                <div class="info-value"><?php echo htmlspecialchars($cotizacion['nombre_real_semarnat']); ?></div>
+                            </div>
+                            
+                            <div class="info-row">
+                                <div class="info-label">Nombre ante SEMARNAT</div>
+                                <div class="info-value"><?php echo htmlspecialchars($cotizacion['nombre_ante_semarnat'] ?? '-'); ?></div>
+                            </div>
+                            
+                            <div class="info-row">
+                                <div class="info-label">Fecha de Solicitud</div>
+                                <div class="info-value"><?php echo date('d/m/Y', strtotime($cotizacion['fecha_solicitud'])); ?></div>
+                            </div>
+                            
+                            <?php if (!empty($cotizacion['comentarios_ventas'])): ?>
+                            <div class="info-row">
+                                <div class="info-label">Comentarios</div>
+                                <div class="info-value"><?php echo nl2br(htmlspecialchars($cotizacion['comentarios_ventas'])); ?></div>
                             </div>
                             <?php endif; ?>
                             
-                            <hr>
+                            <hr class="my-3">
                             
-                            <div class="info-row">
-                                <span class="info-label">Nombre Amigable:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($cotizacion['norm_nombre_amigable'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Nombre Técnico:</span>
-                                <span class="info-value"><?php echo htmlspecialchars($cotizacion['norm_nombre_tecnico'] ?? '-'); ?></span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Categoría:</span>
-                                <span class="info-value"><?php echo obtener_nombre_categoria_cqr($cotizacion['norm_categoria']); ?></span>
+                            <!-- Archivos -->
+                            <h6 class="text-muted mb-3"><i class="bi bi-paperclip"></i> Archivos Adjuntos</h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-2"><strong>Ficha Técnica:</strong></p>
+                                    <?php if (!empty($cotizacion['ficha_tecnica'])): ?>
+                                        <?php $ficha = json_decode($cotizacion['ficha_tecnica'], true); ?>
+                                        <a href="<?php echo URL_BASE . $ficha['ruta']; ?>" target="_blank" class="archivo-link">
+                                            <i class="bi bi-file-earmark-pdf text-danger fs-5"></i>
+                                            <span><?php echo htmlspecialchars($ficha['nombre_original']); ?></span>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted">No adjuntado</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-2"><strong>Formato Descripción:</strong></p>
+                                    <?php if (!empty($cotizacion['formato_descripcion'])): ?>
+                                        <?php $formato = json_decode($cotizacion['formato_descripcion'], true); ?>
+                                        <?php 
+                                        $icono_formato = 'bi-file-earmark';
+                                        $color_icono = 'text-secondary';
+                                        if ($formato['extension'] === 'pdf') {
+                                            $icono_formato = 'bi-file-earmark-pdf';
+                                            $color_icono = 'text-danger';
+                                        } elseif ($formato['extension'] === 'xlsx') {
+                                            $icono_formato = 'bi-file-earmark-excel';
+                                            $color_icono = 'text-success';
+                                        }
+                                        ?>
+                                        <a href="<?php echo URL_BASE . $formato['ruta']; ?>" target="_blank" class="archivo-link">
+                                            <i class="bi <?php echo $icono_formato . ' ' . $color_icono; ?> fs-5"></i>
+                                            <span><?php echo htmlspecialchars($formato['nombre_original']); ?></span>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="text-muted">No adjuntado</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             
-                            <!-- Archivos de Normatividad -->
-                            <?php if (!empty($cotizacion['norm_ficha_tecnica'])): ?>
-                            <?php $norm_ficha = json_decode($cotizacion['norm_ficha_tecnica'], true); ?>
-                            <div class="info-row">
-                                <span class="info-label">Ficha Técnica:</span>
-                                <span class="info-value">
-                                    <a href="<?php echo URL_BASE . ($norm_ficha['ruta'] ?? ''); ?>" target="_blank" class="archivo-link">
-                                        <i class="bi bi-file-earmark-arrow-down"></i>
-                                        <?php echo htmlspecialchars($norm_ficha['nombre_original'] ?? 'Ver archivo'); ?>
+                            <?php if (!empty($cotizacion['imagenes_residuo'])): ?>
+                            <?php $imagenes = json_decode($cotizacion['imagenes_residuo'], true); ?>
+                            <?php if (!empty($imagenes)): ?>
+                            <div class="mt-4">
+                                <p class="mb-2"><strong><i class="bi bi-images text-info"></i> Imagen del Residuo:</strong></p>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <?php foreach ($imagenes as $img): ?>
+                                    <a href="<?php echo URL_BASE . $img['ruta']; ?>" target="_blank" class="imagen-residuo-thumb" title="<?php echo htmlspecialchars($img['nombre_original']); ?>">
+                                        <img src="<?php echo URL_BASE . $img['ruta']; ?>" alt="<?php echo htmlspecialchars($img['nombre_original']); ?>">
+                                        <div class="imagen-overlay">
+                                            <i class="bi bi-zoom-in"></i>
+                                        </div>
                                     </a>
-                                </span>
+                                    <?php endforeach; ?>
+                                </div>
                             </div>
                             <?php endif; ?>
+                            <?php endif; ?>
                             
-                            <?php if (!empty($cotizacion['norm_formato_descripcion'])): ?>
-                            <?php $norm_formato = json_decode($cotizacion['norm_formato_descripcion'], true); ?>
+                            <hr class="my-3">
+                            
+                            <!-- Creador -->
                             <div class="info-row">
-                                <span class="info-label">Formato Descripción:</span>
-                                <span class="info-value">
-                                    <a href="<?php echo URL_BASE . ($norm_formato['ruta'] ?? ''); ?>" target="_blank" class="archivo-link">
-                                        <i class="bi bi-file-earmark-arrow-down"></i>
-                                        <?php echo htmlspecialchars($norm_formato['nombre_original'] ?? 'Ver archivo'); ?>
-                                    </a>
-                                </span>
-                            </div>
-                            <?php endif; ?>
-                            
-                            <hr>
-                            <div class="text-muted small">
-                                <i class="bi bi-person me-1"></i> Respondido por: <?php echo htmlspecialchars($cotizacion['normatividad_nombre'] ?? 'N/A'); ?>
-                                <br>
-                                <i class="bi bi-calendar me-1"></i> Fecha: <?php echo $cotizacion['fecha_respuesta_normatividad'] ? date('d/m/Y H:i', strtotime($cotizacion['fecha_respuesta_normatividad'])) : 'N/A'; ?>
+                                <div class="info-label">Creado por</div>
+                                <div class="info-value">
+                                    <?php echo htmlspecialchars($cotizacion['creador_nombre']); ?>
+                                    <span class="badge bg-primary ms-2"><?php echo ucfirst($cotizacion['departamento_creador']); ?></span>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <?php elseif ($es_normatividad && $permisos['puede_editar']): ?>
-                    <!-- Normatividad puede llenar el formulario -->
-                    <div class="card detail-card normatividad-card">
-                        <div class="card-header">
-                            <i class="bi bi-pencil-square me-2"></i>
-                            Formulario de Respuesta - Normatividad
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" enctype="multipart/form-data" id="formRespuesta">
-                                <input type="hidden" name="accion" value="responder_normatividad">
-                                
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label">Nombre Amigable</label>
-                                        <input type="text" name="norm_nombre_amigable" class="form-control" 
-                                               value="<?php echo htmlspecialchars($cotizacion['nombre_amigable']); ?>">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Nombre Técnico</label>
-                                        <input type="text" name="norm_nombre_tecnico" class="form-control"
-                                               value="<?php echo htmlspecialchars($cotizacion['nombre_tecnico'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Categoría</label>
-                                        <select name="norm_categoria" class="form-select">
-                                            <option value="">Seleccionar...</option>
-                                            <option value="en_espera_1" <?php echo ($cotizacion['categoria'] === 'en_espera_1') ? 'selected' : ''; ?>>Categoría 1</option>
-                                            <option value="en_espera_2" <?php echo ($cotizacion['categoria'] === 'en_espera_2') ? 'selected' : ''; ?>>Categoría 2</option>
-                                            <option value="en_espera_3" <?php echo ($cotizacion['categoria'] === 'en_espera_3') ? 'selected' : ''; ?>>Categoría 3</option>
-                                            <option value="en_espera_4" <?php echo ($cotizacion['categoria'] === 'en_espera_4') ? 'selected' : ''; ?>>Categoría 4</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Ficha Técnica (opcional)</label>
-                                        <input type="file" name="norm_ficha_tecnica" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Formato Descripción (opcional)</label>
-                                        <input type="file" name="norm_formato_descripcion" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
-                                    </div>
-                                </div>
-                                
-                                <!-- Caja de Decisión -->
-                                <div class="decision-box mt-4">
-                                    <h5 class="mb-3"><i class="bi bi-check2-square me-2"></i>Decisión</h5>
-                                    
-                                    <label class="decision-option aceptada">
-                                        <input type="radio" name="decision" value="aceptada" required>
-                                        <span class="decision-text aceptada">
-                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
-                                            <strong>Aceptada</strong> - La solicitud cumple con los requisitos
-                                        </span>
-                                    </label>
-                                    
-                                    <label class="decision-option rechazada">
-                                        <input type="radio" name="decision" value="rechazada" required>
-                                        <span class="decision-text rechazada">
-                                            <i class="bi bi-x-circle-fill text-danger me-2"></i>
-                                            <strong>Rechazada</strong> - La solicitud no cumple con los requisitos
-                                        </span>
-                                    </label>
-                                    
-                                    <div class="mt-3">
-                                        <label class="form-label">Comentarios</label>
-                                        <textarea name="comentarios_normatividad" class="form-control" rows="3" 
-                                                  placeholder="Agrega comentarios sobre tu decisión..."></textarea>
-                                    </div>
-                                </div>
-                                
-                                <div class="mt-4 text-end">
-                                    <button type="submit" class="btn btn-success btn-lg">
-                                        <i class="bi bi-send me-2"></i>Enviar Respuesta
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <?php else: ?>
-                    <!-- Otros usuarios ven mensaje de "En revisión" -->
+                    <!-- Card: Respuesta de Normatividad -->
                     <div class="card detail-card">
-                        <div class="card-header bg-warning text-dark">
-                            <i class="bi bi-hourglass-split me-2"></i>
+                        <div class="card-header bg-<?php echo $normatividad_respondio ? 'success' : 'warning'; ?>">
+                            <i class="bi bi-clipboard-check me-2"></i>
                             Respuesta de Normatividad
                         </div>
                         <div class="card-body">
-                            <div class="en-revision-box">
-                                <i class="bi bi-hourglass-split d-block"></i>
-                                <h4>En Revisión</h4>
-                                <p class="text-muted mb-0">
-                                    La solicitud está siendo revisada por Normatividad.<br>
-                                    La respuesta aparecerá aquí cuando esté completada.
-                                </p>
-                            </div>
+                            <?php if ($normatividad_respondio): ?>
+                                <!-- Mostrar respuesta -->
+                                <div class="info-row">
+                                    <div class="info-label">Estado</div>
+                                    <div class="info-value">
+                                        <?php echo obtener_badge_estado_cqr($cotizacion['estado']); ?>
+                                    </div>
+                                </div>
+                                
+                                <?php if (!empty($cotizacion['resultados'])): ?>
+                                <div class="info-row">
+                                    <div class="info-label">Resultados</div>
+                                    <div class="info-value"><?php echo nl2br(htmlspecialchars($cotizacion['resultados'])); ?></div>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <div class="info-row">
+                                    <div class="info-label">Respondido por</div>
+                                    <div class="info-value">
+                                        <?php echo htmlspecialchars($cotizacion['normatividad_nombre'] ?? 'No especificado'); ?>
+                                        <span class="badge bg-success ms-2">Normatividad</span>
+                                    </div>
+                                </div>
+                                
+                            <?php elseif ($es_normatividad && $permisos['puede_editar']): ?>
+                                <!-- Formulario de respuesta para Normatividad -->
+                                <form method="POST" id="formRespuesta">
+                                    <input type="hidden" name="accion" value="responder_normatividad">
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">Resultados</label>
+                                        <textarea name="resultados" class="form-control" rows="4" 
+                                                  placeholder="Ingrese los resultados de la revisión..."></textarea>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label fw-bold">Estado de la Cotización <span class="text-danger">*</span></label>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="decision-option aceptada d-block">
+                                                    <input type="radio" name="decision" value="aceptada" required>
+                                                    <i class="bi bi-check-circle-fill text-success fs-2"></i>
+                                                    <div class="mt-2"><strong>Aceptada</strong></div>
+                                                    <small class="text-muted">Aprobar la cotización</small>
+                                                </label>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="decision-option rechazada d-block">
+                                                    <input type="radio" name="decision" value="rechazada">
+                                                    <i class="bi bi-x-circle-fill text-danger fs-2"></i>
+                                                    <div class="mt-2"><strong>Rechazada</strong></div>
+                                                    <small class="text-muted">Rechazar la cotización</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="bi bi-send me-1"></i> Enviar Respuesta
+                                        </button>
+                                    </div>
+                                </form>
+                                
+                            <?php else: ?>
+                                <!-- Mensaje de espera -->
+                                <div class="text-center py-4">
+                                    <i class="bi bi-hourglass-split text-warning fs-1"></i>
+                                    <h5 class="mt-3">En espera de respuesta</h5>
+                                    <p class="text-muted">Normatividad aún no ha respondido a esta cotización.</p>
+                                    <p class="mb-0">
+                                        Estado actual: <?php echo obtener_badge_estado_cqr($cotizacion['estado']); ?>
+                                    </p>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
-                    <?php endif; ?>
                     
-                    <!-- ================================================== -->
-                    <!-- SECCIÓN DE COMENTARIOS GENERALES -->
-                    <!-- ================================================== -->
-                    <div class="card detail-card comentarios-card">
+                    <!-- Card: Comentarios -->
+                    <div class="card detail-card">
                         <div class="card-header">
                             <i class="bi bi-chat-dots me-2"></i>
                             Comentarios (<?php echo count($comentarios); ?>)
@@ -769,12 +742,16 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
                                                     $icono = 'bi-x-circle-fill';
                                                     $color = 'text-danger';
                                                     break;
+                                                case 'comentario':
+                                                    $icono = 'bi-chat-fill';
+                                                    $color = 'text-info';
+                                                    break;
                                             }
                                             ?>
                                             <i class="bi <?php echo $icono; ?> <?php echo $color; ?> fs-5"></i>
                                         </div>
                                         <div class="flex-grow-1">
-                                            <div class="fw-semibold"><?php echo ucfirst($evento['accion']); ?></div>
+                                            <div class="fw-semibold"><?php echo ucfirst(str_replace('_', ' ', $evento['accion'])); ?></div>
                                             <small class="text-muted">
                                                 <?php echo htmlspecialchars($evento['usuario_nombre']); ?> 
                                                 (<?php echo ucfirst($evento['departamento']); ?>)
@@ -811,12 +788,13 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
             const decision = document.querySelector('input[name="decision"]:checked');
             if (!decision) {
                 e.preventDefault();
-                alert('Debes seleccionar Aceptada o Rechazada');
+                alert('Debes seleccionar un estado: Aceptada o Rechazada');
                 return;
             }
             
             const textoDecision = decision.value === 'aceptada' ? 'ACEPTAR' : 'RECHAZAR';
-            if (!confirm(`¿Estás seguro de ${textoDecision} esta cotización?\n\nEsta acción no se puede deshacer.`)) {
+            
+            if (!confirm(`¿Estás seguro de ${textoDecision} esta cotización?\n\nEsta acción notificará a Ventas.`)) {
                 e.preventDefault();
             }
         });
@@ -826,11 +804,9 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
             radio.addEventListener('change', function() {
                 document.querySelectorAll('.decision-option').forEach(opt => {
                     opt.classList.remove('selected');
-                    opt.style.borderWidth = '2px';
                 });
                 if (this.checked) {
                     this.closest('.decision-option').classList.add('selected');
-                    this.closest('.decision-option').style.borderWidth = '3px';
                 }
             });
         });

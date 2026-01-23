@@ -1,7 +1,13 @@
 <?php
 /**
- * Dashboard Principal - Cotizaciones de Químicos y/o Residuos
+ * Dashboard Principal - Cotizaciones de Químicos y/o Residuos v3.0
  * Ubicación: dashboard/cotizaciones_qr/cotizaciones_qr.php
+ * 
+ * ACTUALIZACIÓN 23/01/2026:
+ * - Campos renombrados en tabla
+ * - Nuevos campos: tipo_cliente, nombre_cliente
+ * - Estados actualizados: enviada, en_revision, aceptada, rechazada
+ * - Eliminada columna categoría
  */
 
 session_start();
@@ -15,12 +21,11 @@ if (!sesion_activa()) {
     exit;
 }
 
-// Incluir funciones CQR (verificar que existe primero)
+// Incluir funciones CQR
 $funciones_cqr = __DIR__ . '/../../includes/cotizaciones_qr/cotizaciones_qr_funciones.php';
 if (file_exists($funciones_cqr)) {
     require_once $funciones_cqr;
 } else {
-    // Si no existe el archivo de funciones, redirigir con error
     $_SESSION['error'] = "El módulo de Cotizaciones no está instalado correctamente.";
     header('Location: ' . URL_BASE . 'dashboard/colaborativo/colaborativo.php');
     exit;
@@ -43,7 +48,8 @@ $filtros = [
     'estado' => $_GET['estado'] ?? '',
     'busqueda' => $_GET['busqueda'] ?? '',
     'fecha_desde' => $_GET['fecha_desde'] ?? '',
-    'fecha_hasta' => $_GET['fecha_hasta'] ?? ''
+    'fecha_hasta' => $_GET['fecha_hasta'] ?? '',
+    'tipo_cliente' => $_GET['tipo_cliente'] ?? ''
 ];
 
 // Obtener cotizaciones
@@ -53,8 +59,11 @@ $cotizaciones = obtener_cotizaciones_qr($ubicacion, $_SESSION['usuario_id'], $_S
 $stats = obtener_estadisticas_cqr();
 
 // Determinar rol del usuario
-$es_ventas = strpos(strtolower($_SESSION['departamento'] ?? ''), 'ventas') !== false;
-$es_normatividad = strpos(strtolower($_SESSION['departamento'] ?? ''), 'normatividad') !== false;
+$rol_usuario = obtener_rol_cqr($_SESSION['departamento'] ?? '');
+$es_ventas = ($rol_usuario === 'ventas');
+$es_normatividad = ($rol_usuario === 'normatividad');
+$es_laboratorio = ($rol_usuario === 'laboratorio');
+$es_direccion = ($rol_usuario === 'direccion');
 
 $page_title = "Cotizaciones de Químicos y/o Residuos";
 ?>
@@ -81,7 +90,6 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     
     <style>
-        /* Estilos específicos del módulo CQR */
         .stats-card {
             border-radius: var(--border-radius-lg);
             border: none;
@@ -117,6 +125,21 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
             margin-bottom: 20px;
             box-shadow: var(--shadow-sm);
         }
+        
+        .cliente-badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+        }
+        
+        .cliente-badge.nuevo {
+            background: #cff4fc;
+            color: #055160;
+        }
+        
+        .cliente-badge.frecuente {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
     </style>
 </head>
 <body>
@@ -142,6 +165,12 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                             Gestiona tus solicitudes de cotización
                         <?php elseif ($es_normatividad): ?>
                             Revisa y responde las cotizaciones de Ventas
+                        <?php elseif ($es_laboratorio): ?>
+                            Consulta y comenta las cotizaciones
+                        <?php elseif ($es_direccion): ?>
+                            Supervisa las cotizaciones del departamento
+                        <?php else: ?>
+                            Módulo de Cotizaciones de Químicos y Residuos
                         <?php endif; ?>
                     </p>
                 </div>
@@ -156,54 +185,54 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
             
             <!-- Estadísticas -->
             <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card stats-card bg-primary text-white">
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="card stats-card bg-primary text-white h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <h6 class="mb-0">Total</h6>
-                                    <h3 class="mb-0"><?php echo $stats['total']; ?></h3>
+                                    <h3 class="mb-0"><?php echo $stats['total'] ?? 0; ?></h3>
                                 </div>
                                 <i class="bi bi-folder fs-1 opacity-50"></i>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card stats-card bg-info text-white">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="mb-0">Enviadas</h6>
-                                    <h3 class="mb-0"><?php echo $stats['enviadas']; ?></h3>
-                                </div>
-                                <i class="bi bi-send fs-1 opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card stats-card bg-warning text-dark">
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="card stats-card bg-warning text-dark h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
                                     <h6 class="mb-0">En Revisión</h6>
-                                    <h3 class="mb-0"><?php echo $stats['en_revision']; ?></h3>
+                                    <h3 class="mb-0"><?php echo ($stats['enviadas'] ?? 0) + ($stats['en_revision'] ?? 0); ?></h3>
                                 </div>
-                                <i class="bi bi-hourglass-split fs-1 opacity-50"></i>
+                                <i class="bi bi-clock-history fs-1 opacity-50"></i>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card stats-card bg-success text-white">
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="card stats-card bg-success text-white h-100">
                         <div class="card-body">
                             <div class="d-flex justify-content-between">
                                 <div>
-                                    <h6 class="mb-0">Finalizadas</h6>
-                                    <h3 class="mb-0"><?php echo $stats['finalizadas']; ?></h3>
+                                    <h6 class="mb-0">Aceptadas</h6>
+                                    <h3 class="mb-0"><?php echo $stats['aceptadas'] ?? 0; ?></h3>
                                 </div>
                                 <i class="bi bi-check-circle fs-1 opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="card stats-card bg-danger text-white h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="mb-0">Rechazadas</h6>
+                                    <h3 class="mb-0"><?php echo $stats['rechazadas'] ?? 0; ?></h3>
+                                </div>
+                                <i class="bi bi-x-circle fs-1 opacity-50"></i>
                             </div>
                         </div>
                     </div>
@@ -215,13 +244,13 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                 <li class="nav-item">
                     <a class="nav-link <?php echo $vista === 'local' ? 'active' : ''; ?>" 
                        href="?vista=local">
-                        <i class="bi bi-inbox"></i> Base Local (En Proceso)
+                        <i class="bi bi-inbox"></i> En Proceso
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?php echo $vista === 'global' ? 'active' : ''; ?>" 
                        href="?vista=global">
-                        <i class="bi bi-archive"></i> Base Global (Completados)
+                        <i class="bi bi-archive"></i> Completados
                     </a>
                 </li>
             </ul>
@@ -231,10 +260,10 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                 <form method="GET" class="row g-3 align-items-end">
                     <input type="hidden" name="vista" value="<?php echo htmlspecialchars($vista); ?>">
                     
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Buscar</label>
                         <input type="text" name="busqueda" class="form-control" 
-                               placeholder="Folio, nombre..." 
+                               placeholder="Folio, nombre, cliente..." 
                                value="<?php echo htmlspecialchars($filtros['busqueda']); ?>">
                     </div>
                     
@@ -244,7 +273,17 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                             <option value="">Todos</option>
                             <option value="enviada" <?php echo $filtros['estado'] === 'enviada' ? 'selected' : ''; ?>>Enviada</option>
                             <option value="en_revision" <?php echo $filtros['estado'] === 'en_revision' ? 'selected' : ''; ?>>En Revisión</option>
-                            <option value="finalizada" <?php echo $filtros['estado'] === 'finalizada' ? 'selected' : ''; ?>>Finalizada</option>
+                            <option value="aceptada" <?php echo $filtros['estado'] === 'aceptada' ? 'selected' : ''; ?>>Aceptada</option>
+                            <option value="rechazada" <?php echo $filtros['estado'] === 'rechazada' ? 'selected' : ''; ?>>Rechazada</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label">Tipo Cliente</label>
+                        <select name="tipo_cliente" class="form-select">
+                            <option value="">Todos</option>
+                            <option value="nuevo" <?php echo $filtros['tipo_cliente'] === 'nuevo' ? 'selected' : ''; ?>>Nuevo</option>
+                            <option value="frecuente" <?php echo $filtros['tipo_cliente'] === 'frecuente' ? 'selected' : ''; ?>>Frecuente</option>
                         </select>
                     </div>
                     
@@ -260,12 +299,12 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                                value="<?php echo htmlspecialchars($filtros['fecha_hasta']); ?>">
                     </div>
                     
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <button type="submit" class="btn btn-primary me-2">
                             <i class="bi bi-search"></i> Filtrar
                         </button>
                         <a href="?vista=<?php echo $vista; ?>" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle"></i> Limpiar
+                            <i class="bi bi-x-circle"></i>
                         </a>
                     </div>
                 </form>
@@ -286,9 +325,9 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                                 <tr>
                                     <th>Folio</th>
                                     <th>Fecha</th>
-                                    <th>Nombre Amigable</th>
-                                    <th>Nombre Técnico</th>
-                                    <th>Categoría</th>
+                                    <th>Cliente</th>
+                                    <th>Nombre real (SEMARNAT)</th>
+                                    <th>Nombre ante SEMARNAT</th>
                                     <th>Creador</th>
                                     <th>Estado</th>
                                     <th class="text-center">Acciones</th>
@@ -301,13 +340,14 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                                         <strong class="text-primary"><?php echo htmlspecialchars($cot['folio']); ?></strong>
                                     </td>
                                     <td><?php echo date('d/m/Y', strtotime($cot['fecha_solicitud'])); ?></td>
-                                    <td><?php echo htmlspecialchars($cot['nombre_amigable']); ?></td>
-                                    <td><?php echo htmlspecialchars($cot['nombre_tecnico'] ?? '-'); ?></td>
                                     <td>
-                                        <span class="badge bg-secondary">
-                                            <?php echo obtener_nombre_categoria_cqr($cot['categoria']); ?>
+                                        <div><?php echo htmlspecialchars($cot['nombre_cliente']); ?></div>
+                                        <span class="cliente-badge rounded-pill <?php echo $cot['tipo_cliente']; ?>">
+                                            <?php echo $cot['tipo_cliente'] === 'nuevo' ? 'Nuevo' : 'Frecuente'; ?>
                                         </span>
                                     </td>
+                                    <td><?php echo htmlspecialchars($cot['nombre_real_semarnat']); ?></td>
+                                    <td><?php echo htmlspecialchars($cot['nombre_ante_semarnat'] ?? '-'); ?></td>
                                     <td>
                                         <small>
                                             <?php echo htmlspecialchars($cot['creador_nombre']); ?>
