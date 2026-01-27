@@ -130,14 +130,14 @@ $csrf_token = generar_token_csrf();
                 <?php elseif ($documento['estado'] === 'completado'): ?>
                     <div class="alert alert-warning">
                         <i class="bi bi-lock"></i>
-                        <strong>Documento completado</strong>
-                        <p class="mb-0">No se pueden agregar más comentarios a documentos completados.</p>
+                        <strong>Solicitud completada</strong>
+                        <p class="mb-0">No se pueden agregar más comentarios a solicitudes completadas.</p>
                     </div>
                 <?php else: ?>
                     <div class="alert alert-danger">
                         <i class="bi bi-exclamation-triangle"></i>
                         <strong>Sin permisos</strong>
-                        <p class="mb-0">No tienes permiso para comentar en este documento.</p>
+                        <p class="mb-0">No tienes permiso para comentar en esta solicitud.</p>
                     </div>
                 <?php endif; ?>
             </div>

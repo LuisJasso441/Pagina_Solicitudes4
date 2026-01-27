@@ -200,7 +200,7 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
                 usuario_creador_id, departamento_creador, estado, ubicacion,
                 fecha_creacion, fecha_ultima_edicion
             ) VALUES (
-                ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, 'borrador', 'local', NOW(), NOW()
+                ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, 'enviado', 'local', NOW(), NOW()
             )
         ");
         
@@ -229,13 +229,16 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
                 $departamento,
                 'creado',
                 null,
-                'borrador',
-                'Documento creado'
+                'enviado',
+                'Documento creado y enviado a Laboratorio'
             );
+            
+            // ⭐ NOTIFICAR A LABORATORIO
+            notificar_laboratorio_nuevo_documento($documento_id, $folio, $departamento);
             
             return [
                 'success' => true,
-                'message' => 'Documento creado exitosamente',
+                'message' => 'Documento creado y enviado a Laboratorio',
                 'documento_id' => $documento_id,
                 'folio' => $folio
             ];

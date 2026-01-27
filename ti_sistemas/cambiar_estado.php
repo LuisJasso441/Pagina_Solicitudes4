@@ -2,6 +2,11 @@
 /**
  * Cambiar estado de una solicitud (solo TI)
  * Permite atender, actualizar y finalizar solicitudes
+ * 
+ * ACTUALIZADO:
+ * - Botón "Volver al Dashboard"
+ * - Registro en historial_estados al cambiar estado
+ * - Notificación al solicitante
  */
 
 session_start();
@@ -54,6 +59,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $nuevo_estado = limpiar_dato($_POST['estado']);
         $comentarios = limpiar_dato($_POST['comentarios']);
+        $estado_anterior = $solicitud['estado']; // Guardar estado anterior para el historial
+        
+        // Iniciar transacción
+        $pdo->beginTransaction();
         
         $sql = "UPDATE solicitudes_atencion SET 
                 estado = ?,
@@ -75,6 +84,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute($params);
         
         // ====================================
+        // REGISTRAR EN HISTORIAL DE ESTADOS
+        // ====================================
+        $stmt_historial = $pdo->prepare("
+            INSERT INTO historial_estados 
+            (solicitud_id, estado_anterior, estado_nuevo, comentario, usuario_id, fecha_cambio)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ");
+        $stmt_historial->execute([
+            $solicitud['id'],
+            $estado_anterior,
+            $nuevo_estado,
+            $comentarios,
+            $usuario_id
+        ]);
+        
+        // Confirmar transacción
+        $pdo->commit();
+        
+        // ====================================
         // ENVIAR NOTIFICACIÓN AL SOLICITANTE
         // ====================================
         require_once __DIR__ . '/../includes/notificaciones.php';
@@ -90,6 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirigir(URL_BASE . 'solicitudes/ver.php?folio=' . urlencode($folio));
         
     } catch (Exception $e) {
+        // Revertir transacción en caso de error
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         establecer_alerta('error', 'Error al actualizar: ' . $e->getMessage());
     }
 }
@@ -131,10 +163,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php echo htmlspecialchars($solicitud['folio']); ?>
                         </p>
                     </div>
-                    <div>
+                    <div class="d-flex gap-2">
                         <a href="<?php echo URL_BASE; ?>solicitudes/ver.php?folio=<?php echo urlencode($folio); ?>" 
                            class="btn btn-outline-secondary">
-                            <i class="bi bi-eye"></i> Ver Detalle
+                            <i class="bi bi-eye"></i> Ver Solicitud
+                        </a>
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php" class="btn btn-outline-primary">
+                            <i class="bi bi-house"></i> Dashboard
                         </a>
                     </div>
                 </div>
@@ -213,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <label for="comentarios" class="form-label required">Comentarios / Observaciones</label>
                                         <textarea class="form-control" id="comentarios" name="comentarios" rows="6" required 
                                                   placeholder="Describe las acciones realizadas o la solución aplicada..."><?php echo htmlspecialchars($solicitud['comentarios_ti'] ?? ''); ?></textarea>
-                                        <small class="text-muted">Estos comentarios serán visibles para el solicitante</small>
+                                        <small class="text-muted">Estos comentarios serán visibles para el solicitante y quedarán registrados en el historial</small>
                                     </div>
 
                                     <!-- Info del técnico -->
@@ -291,10 +326,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             localStorage.setItem('theme', newTheme);
         });
 
-        // Confirmación al cambiar a finalizada
+        // Confirmación al cambiar a finalizada o cancelada
         document.getElementById('estado').addEventListener('change', function() {
             if (this.value === 'finalizada') {
                 if (!confirm('¿Está seguro de marcar esta solicitud como finalizada? Esta acción indica que el problema está resuelto.')) {
+                    this.value = '<?php echo $solicitud['estado']; ?>';
+                }
+            } else if (this.value === 'cancelada') {
+                if (!confirm('¿Está seguro de cancelar esta solicitud? Esta acción no se puede deshacer fácilmente.')) {
                     this.value = '<?php echo $solicitud['estado']; ?>';
                 }
             }

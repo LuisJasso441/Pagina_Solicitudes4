@@ -2,6 +2,9 @@
 /**
  * Modal para crear nueva solicitud
  * Se carga dentro del dashboard
+ * 
+ * ACTUALIZADO: Campo de evidencia agregado (Imagenes_Tickets)
+ * ACTUALIZADO: Campo de nombre del solicitante ahora es editable
  */
 
 // Este archivo se incluye desde el dashboard, por lo que ya tiene acceso a la sesión
@@ -27,15 +30,15 @@
                 <div id="alertContainer"></div>
 
                 <!-- Formulario -->
-                <form id="formNuevaSolicitud">
+                <form id="formNuevaSolicitud" enctype="multipart/form-data">
                     
-                    <!-- Nombre del solicitante (precargado y deshabilitado) -->
+                    <!-- Nombre del solicitante (AHORA EDITABLE) -->
                     <div class="mb-3">
                         <label class="form-label required">Nombre del solicitante</label>
                         <input type="text" class="form-control" name="nombre_completo" 
                                value="<?php echo htmlspecialchars($_SESSION['nombre_completo']); ?>" 
-                               readonly>
-                        <small class="text-muted">Este campo se completa automáticamente con tu nombre</small>
+                               required>
+                        <small class="text-muted">Puedes modificar el nombre si es necesario</small>
                     </div>
 
                     <!-- Departamento (precargado y deshabilitado) -->
@@ -97,6 +100,28 @@
                             <option value="PC Bloqueada, error de acceso">PC Bloqueada, error de acceso</option>
                             <option value="Revisión de hardware">Revisión de hardware (PC, cámaras CCTV, impresoras, accesorios)</option>
                         </select>
+                    </div>
+
+                    <!-- ========================================== -->
+                    <!-- NUEVO: Campo de Evidencia del Error -->
+                    <!-- ========================================== -->
+                    <div class="mb-3">
+                        <label for="evidencia_error" class="form-label">
+                            <i class="bi bi-image"></i> Evidencia del error (si aplica)
+                        </label>
+                        <input type="file" 
+                               class="form-control" 
+                               id="evidencia_error" 
+                               name="evidencia_error[]" 
+                               multiple
+                               accept="image/*,.pdf,.doc,.docx,.txt">
+                        <small class="text-muted">
+                            Opcional. Puedes adjuntar capturas de pantalla o archivos relacionados con el error. 
+                            Formatos permitidos: Imágenes (JPG, PNG, GIF), PDF, DOC, DOCX, TXT. Máximo 5 archivos, 10MB cada uno.
+                        </small>
+                        
+                        <!-- Vista previa de archivos seleccionados -->
+                        <div id="previewArchivos" class="mt-2 d-flex flex-wrap gap-2"></div>
                     </div>
 
                     <!-- Descripción -->
@@ -194,7 +219,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // ====================================
+    // Vista previa de archivos seleccionados
+    // ====================================
+    const inputEvidencia = document.getElementById('evidencia_error');
+    const previewContainer = document.getElementById('previewArchivos');
+    
+    inputEvidencia.addEventListener('change', function() {
+        previewContainer.innerHTML = '';
+        
+        if (this.files.length > 5) {
+            mostrarAlerta('warning', 'Solo se permiten máximo 5 archivos. Se tomarán los primeros 5.');
+        }
+        
+        const archivos = Array.from(this.files).slice(0, 5);
+        
+        archivos.forEach((file, index) => {
+            // Validar tamaño (10MB máximo)
+            if (file.size > 10 * 1024 * 1024) {
+                mostrarAlerta('warning', `El archivo "${file.name}" excede el límite de 10MB y será ignorado.`);
+                return;
+            }
+            
+            const badge = document.createElement('span');
+            badge.className = 'badge bg-secondary d-flex align-items-center gap-1';
+            badge.style.fontSize = '0.85rem';
+            badge.style.padding = '0.5rem 0.75rem';
+            
+            // Icono según tipo de archivo
+            let icono = 'bi-file-earmark';
+            if (file.type.startsWith('image/')) icono = 'bi-file-image';
+            else if (file.type === 'application/pdf') icono = 'bi-file-pdf';
+            else if (file.type.includes('word')) icono = 'bi-file-word';
+            
+            badge.innerHTML = `
+                <i class="bi ${icono}"></i>
+                <span>${file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name}</span>
+                <small class="text-muted">(${(file.size / 1024).toFixed(1)} KB)</small>
+            `;
+            
+            previewContainer.appendChild(badge);
+        });
+    });
+    
+    // ====================================
     // Enviar formulario con AJAX
+    // ====================================
     document.getElementById('btnEnviarSolicitud').addEventListener('click', function() {
         const form = document.getElementById('formNuevaSolicitud');
         
@@ -208,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
         this.disabled = true;
         this.innerHTML = '<i class="bi bi-hourglass-split"></i> Enviando...';
         
-        // Preparar datos
+        // Preparar datos (incluyendo archivos)
         const formData = new FormData(form);
         
         // Enviar con AJAX
@@ -224,6 +294,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Limpiar formulario
                 form.reset();
+                previewContainer.innerHTML = '';
+                tipoApoyoField.style.display = 'none';
+                tipoProblemaField.style.display = 'none';
                 
                 // Cerrar modal después de 2 segundos
                 setTimeout(() => {
@@ -244,6 +317,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(error => {
             mostrarAlerta('danger', 'Error al enviar la solicitud. Intenta nuevamente.');
+            console.error('Error:', error);
             
             // Rehabilitar botón
             document.getElementById('btnEnviarSolicitud').disabled = false;
@@ -251,31 +325,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Función para mostrar alertas
+    // Función para mostrar alertas dentro del modal
     function mostrarAlerta(tipo, mensaje) {
         const alertContainer = document.getElementById('alertContainer');
-        const alert = `
-            <div class="alert alert-${tipo} alert-dismissible fade show alert-modal" role="alert">
+        alertContainer.innerHTML = `
+            <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
                 ${mensaje}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
-        alertContainer.innerHTML = alert;
         
-        // Scroll al inicio del modal
-        document.querySelector('.modal-body').scrollTop = 0;
+        // Auto-ocultar después de 5 segundos si es éxito
+        if (tipo === 'success') {
+            setTimeout(() => {
+                const alert = alertContainer.querySelector('.alert');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
     }
     
-    // Limpiar formulario al cerrar modal
-    document.getElementById('modalNuevaSolicitud').addEventListener('hidden.bs.modal', function() {
-        document.getElementById('formNuevaSolicitud').reset();
-        document.getElementById('alertContainer').innerHTML = '';
-        document.getElementById('btnEnviarSolicitud').disabled = false;
-        document.getElementById('btnEnviarSolicitud').innerHTML = '<i class="bi bi-send"></i> Enviar Solicitud';
-        
-        // Ocultar campos condicionales
-        tipoApoyoField.style.display = 'none';
-        tipoProblemaField.style.display = 'none';
-    });
 });
 </script>
+
+<style>
+/* Estilos adicionales para el campo de evidencia */
+#previewArchivos .badge {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#previewArchivos .badge i {
+    font-size: 1rem;
+}
+
+/* Estilo para el input de archivos */
+#evidencia_error {
+    border: 2px dashed #dee2e6;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    transition: border-color 0.2s ease;
+}
+
+#evidencia_error:hover {
+    border-color: #0d6efd;
+}
+
+#evidencia_error:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+</style>

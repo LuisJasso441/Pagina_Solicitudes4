@@ -2,6 +2,11 @@
 /**
  * Ver detalle de una solicitud
  * Muestra información completa de una solicitud específica
+ * 
+ * ACTUALIZADO:
+ * - Historial completo de cambios de estado
+ * - Botón "Editar Solicitud" para usuarios de Sistemas
+ * - Muestra nombre_solicitante editable de la tabla
  */
 
 session_start();
@@ -25,9 +30,12 @@ try {
     $pdo = conectarDB();
     
     // Si es usuario normal, solo puede ver sus propias solicitudes
+    // ACTUALIZADO: Usa COALESCE para mostrar nombre_solicitante o nombre de usuario
     if (!$es_ti) {
         $stmt = $pdo->prepare("
-            SELECT s.*, u.nombre_completo as solicitante_nombre
+            SELECT s.*, 
+                   COALESCE(s.nombre_solicitante, u.nombre_completo) as solicitante_nombre,
+                   u.nombre_completo as usuario_nombre
             FROM solicitudes_atencion s
             INNER JOIN usuarios u ON s.usuario_id = u.id
             WHERE s.folio = ? AND s.usuario_id = ?
@@ -36,7 +44,9 @@ try {
     } else {
         // TI puede ver todas las solicitudes
         $stmt = $pdo->prepare("
-            SELECT s.*, u.nombre_completo as solicitante_nombre,
+            SELECT s.*, 
+                   COALESCE(s.nombre_solicitante, u.nombre_completo) as solicitante_nombre,
+                   u.nombre_completo as usuario_nombre,
                    u.departamento as solicitante_depto,
                    t.nombre_completo as tecnico_nombre
             FROM solicitudes_atencion s
@@ -53,6 +63,19 @@ try {
         establecer_alerta('error', 'Solicitud no encontrada o no tienes permiso para verla');
         redirigir(URL_BASE . 'solicitudes/listar.php');
     }
+    
+    // ====================================
+    // OBTENER HISTORIAL COMPLETO DE ESTADOS
+    // ====================================
+    $stmt_historial = $pdo->prepare("
+        SELECT h.*, u.nombre_completo as usuario_nombre
+        FROM historial_estados h
+        LEFT JOIN usuarios u ON h.usuario_id = u.id
+        WHERE h.solicitud_id = ?
+        ORDER BY h.fecha_cambio ASC
+    ");
+    $stmt_historial->execute([$solicitud['id']]);
+    $historial = $stmt_historial->fetchAll();
     
 } catch (Exception $e) {
     establecer_alerta('error', 'Error al cargar la solicitud: ' . $e->getMessage());
@@ -156,6 +179,23 @@ function obtener_icono_tipo($tipo) {
             border: 3px solid #fff;
             box-shadow: 0 0 0 2px #667eea;
         }
+        /* Colores para diferentes estados en timeline */
+        .timeline-item.estado-pendiente::before {
+            background: #ffc107;
+            box-shadow: 0 0 0 2px #ffc107;
+        }
+        .timeline-item.estado-en_proceso::before {
+            background: #17a2b8;
+            box-shadow: 0 0 0 2px #17a2b8;
+        }
+        .timeline-item.estado-finalizada::before {
+            background: #28a745;
+            box-shadow: 0 0 0 2px #28a745;
+        }
+        .timeline-item.estado-cancelada::before {
+            background: #6c757d;
+            box-shadow: 0 0 0 2px #6c757d;
+        }
         body[data-theme="dark"] .info-card {
             background: #2d2d2d;
             border-left-color: #667eea;
@@ -196,7 +236,15 @@ function obtener_icono_tipo($tipo) {
                             <?php echo htmlspecialchars($solicitud['folio']); ?>
                         </p>
                     </div>
-                    <div>
+                    <div class="d-flex gap-2">
+                        <?php if ($es_ti && $solicitud['estado'] !== 'finalizada' && $solicitud['estado'] !== 'cancelada'): ?>
+                        <!-- BOTÓN EDITAR SOLICITUD (SOLO SISTEMAS) -->
+                        <a href="<?php echo URL_BASE; ?>ti_sistemas/cambiar_estado.php?folio=<?php echo urlencode($folio); ?>" 
+                           class="btn btn-primary">
+                            <i class="bi bi-pencil-square"></i> Editar Solicitud
+                        </a>
+                        <?php endif; ?>
+                        
                         <?php if ($es_ti): ?>
                         <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left"></i> Volver a la lista
@@ -212,37 +260,40 @@ function obtener_icono_tipo($tipo) {
                 <!-- Alertas -->
                 <?php echo mostrar_alerta(); ?>
 
-                <!-- Información Principal -->
                 <div class="row">
-                    <!-- Columna Izquierda: Detalles -->
+                    
+                    <!-- Columna Izquierda: Información -->
                     <div class="col-lg-8 mb-4">
                         
-                        <!-- Card Principal -->
+                        <!-- Estado y Prioridad -->
                         <div class="card card-custom mb-4">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <span>
-                                    <i class="<?php echo obtener_icono_tipo($solicitud['tipo_soporte']); ?>"></i>
-                                    Información de la Solicitud
-                                </span>
-                                <div>
-                                    <span class="badge <?php echo obtener_badge_estado($solicitud['estado']); ?> me-2">
-                                        <?php echo obtener_texto_estado($solicitud['estado']); ?>
-                                    </span>
-                                    <span class="badge <?php echo obtener_badge_prioridad($solicitud['prioridad']); ?>">
-                                        Prioridad: <?php echo ucfirst($solicitud['prioridad']); ?>
-                                    </span>
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <span class="badge <?php echo obtener_badge_estado($solicitud['estado']); ?> fs-6 py-2 px-3">
+                                            <i class="bi bi-<?php echo $solicitud['estado'] == 'finalizada' ? 'check-circle' : 'hourglass-split'; ?>"></i>
+                                            <?php echo obtener_texto_estado($solicitud['estado']); ?>
+                                        </span>
+                                    </div>
+                                    <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                                        <span class="badge <?php echo obtener_badge_prioridad($solicitud['prioridad']); ?> fs-6 py-2 px-3">
+                                            Prioridad: <?php echo ucfirst($solicitud['prioridad']); ?>
+                                        </span>
+                                    </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Información Detallada -->
+                        <div class="card card-custom">
+                            <div class="card-header">
+                                <i class="bi <?php echo obtener_icono_tipo($solicitud['tipo_soporte']); ?>"></i>
+                                Detalles de la Solicitud
                             </div>
                             <div class="card-body">
                                 
-                                <!-- Folio -->
-                                <div class="info-card">
-                                    <div class="info-label">Folio</div>
-                                    <div class="info-value"><?php echo htmlspecialchars($solicitud['folio']); ?></div>
-                                </div>
-
                                 <!-- Tipo de Soporte -->
-                                <div class="row">
+                                <div class="row mb-3">
                                     <div class="col-md-6">
                                         <div class="info-card">
                                             <div class="info-label">Tipo de Soporte</div>
@@ -308,7 +359,7 @@ function obtener_icono_tipo($tipo) {
                             </div>
                         </div>
 
-                        <!-- Timeline -->
+                        <!-- Timeline / Historial -->
                         <div class="card card-custom">
                             <div class="card-header">
                                 <i class="bi bi-clock-history"></i> Historial
@@ -316,35 +367,63 @@ function obtener_icono_tipo($tipo) {
                             <div class="card-body">
                                 <div class="timeline">
                                     
-                                    <!-- Creación -->
-                                    <div class="timeline-item">
-                                        <strong>Solicitud creada</strong>
-                                        <p class="text-muted mb-0 small">
-                                            <?php echo formatear_fecha($solicitud['fecha_creacion'], true); ?>
-                                        </p>
-                                    </div>
+                                    <?php if (!empty($historial)): ?>
+                                        <!-- Historial completo desde la tabla historial_estados -->
+                                        <?php foreach ($historial as $evento): ?>
+                                        <?php 
+                                            $estado_clase = $evento['estado_nuevo'] ?? '';
+                                            if (empty($evento['estado_anterior'])) {
+                                                $titulo = 'Solicitud creada';
+                                            } else {
+                                                $titulo = 'Estado: ' . obtener_texto_estado($evento['estado_nuevo']);
+                                            }
+                                        ?>
+                                        <div class="timeline-item estado-<?php echo $estado_clase; ?>">
+                                            <strong><?php echo $titulo; ?></strong>
+                                            <?php if (!empty($evento['comentario']) && $evento['comentario'] !== 'Solicitud creada'): ?>
+                                            <p class="mb-1 small text-muted">
+                                                <?php echo nl2br(htmlspecialchars($evento['comentario'])); ?>
+                                            </p>
+                                            <?php endif; ?>
+                                            <p class="text-muted mb-0 small">
+                                                <i class="bi bi-person"></i> <?php echo htmlspecialchars($evento['usuario_nombre'] ?? 'Sistema'); ?>
+                                                <br>
+                                                <?php echo formatear_fecha($evento['fecha_cambio'], true); ?>
+                                            </p>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <!-- Historial básico si no hay registros en la tabla -->
+                                        <!-- Creación -->
+                                        <div class="timeline-item">
+                                            <strong>Solicitud creada</strong>
+                                            <p class="text-muted mb-0 small">
+                                                <?php echo formatear_fecha($solicitud['fecha_creacion'], true); ?>
+                                            </p>
+                                        </div>
 
-                                    <!-- Actualización -->
-                                    <?php if ($solicitud['fecha_actualizacion']): ?>
-                                    <div class="timeline-item">
-                                        <strong>Última actualización</strong>
-                                        <p class="text-muted mb-0 small">
-                                            <?php echo formatear_fecha($solicitud['fecha_actualizacion'], true); ?>
-                                        </p>
-                                    </div>
-                                    <?php endif; ?>
+                                        <!-- Actualización -->
+                                        <?php if ($solicitud['fecha_actualizacion']): ?>
+                                        <div class="timeline-item">
+                                            <strong>Última actualización</strong>
+                                            <p class="text-muted mb-0 small">
+                                                <?php echo formatear_fecha($solicitud['fecha_actualizacion'], true); ?>
+                                            </p>
+                                        </div>
+                                        <?php endif; ?>
 
-                                    <!-- Atención -->
-                                    <?php if ($solicitud['fecha_atencion']): ?>
-                                    <div class="timeline-item">
-                                        <strong>Atendida por</strong>
-                                        <p class="mb-0">
-                                            <?php echo htmlspecialchars($solicitud['tecnico_nombre'] ?? 'TI'); ?>
-                                        </p>
-                                        <p class="text-muted mb-0 small">
-                                            <?php echo formatear_fecha($solicitud['fecha_atencion'], true); ?>
-                                        </p>
-                                    </div>
+                                        <!-- Atención -->
+                                        <?php if ($solicitud['fecha_atencion']): ?>
+                                        <div class="timeline-item">
+                                            <strong>Atendida por</strong>
+                                            <p class="mb-0">
+                                                <?php echo htmlspecialchars($solicitud['tecnico_nombre'] ?? 'TI'); ?>
+                                            </p>
+                                            <p class="text-muted mb-0 small">
+                                                <?php echo formatear_fecha($solicitud['fecha_atencion'], true); ?>
+                                            </p>
+                                        </div>
+                                        <?php endif; ?>
                                     <?php endif; ?>
 
                                 </div>
@@ -390,6 +469,9 @@ function obtener_icono_tipo($tipo) {
             localStorage.setItem('theme', newTheme);
         });
     </script>
+
+    <!-- Sistema de notificaciones en tiempo real -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
 
 </body>
 </html>

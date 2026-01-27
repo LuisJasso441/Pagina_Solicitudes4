@@ -330,8 +330,8 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
             <!-- Info cards compactas -->
             <div class="row mb-3">
                 <!-- Información del documento -->
-                <div class="col-md-6">
-                    <div class="card">
+                <div class="col-md-4">
+                    <div class="card h-100">
                         <div class="card-body">
                             <h6 class="card-subtitle text-muted">Información del documento</h6>
                             <p><strong>Folio:</strong> <?= htmlspecialchars($documento['folio']) ?></p>
@@ -342,8 +342,8 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                     </div>
                 </div>
                 <!-- Permisos de edición -->
-                <div class="col-md-6">
-                    <div class="card">
+                <div class="col-md-4">
+                    <div class="card h-100">
                         <div class="card-body">
                             <h6 class="card-subtitle text-muted">Permisos de edición</h6>
                             <p>
@@ -358,6 +358,30 @@ if ($documento['servicio_solicitado'] == 'otro' && $documento['servicio_otro_esp
                                 <i class="bi bi-<?= $permisos['puede_comentar'] ? 'check-circle-fill text-success' : 'x-circle-fill text-danger' ?>"></i>
                                 Comentarios: <?= $permisos['puede_comentar'] ? 'Sí' : 'No' ?>
                             </p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Sistema de Gestión -->
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle text-muted">Sistema de Gestión</h6>
+                            <table class="table table-bordered table-sm mb-0" style="font-size: 0.8rem;">
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-bold bg-light">Código de Sistema De Gestión</td>
+                                        <td class="text-center">FR-CC-12</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold bg-light">No. de Revisión</td>
+                                        <td class="text-center">02</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-bold bg-light">Fecha de Revisión</td>
+                                        <td class="text-center">26/01/2026</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

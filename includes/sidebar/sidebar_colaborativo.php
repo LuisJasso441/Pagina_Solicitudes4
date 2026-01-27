@@ -155,7 +155,7 @@ try {
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php">
-                    <i class="bi bi-file-earmark-text"></i> Documentos SSC
+                    <i class="bi bi-file-earmark-text"></i> Solicitudes de Servicio a Clientes
                 </a>
             </li>
             

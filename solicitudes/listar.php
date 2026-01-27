@@ -333,7 +333,7 @@ function obtener_texto_prioridad($prioridad) {
     </button>
 
     <!-- Modal de Nueva Solicitud -->
-    <?php include __DIR__ . '/../includes/modal_nueva_solicitud.php'; ?>
+    <?php include __DIR__ . '/modal_crear.php'; ?>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

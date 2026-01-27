@@ -671,6 +671,24 @@ try {
                                             <i class="bi bi-eye"></i> Ver
                                         </a>
                                     </div>
+                                    
+                                    <!-- Tabla de Sistema de Gestión -->
+                                    <table class="table table-bordered table-sm mt-3 mb-0" style="font-size: 0.75rem;">
+                                        <tbody>
+                                            <tr>
+                                                <td class="fw-bold bg-light" style="width: 60%;">Código de Sistema De Gestión</td>
+                                                <td class="text-center">FR-CC-12</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold bg-light">No. de Revisión</td>
+                                                <td class="text-center">02</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="fw-bold bg-light">Fecha de Revisión</td>
+                                                <td class="text-center">26/01/2026</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>

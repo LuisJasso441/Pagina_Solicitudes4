@@ -2,6 +2,9 @@
 /**
  * Ver todas las solicitudes (solo TI)
  * Panel completo de gestión con filtros y acciones
+ * 
+ * ACTUALIZADO:
+ * - Muestra nombre_solicitante de la tabla (editable por usuario)
  */
 
 session_start();
@@ -24,7 +27,10 @@ $busqueda = isset($_GET['buscar']) ? limpiar_dato($_GET['buscar']) : '';
 try {
     $pdo = conectarDB();
     
-    $sql = "SELECT s.*, u.nombre_completo as solicitante_nombre, u.departamento
+    // ACTUALIZADO: Usa COALESCE para mostrar nombre_solicitante o nombre de usuario
+    $sql = "SELECT s.*, 
+                   COALESCE(s.nombre_solicitante, u.nombre_completo) as solicitante_nombre, 
+                   u.departamento
             FROM solicitudes_atencion s
             INNER JOIN usuarios u ON s.usuario_id = u.id
             WHERE 1=1";
@@ -42,7 +48,9 @@ try {
     }
     
     if (!empty($busqueda)) {
-        $sql .= " AND (s.folio LIKE ? OR s.descripcion LIKE ? OR u.nombre_completo LIKE ?)";
+        // ACTUALIZADO: También busca en nombre_solicitante
+        $sql .= " AND (s.folio LIKE ? OR s.descripcion LIKE ? OR u.nombre_completo LIKE ? OR s.nombre_solicitante LIKE ?)";
+        $params[] = "%$busqueda%";
         $params[] = "%$busqueda%";
         $params[] = "%$busqueda%";
         $params[] = "%$busqueda%";
@@ -158,10 +166,10 @@ function obtener_badge_prioridad($prioridad) {
                 <!-- Estadísticas -->
                 <div class="row mb-4">
                     <div class="col-md-3 mb-3">
-                        <div class="card card-custom text-center">
-                            <div class="card-body">
-                                <div class="icon-box icon-box-warning mx-auto mb-2">
-                                    <i class="bi bi-clock-history"></i>
+                        <div class="card card-custom">
+                            <div class="card-body text-center">
+                                <div class="stat-icon bg-warning text-dark">
+                                    <i class="bi bi-clock"></i>
                                 </div>
                                 <h3 class="mb-0"><?php echo $contadores['pendientes']; ?></h3>
                                 <small class="text-muted">Pendientes</small>
@@ -169,9 +177,9 @@ function obtener_badge_prioridad($prioridad) {
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card card-custom text-center">
-                            <div class="card-body">
-                                <div class="icon-box icon-box-info mx-auto mb-2">
+                        <div class="card card-custom">
+                            <div class="card-body text-center">
+                                <div class="stat-icon bg-info text-white">
                                     <i class="bi bi-gear"></i>
                                 </div>
                                 <h3 class="mb-0"><?php echo $contadores['en_proceso']; ?></h3>
@@ -180,9 +188,9 @@ function obtener_badge_prioridad($prioridad) {
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card card-custom text-center">
-                            <div class="card-body">
-                                <div class="icon-box icon-box-success mx-auto mb-2">
+                        <div class="card card-custom">
+                            <div class="card-body text-center">
+                                <div class="stat-icon bg-success text-white">
                                     <i class="bi bi-check-circle"></i>
                                 </div>
                                 <h3 class="mb-0"><?php echo $contadores['finalizadas']; ?></h3>
@@ -191,9 +199,9 @@ function obtener_badge_prioridad($prioridad) {
                         </div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <div class="card card-custom text-center">
-                            <div class="card-body">
-                                <div class="icon-box icon-box-primary mx-auto mb-2">
+                        <div class="card card-custom">
+                            <div class="card-body text-center">
+                                <div class="stat-icon bg-primary text-white">
                                     <i class="bi bi-file-earmark-text"></i>
                                 </div>
                                 <h3 class="mb-0"><?php echo $contadores['total']; ?></h3>
@@ -306,12 +314,12 @@ function obtener_badge_prioridad($prioridad) {
                                         </td>
                                         <td>
                                             <a href="<?php echo URL_BASE; ?>solicitudes/ver.php?folio=<?php echo urlencode($sol['folio']); ?>" 
-                                               class="btn btn-sm btn-outline-primary">
+                                               class="btn btn-sm btn-outline-primary" title="Ver detalle">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            <?php if ($sol['estado'] != 'finalizada'): ?>
+                                            <?php if ($sol['estado'] != 'finalizada' && $sol['estado'] != 'cancelada'): ?>
                                             <a href="<?php echo URL_BASE; ?>ti_sistemas/cambiar_estado.php?folio=<?php echo urlencode($sol['folio']); ?>" 
-                                               class="btn btn-sm btn-outline-success">
+                                               class="btn btn-sm btn-outline-success" title="Gestionar">
                                                 <i class="bi bi-gear"></i>
                                             </a>
                                             <?php endif; ?>
@@ -358,6 +366,9 @@ function obtener_badge_prioridad($prioridad) {
             localStorage.setItem('theme', newTheme);
         });
     </script>
+
+    <!-- Sistema de notificaciones en tiempo real -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
 
 </body>
 </html>

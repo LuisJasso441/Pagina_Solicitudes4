@@ -179,7 +179,7 @@ try {
                                         <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atención
                                     </a>
                                     <a href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php" class="btn btn-success">
-                                        <i class="bi bi-file-earmark-text"></i> Documentos SSC
+                                        <i class="bi bi-file-earmark-text"></i> Solicitudes de Servicio a Clientes
                                     </a>
                                     <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php" class="btn btn-success">
                                         <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
