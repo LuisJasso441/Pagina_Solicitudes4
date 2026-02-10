@@ -23,9 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Conexión a BD
 $pdo = conectarDB();
 
-// Verificar si es usuario de Sistemas
-$departamento_usuario = strtolower($_SESSION['departamento'] ?? '');
-$es_sistemas = ($departamento_usuario === 'sistemas');
+// ⭐ DETECCIÓN DE DEPARTAMENTO - Igual que en ver_mantenimiento.php
+$departamento_usuario = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''));
+$es_sistemas = ($departamento_usuario === 'ti' || $departamento_usuario === 'sistemas' || $departamento_usuario === 'ti_sistemas');
 
 // Obtener acción
 $accion = $_POST['accion'] ?? '';

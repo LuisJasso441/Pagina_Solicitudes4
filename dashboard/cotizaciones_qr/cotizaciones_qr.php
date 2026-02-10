@@ -87,6 +87,7 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     
     <!-- Sistema de notificaciones -->
+    <script>window.URL_BASE = '<?php echo URL_BASE; ?>';</script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     
     <style>
@@ -326,7 +327,7 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
                                     <th>Folio</th>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
-                                    <th>Nombre real (SEMARNAT)</th>
+                                    <th>Nombre del Residuo</th>
                                     <th>Nombre ante SEMARNAT</th>
                                     <th>Creador</th>
                                     <th>Estado</th>

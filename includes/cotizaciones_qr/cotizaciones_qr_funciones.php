@@ -806,6 +806,57 @@ function procesar_imagenes_residuo_cqr($archivos) {
     return json_encode($imagenes);
 }
 
+/**
+ * Procesar múltiples fichas técnicas (hasta 5 PDFs)
+ * @param array $archivos Array de archivos $_FILES['ficha_tecnica']
+ * @return string|null JSON con array de fichas o null si no hay archivos
+ */
+function procesar_fichas_tecnicas_cqr($archivos) {
+    if (!isset($archivos['name']) || !is_array($archivos['name'])) {
+        return null;
+    }
+    
+    $fichas = [];
+    $errores = [];
+    
+    $count = count($archivos['name']);
+    
+    for ($i = 0; $i < $count; $i++) {
+        // Saltar archivos vacíos
+        if (empty($archivos['name'][$i]) || $archivos['error'][$i] === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        
+        // Crear estructura de archivo individual
+        $archivo_individual = [
+            'name' => $archivos['name'][$i],
+            'type' => $archivos['type'][$i],
+            'tmp_name' => $archivos['tmp_name'][$i],
+            'error' => $archivos['error'][$i],
+            'size' => $archivos['size'][$i]
+        ];
+        
+        // Procesar archivo
+        $resultado = procesar_archivo_cqr($archivo_individual, 'ficha');
+        
+        if (is_array($resultado) && isset($resultado['error'])) {
+            $errores[] = 'Ficha #' . ($i + 1) . ': ' . $resultado['error'];
+        } elseif ($resultado) {
+            $fichas[] = json_decode($resultado, true);
+        }
+    }
+    
+    if (!empty($errores)) {
+        return ['errores' => $errores, 'fichas' => $fichas];
+    }
+    
+    if (empty($fichas)) {
+        return null;
+    }
+    
+    return json_encode($fichas);
+}
+
 // =====================================================
 // FUNCIONES DE UTILIDAD / HELPERS
 // =====================================================

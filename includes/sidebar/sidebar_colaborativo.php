@@ -169,7 +169,7 @@ try {
             <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['cotizaciones_qr.php', 'ver_cotizacion_qr.php', 'nueva_cotizacion_qr.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php">
-                    <i class="bi bi-flask"></i> Cotizaciones QR
+                    <i class="bi bi-card-checklist"></i> Cotizaciones QR
                     <?php if ($contador_cqr_pendientes > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $contador_cqr_pendientes; ?></span>
                     <?php endif; ?>

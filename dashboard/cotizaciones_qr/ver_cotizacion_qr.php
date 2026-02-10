@@ -144,6 +144,7 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     
     <!-- Sistema de notificaciones -->
+    <script>window.URL_BASE = '<?php echo URL_BASE; ?>';</script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     
     <style>
@@ -344,6 +345,17 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
             font-size: 1.5rem;
         }
         
+        .fichas-lista-ver {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .ficha-item-ver .archivo-link {
+            padding: 6px 10px;
+            font-size: 0.9rem;
+        }
+        
         .cliente-badge {
             display: inline-flex;
             align-items: center;
@@ -467,7 +479,7 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
                             <h6 class="text-muted mb-3"><i class="bi bi-box-seam"></i> Datos del Producto</h6>
                             
                             <div class="info-row">
-                                <div class="info-label">Nombre real (SEMARNAT)</div>
+                                <div class="info-label">Nombre del Residuo</div>
                                 <div class="info-value"><?php echo htmlspecialchars($cotizacion['nombre_real_semarnat']); ?></div>
                             </div>
                             
@@ -497,11 +509,24 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
                                 <div class="col-md-6">
                                     <p class="mb-2"><strong>Ficha Técnica:</strong></p>
                                     <?php if (!empty($cotizacion['ficha_tecnica'])): ?>
-                                        <?php $ficha = json_decode($cotizacion['ficha_tecnica'], true); ?>
-                                        <a href="<?php echo URL_BASE . $ficha['ruta']; ?>" target="_blank" class="archivo-link">
-                                            <i class="bi bi-file-earmark-pdf text-danger fs-5"></i>
-                                            <span><?php echo htmlspecialchars($ficha['nombre_original']); ?></span>
-                                        </a>
+                                        <?php 
+                                        $fichas = json_decode($cotizacion['ficha_tecnica'], true);
+                                        // Verificar si es el formato antiguo (un solo archivo) o el nuevo (array)
+                                        if (isset($fichas['nombre_original'])) {
+                                            // Formato antiguo: un solo archivo
+                                            $fichas = [$fichas];
+                                        }
+                                        ?>
+                                        <div class="fichas-lista-ver">
+                                            <?php foreach ($fichas as $index => $ficha): ?>
+                                            <div class="ficha-item-ver mb-2">
+                                                <a href="<?php echo URL_BASE . $ficha['ruta']; ?>" target="_blank" class="archivo-link d-inline-flex align-items-center">
+                                                    <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                                    <span><?php echo htmlspecialchars($ficha['nombre_original']); ?></span>
+                                                </a>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
                                     <?php else: ?>
                                         <span class="text-muted">No adjuntado</span>
                                     <?php endif; ?>

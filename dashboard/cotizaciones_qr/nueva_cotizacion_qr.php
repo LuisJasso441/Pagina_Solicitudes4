@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     if (empty($datos['nombre_real_semarnat'])) {
-        $errores[] = "El campo 'Nombre real (SEMARNAT)' es obligatorio";
+        $errores[] = "El campo 'Nombre del Residuo' es obligatorio";
     }
     
     if (empty($datos['nombre_ante_semarnat'])) {
@@ -80,14 +80,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // VALIDACIÓN DE ARCHIVOS
     // =====================================================
     
-    // Ficha técnica - OBLIGATORIA, SOLO PDF
-    if (empty($_FILES['ficha_tecnica']['name'])) {
-        $errores[] = "La Ficha Técnica es obligatoria";
-    } else {
-        $ext_ficha = strtolower(pathinfo($_FILES['ficha_tecnica']['name'], PATHINFO_EXTENSION));
-        if ($ext_ficha !== 'pdf') {
-            $errores[] = "La Ficha Técnica debe ser un archivo PDF";
+    // Ficha técnica - AL MENOS 1 OBLIGATORIA (máximo 5 PDFs)
+    $tiene_ficha = false;
+    if (!empty($_FILES['ficha_tecnica']['name'])) {
+        foreach ($_FILES['ficha_tecnica']['name'] as $index => $nombre) {
+            if (!empty($nombre)) {
+                $tiene_ficha = true;
+                $ext_ficha = strtolower(pathinfo($nombre, PATHINFO_EXTENSION));
+                if ($ext_ficha !== 'pdf') {
+                    $errores[] = "La Ficha Técnica #" . ($index + 1) . " debe ser un archivo PDF";
+                }
+            }
         }
+    }
+    
+    if (!$tiene_ficha) {
+        $errores[] = "Debe adjuntar al menos una Ficha Técnica (PDF)";
     }
     
     // Formato descripción - OBLIGATORIO, SOLO PDF o XLSX
@@ -102,12 +110,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Procesar archivos si no hay errores de validación
     if (empty($errores)) {
-        // Ficha técnica
-        $resultado_ficha = procesar_archivo_cqr($_FILES['ficha_tecnica'], 'ficha');
-        if (is_array($resultado_ficha) && isset($resultado_ficha['error'])) {
-            $errores[] = "Ficha técnica: " . $resultado_ficha['error'];
-        } else {
-            $datos['ficha_tecnica'] = $resultado_ficha;
+        // Fichas técnicas (múltiples, al menos 1 obligatoria)
+        $resultado_fichas = procesar_fichas_tecnicas_cqr($_FILES['ficha_tecnica']);
+        if (is_array($resultado_fichas) && isset($resultado_fichas['errores'])) {
+            foreach ($resultado_fichas['errores'] as $err) {
+                $errores[] = "Ficha Técnica: " . $err;
+            }
+            if (!empty($resultado_fichas['fichas'])) {
+                $datos['ficha_tecnica'] = json_encode($resultado_fichas['fichas']);
+            }
+        } elseif ($resultado_fichas) {
+            $datos['ficha_tecnica'] = $resultado_fichas;
         }
         
         // Formato descripción
@@ -174,6 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     
     <!-- Sistema de notificaciones -->
+    <script>window.URL_BASE = '<?php echo URL_BASE; ?>';</script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     
     <style>
@@ -251,6 +265,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             line-height: 1;
         }
         
+        .fichas-lista {
+            background: #f8f9fa;
+            border-radius: var(--border-radius-lg);
+            padding: 15px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .ficha-item {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .ficha-item:hover {
+            border-color: var(--color-brand-dark);
+        }
+        
+        .ficha-numero {
+            font-weight: 600;
+            color: #6c757d;
+            width: 25px;
+            flex-shrink: 0;
+        }
+        
+        .ficha-input {
+            max-width: 300px;
+        }
+        
+        .ficha-input.has-file {
+            border-color: var(--color-success);
+            background-color: #f8fff8;
+        }
+        
+        .ficha-nombre {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .ficha-nombre.success {
+            color: var(--color-success) !important;
+        }
+        
         .tipo-cliente-option {
             border: 2px solid #dee2e6;
             border-radius: var(--border-radius-lg);
@@ -310,6 +370,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </h2>
                     <p class="text-muted mb-0">Complete todos los campos obligatorios (*)</p>
                 </div>
+                <a href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Volver
+                </a>
             </div>
             
             <!-- Errores -->
@@ -408,11 +471,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <label class="form-label fw-bold required-field">Nombre real (SEMARNAT)</label>
+                            <label class="form-label fw-bold required-field">Nombre del Residuo</label>
                             <input type="text" name="nombre_real_semarnat" class="form-control" 
                                    value="<?php echo htmlspecialchars($datos['nombre_real_semarnat'] ?? ''); ?>"
-                                   placeholder="Nombre real según SEMARNAT" required>
-                            <small class="text-muted">Nombre oficial registrado en SEMARNAT</small>
+                                   placeholder="Ingrese el nombre del residuo" required>
                         </div>
                         
                         <div class="col-md-6">
@@ -438,18 +500,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         Archivos Adjuntos <span class="text-danger">*</span>
                     </h5>
                     
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold required-field">Ficha Técnica</label>
-                            <div class="file-upload-area" id="area-ficha" onclick="document.getElementById('ficha_tecnica').click()">
-                                <i class="bi bi-file-earmark-pdf fs-2 text-danger"></i>
-                                <p class="mb-0 mt-2" id="label-ficha">Click para seleccionar archivo</p>
-                                <small class="text-muted"><strong>Solo archivos PDF</strong> (máx. 10MB)</small>
-                            </div>
-                            <input type="file" name="ficha_tecnica" id="ficha_tecnica" class="d-none" 
-                                   accept=".pdf" required>
-                        </div>
+                    <!-- Ficha Técnica - 5 archivos PDF en formato lista -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold required-field">Ficha Técnica</label>
+                        <small class="text-muted d-block mb-2">Adjunte hasta 5 archivos PDF (al menos 1 es obligatorio)</small>
                         
+                        <div class="fichas-lista">
+                            <div class="ficha-item d-flex align-items-center mb-2">
+                                <span class="ficha-numero">1.</span>
+                                <input type="file" name="ficha_tecnica[]" class="form-control form-control-sm ficha-input" accept=".pdf" required>
+                                <span class="ficha-nombre ms-2 text-muted small"></span>
+                            </div>
+                            <div class="ficha-item d-flex align-items-center mb-2">
+                                <span class="ficha-numero">2.</span>
+                                <input type="file" name="ficha_tecnica[]" class="form-control form-control-sm ficha-input" accept=".pdf">
+                                <span class="ficha-nombre ms-2 text-muted small"></span>
+                            </div>
+                            <div class="ficha-item d-flex align-items-center mb-2">
+                                <span class="ficha-numero">3.</span>
+                                <input type="file" name="ficha_tecnica[]" class="form-control form-control-sm ficha-input" accept=".pdf">
+                                <span class="ficha-nombre ms-2 text-muted small"></span>
+                            </div>
+                            <div class="ficha-item d-flex align-items-center mb-2">
+                                <span class="ficha-numero">4.</span>
+                                <input type="file" name="ficha_tecnica[]" class="form-control form-control-sm ficha-input" accept=".pdf">
+                                <span class="ficha-nombre ms-2 text-muted small"></span>
+                            </div>
+                            <div class="ficha-item d-flex align-items-center mb-2">
+                                <span class="ficha-numero">5.</span>
+                                <input type="file" name="ficha_tecnica[]" class="form-control form-control-sm ficha-input" accept=".pdf">
+                                <span class="ficha-nombre ms-2 text-muted small"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
                         <div class="col-md-6">
                             <label class="form-label fw-bold required-field">Formato Descripción</label>
                             <div class="file-upload-area" id="area-formato" onclick="document.getElementById('formato_descripcion').click()">
@@ -460,15 +545,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <input type="file" name="formato_descripcion" id="formato_descripcion" class="d-none" 
                                    accept=".pdf,.xlsx" required>
                         </div>
-                    </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Imagen del Residuo <span class="text-muted fw-normal">(Opcional - Múltiples imágenes)</span></label>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Imagen del Residuo <span class="text-muted fw-normal">(Opcional)</span></label>
                             <div class="file-upload-area" id="area-imagenes" onclick="document.getElementById('imagenes_residuo').click()">
                                 <i class="bi bi-images fs-2 text-info"></i>
                                 <p class="mb-0 mt-2" id="label-imagenes">Click para seleccionar imágenes</p>
-                                <small class="text-muted"><strong>Formatos de imagen</strong> (JPG, PNG, GIF, etc. - máx. 10MB c/u)</small>
+                                <small class="text-muted"><strong>Múltiples imágenes</strong> (máx. 10MB c/u)</small>
                             </div>
                             <input type="file" name="imagenes_residuo[]" id="imagenes_residuo" class="d-none" 
                                    accept="image/*" multiple>
@@ -509,30 +592,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             });
         });
         
-        // Manejar selección de archivos - Ficha Técnica (solo PDF)
-        document.getElementById('ficha_tecnica').addEventListener('change', function() {
-            const area = document.getElementById('area-ficha');
-            const label = document.getElementById('label-ficha');
-            
-            if (this.files.length > 0) {
-                const file = this.files[0];
-                const ext = file.name.split('.').pop().toLowerCase();
+        // Manejar selección de fichas técnicas (5 campos)
+        document.querySelectorAll('.ficha-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const nombreSpan = this.nextElementSibling;
                 
-                if (ext !== 'pdf') {
-                    area.classList.remove('has-file');
-                    area.classList.add('error');
-                    label.innerHTML = '<i class="bi bi-exclamation-circle text-danger"></i> Solo se permiten archivos PDF';
-                    this.value = '';
-                    return;
+                if (this.files.length > 0) {
+                    const file = this.files[0];
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    
+                    if (ext !== 'pdf') {
+                        this.classList.remove('has-file');
+                        nombreSpan.textContent = '❌ Solo PDF';
+                        nombreSpan.classList.remove('success');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    this.classList.add('has-file');
+                    nombreSpan.textContent = '✓ ' + file.name;
+                    nombreSpan.classList.add('success');
+                } else {
+                    this.classList.remove('has-file');
+                    nombreSpan.textContent = '';
+                    nombreSpan.classList.remove('success');
                 }
-                
-                area.classList.remove('error');
-                area.classList.add('has-file');
-                label.innerHTML = '<i class="bi bi-check-circle text-success"></i> ' + file.name;
-            } else {
-                area.classList.remove('has-file', 'error');
-                label.textContent = 'Click para seleccionar archivo';
-            }
+            });
         });
         
         // Manejar selección de archivos - Formato Descripción (PDF o XLSX)
@@ -599,18 +684,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         document.getElementById('formCotizacion').addEventListener('submit', function(e) {
             const tipoCliente = document.querySelector('input[name="tipo_cliente"]:checked');
             const nombreCliente = document.querySelector('input[name="nombre_cliente"]').value.trim();
-            const nombreSemarnat = document.querySelector('input[name="nombre_real_semarnat"]').value.trim();
+            const nombreResiduo = document.querySelector('input[name="nombre_real_semarnat"]').value.trim();
             const nombreAnteSemarnat = document.querySelector('input[name="nombre_ante_semarnat"]').value.trim();
-            const fichaTecnica = document.getElementById('ficha_tecnica').files.length;
             const formatoDescripcion = document.getElementById('formato_descripcion').files.length;
+            
+            // Verificar que al menos una ficha técnica esté adjunta
+            const fichasInputs = document.querySelectorAll('.ficha-input');
+            let tieneFicha = false;
+            fichasInputs.forEach(input => {
+                if (input.files.length > 0) tieneFicha = true;
+            });
             
             let errores = [];
             
             if (!tipoCliente) errores.push('Seleccione el tipo de cliente');
             if (!nombreCliente) errores.push('Ingrese el nombre del cliente');
-            if (!nombreSemarnat) errores.push('Ingrese el Nombre real (SEMARNAT)');
+            if (!nombreResiduo) errores.push('Ingrese el Nombre del Residuo');
             if (!nombreAnteSemarnat) errores.push('Ingrese el Nombre ante SEMARNAT');
-            if (!fichaTecnica) errores.push('Adjunte la Ficha Técnica (PDF)');
+            if (!tieneFicha) errores.push('Adjunte al menos una Ficha Técnica (PDF)');
             if (!formatoDescripcion) errores.push('Adjunte el Formato Descripción (PDF o XLSX)');
             
             if (errores.length > 0) {

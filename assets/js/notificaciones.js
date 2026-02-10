@@ -1,5 +1,6 @@
 /**
  * Sistema de notificaciones - VERSIÓN COMPLETA
+ * assets/js/notificaciones.js
  */
 
 console.log('🔔 Script notificaciones.js cargado');
@@ -7,6 +8,11 @@ console.log('🔔 Script notificaciones.js cargado');
 class SistemaNotificaciones {
     constructor() {
         console.log('🔔 Constructor llamado');
+        
+        // ⭐ INICIALIZAR URL_BASE desde window (definido en PHP)
+        this.urlBase = window.URL_BASE || '/';
+        console.log('→ URL_BASE inicializada:', this.urlBase);
+        
         this.eventSource = null;
         this.reconnectInterval = 5000;
         this.reconnectTimer = null;
@@ -22,19 +28,19 @@ class SistemaNotificaciones {
         
         try {
             // 1. Verificar y solicitar permisos
-            console.log('📝 PASO 1: Solicitando permisos...');
+            console.log('🔳 PASO 1: Solicitando permisos...');
             await this.solicitarPermisos();
             
             // 2. Registrar Service Worker
-            console.log('📝 PASO 2: Registrando Service Worker...');
+            console.log('🔳 PASO 2: Registrando Service Worker...');
             await this.registrarServiceWorker();
             
             // 3. Conectar al servidor SSE
-            console.log('📝 PASO 3: Conectando SSE...');
+            console.log('🔳 PASO 3: Conectando SSE...');
             this.conectarSSE();
             
             // 4. Configurar UI
-            console.log('📝 PASO 4: Configurando UI...');
+            console.log('🔳 PASO 4: Configurando UI...');
             this.configurarUI();
             
             console.log('✅ Sistema de notificaciones iniciado completamente');
@@ -95,11 +101,12 @@ class SistemaNotificaciones {
         console.log('✅ Navegador soporta Service Workers');
         
         try {
-            const swUrl = '/Pagina_Solicitudes4/sw.js';
+            // ⭐ USAR this.urlBase para ruta absoluta
+            const swUrl = this.urlBase + 'sw.js';
             console.log('→ Registrando SW en:', swUrl);
             
             const registration = await navigator.serviceWorker.register(swUrl, {
-                scope: '/Pagina_Solicitudes4/'
+                scope: this.urlBase
             });
             
             console.log('✅ Service Worker registrado');
@@ -122,7 +129,8 @@ class SistemaNotificaciones {
             this.eventSource.close();
         }
         
-        const sseUrl = '/Pagina_Solicitudes4/notificaciones/stream.php';
+        // ⭐ USAR this.urlBase para ruta absoluta
+        const sseUrl = this.urlBase + 'notificaciones/stream.php';
         console.log('→ Conectando a:', sseUrl);
         
         try {
@@ -136,7 +144,7 @@ class SistemaNotificaciones {
             
             this.eventSource.addEventListener('notificacion', (e) => {
                 const notificacion = JSON.parse(e.data);
-                console.log('📬 Nueva notificación recibida:', notificacion);
+                console.log('🔔 Nueva notificación recibida:', notificacion);
                 this.procesarNotificacion(notificacion);
             });
             
@@ -180,9 +188,10 @@ class SistemaNotificaciones {
         console.log('→ Mostrando notificación de escritorio...');
         
         try {
+            // ⭐ USAR this.urlBase para el icono
             const notification = new Notification(notificacion.titulo, {
                 body: notificacion.mensaje,
-                icon: '/Pagina_Solicitudes4/assets/img/notification-icon.png',
+                icon: this.urlBase + 'assets/img/notification-icon.png',
                 tag: `notif-${notificacion.id}`,
                 data: notificacion.datos
             });
@@ -207,7 +216,8 @@ class SistemaNotificaciones {
         console.log('→ Actualizando contador...');
         
         try {
-            const response = await fetch('/Pagina_Solicitudes4/notificaciones/contar.php');
+            // ⭐ USAR this.urlBase para ruta absoluta
+            const response = await fetch(this.urlBase + 'notificaciones/contar.php');
             const data = await response.json();
             
             console.log('→ Notificaciones no leídas:', data.count);
@@ -308,9 +318,10 @@ class SistemaNotificaciones {
     mostrarNotificacionBienvenida() {
         console.log('→ Mostrando notificación de bienvenida...');
         try {
+            // ⭐ USAR this.urlBase para el icono
             new Notification('🔔 Notificaciones Activadas', {
                 body: 'Recibirás notificaciones en tiempo real',
-                icon: '/Pagina_Solicitudes4/assets/img/notification-icon.png'
+                icon: this.urlBase + 'assets/img/notification-icon.png'
             });
         } catch (error) {
             console.error('Error al mostrar bienvenida:', error);
@@ -321,7 +332,8 @@ class SistemaNotificaciones {
         console.log('→ Marcando como leída:', id);
         
         try {
-            const response = await fetch('/Pagina_Solicitudes4/notificaciones/marcar_leida.php', {
+            // ⭐ USAR this.urlBase para ruta absoluta
+            const response = await fetch(this.urlBase + 'notificaciones/marcar_leida.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
