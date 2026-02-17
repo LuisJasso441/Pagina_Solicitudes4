@@ -144,6 +144,15 @@ function es_usuario_colaborativo() {
     return isset($_SESSION['es_colaborativo']) && $_SESSION['es_colaborativo'] === true;
 }
 
+/**
+ * Verificar si el usuario pertenece a departamento con acceso a Inventario EPP
+ * @return bool
+ */
+function es_usuario_epp() {
+    $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+    return in_array($depto, ['almacen_refacciones', 'seguridad', 'contabilidad']);
+}
+
 // ====================================
 // FUNCIONES DE REDIRECCIÓN
 // ====================================
@@ -177,7 +186,7 @@ function redirigir_dashboard() {
     } elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
     } elseif (in_array($depto_codigo, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
-        redirigir(URL_BASE . 'dashboard/inventario_epp/inventario_epp.php');
+        redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
     } else {
         redirigir(URL_BASE . 'dashboard/mis_ordenes_servicio.php');
     }

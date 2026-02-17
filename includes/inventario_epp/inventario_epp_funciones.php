@@ -3,64 +3,75 @@
  * Funciones del Módulo Inventario de EPP
  * Ubicación: includes/inventario_epp/inventario_epp_funciones.php
  * 
- * Funciones para gestionar el inventario de Equipo de Protección Personal:
- * - Permisos (lector, creador, editor)
- * - CRUD de artículos
- * - Registro de movimientos (Entrada/Salida)
- * - Consultas para dashboard (vista Inventario y Movimientos)
+ * VERSIÓN 2.3 - Tallas individual + agregar stock existente + nueva talla
  */
 
 // =====================================================
 // CONSTANTES DEL MÓDULO
 // =====================================================
-define('EPP_CATEGORIAS', [
-    'Arnés',
-    'Audífonos de Seguridad',
-    'Botas',
-    'Careta',
-    'Casco',
-    'Chaleco',
-    'Guantes',
-    'Lentes',
-    'Mascarilla',
-    'Overol de Seguridad'
-]);
+if (!defined('EPP_CATEGORIAS')) {
+    define('EPP_CATEGORIAS', [
+        'Arnés',
+        'Audífonos de Seguridad',
+        'Botas',
+        'Careta',
+        'Casco',
+        'Chaleco',
+        'Guantes',
+        'Lentes',
+        'Mascarilla',
+        'Overol de Seguridad'
+    ]);
+}
 
 // =====================================================
 // FUNCIONES DE PERMISOS
 // =====================================================
 
-/**
- * Verificar permisos del usuario para el módulo EPP
- * @param int $user_id ID del usuario
- * @return array ['tiene_acceso', 'puede_crear', 'puede_editar']
- */
 function verificar_permisos_epp($user_id) {
     $pdo = conectarDB();
-    
     $stmt = $pdo->prepare("SELECT lector, creador, editor FROM permisos_epp WHERE user_id = :user_id");
     $stmt->execute([':user_id' => $user_id]);
     $permisos = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$permisos) {
-        return [
-            'tiene_acceso' => false,
-            'puede_crear'  => false,
-            'puede_editar' => false,
-            'lector'       => 0,
-            'creador'      => 0,
-            'editor'       => 0
-        ];
+        return ['tiene_acceso' => false, 'puede_crear' => false, 'puede_editar' => false, 'lector' => 0, 'creador' => 0, 'editor' => 0];
     }
-    
     return [
         'tiene_acceso' => (bool) $permisos['lector'],
         'puede_crear'  => (bool) $permisos['creador'],
         'puede_editar' => (bool) $permisos['editor'],
-        'lector'       => (int) $permisos['lector'],
-        'creador'      => (int) $permisos['creador'],
-        'editor'       => (int) $permisos['editor']
+        'lector' => (int) $permisos['lector'],
+        'creador' => (int) $permisos['creador'],
+        'editor' => (int) $permisos['editor']
     ];
+}
+
+// =====================================================
+// FUNCIONES DE TALLAS
+// =====================================================
+
+function obtener_tallas_epp($inventario_epp_id) {
+    $pdo = conectarDB();
+    $stmt = $pdo->prepare("SELECT * FROM inventario_epp_tallas WHERE inventario_epp_id = :id ORDER BY talla ASC");
+    $stmt->execute([':id' => $inventario_epp_id]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function obtener_talla_por_id($talla_id, $pdo = null) {
+    if (!$pdo) $pdo = conectarDB();
+    $stmt = $pdo->prepare("SELECT t.*, i.articulo, i.categoria, i.unidad FROM inventario_epp_tallas t JOIN inventario_epp i ON t.inventario_epp_id = i.id WHERE t.id = :id");
+    $stmt->execute([':id' => $talla_id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function recalcular_stock_epp($inventario_epp_id, $pdo = null) {
+    if (!$pdo) $pdo = conectarDB();
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(stock), 0) as total FROM inventario_epp_tallas WHERE inventario_epp_id = :id");
+    $stmt->execute([':id' => $inventario_epp_id]);
+    $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    $pdo->prepare("UPDATE inventario_epp SET stock = :stock WHERE id = :id")->execute([':stock' => $total, ':id' => $inventario_epp_id]);
+    return (int) $total;
 }
 
 // =====================================================
@@ -68,9 +79,56 @@ function verificar_permisos_epp($user_id) {
 // =====================================================
 
 /**
- * Obtener todos los artículos del inventario con filtros
- * @param array $filtros ['categoria', 'busqueda', 'fecha_desde', 'fecha_hasta']
- * @return array
+ * Obtener inventario COMPACTO (1 fila por artículo + tallas como sub-array)
+ */
+function obtener_inventario_epp_compacto($filtros = []) {
+    $pdo = conectarDB();
+    
+    $where = ["i.activo = 1"];
+    $params = [];
+    
+    if (!empty($filtros['categoria'])) {
+        $where[] = "i.categoria = :categoria";
+        $params[':categoria'] = $filtros['categoria'];
+    }
+    if (!empty($filtros['busqueda'])) {
+        $where[] = "(i.articulo LIKE :busqueda OR i.categoria LIKE :busqueda2 OR i.nombre_proveedor LIKE :busqueda3)";
+        $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
+        $params[':busqueda2'] = '%' . $filtros['busqueda'] . '%';
+        $params[':busqueda3'] = '%' . $filtros['busqueda'] . '%';
+    }
+    if (!empty($filtros['fecha_desde'])) {
+        $where[] = "i.fecha_creacion >= :fecha_desde";
+        $params[':fecha_desde'] = $filtros['fecha_desde'] . ' 00:00:00';
+    }
+    if (!empty($filtros['fecha_hasta'])) {
+        $where[] = "i.fecha_creacion <= :fecha_hasta";
+        $params[':fecha_hasta'] = $filtros['fecha_hasta'] . ' 23:59:59';
+    }
+    
+    $where_sql = implode(' AND ', $where);
+    
+    $sql = "SELECT i.* FROM inventario_epp i WHERE {$where_sql} ORDER BY i.articulo ASC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $articulos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmt_tallas = $pdo->prepare("SELECT id, talla, stock FROM inventario_epp_tallas WHERE inventario_epp_id = :id ORDER BY talla ASC");
+    
+    foreach ($articulos as &$art) {
+        $stmt_tallas->execute([':id' => $art['id']]);
+        $art['tallas_data'] = $stmt_tallas->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (empty($art['tallas_data'])) {
+            $art['tallas_data'] = [['id' => 0, 'talla' => 'Única', 'stock' => (int)$art['stock']]];
+        }
+    }
+    
+    return $articulos;
+}
+
+/**
+ * Obtener inventario con tallas expandidas (para otros usos)
  */
 function obtener_inventario_epp($filtros = []) {
     $pdo = conectarDB();
@@ -82,19 +140,16 @@ function obtener_inventario_epp($filtros = []) {
         $where[] = "i.categoria = :categoria";
         $params[':categoria'] = $filtros['categoria'];
     }
-    
     if (!empty($filtros['busqueda'])) {
         $where[] = "(i.articulo LIKE :busqueda OR i.categoria LIKE :busqueda2 OR i.nombre_proveedor LIKE :busqueda3)";
         $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
         $params[':busqueda2'] = '%' . $filtros['busqueda'] . '%';
         $params[':busqueda3'] = '%' . $filtros['busqueda'] . '%';
     }
-    
     if (!empty($filtros['fecha_desde'])) {
         $where[] = "i.fecha_creacion >= :fecha_desde";
         $params[':fecha_desde'] = $filtros['fecha_desde'] . ' 00:00:00';
     }
-    
     if (!empty($filtros['fecha_hasta'])) {
         $where[] = "i.fecha_creacion <= :fecha_hasta";
         $params[':fecha_hasta'] = $filtros['fecha_hasta'] . ' 23:59:59';
@@ -102,43 +157,29 @@ function obtener_inventario_epp($filtros = []) {
     
     $where_sql = implode(' AND ', $where);
     
-    $sql = "SELECT i.*, 
-                   (SELECT m.fecha_movimiento 
-                    FROM movimientos_epp m 
-                    WHERE m.inventario_epp_id = i.id 
-                    ORDER BY m.fecha_movimiento DESC LIMIT 1) as ultimo_movimiento_fecha,
-                   (SELECT m.tipo_movimiento 
-                    FROM movimientos_epp m 
-                    WHERE m.inventario_epp_id = i.id 
-                    ORDER BY m.fecha_movimiento DESC LIMIT 1) as ultimo_movimiento_tipo
+    $sql = "SELECT i.id, i.categoria, i.articulo, i.unidad, i.stock as stock_total,
+                   i.precio, i.nombre_proveedor, i.observaciones, i.lote_identificador,
+                   i.usuario_creador_nombre, i.fecha_creacion, i.fecha_ultima_edicion,
+                   t.id as talla_id, t.talla, t.stock as talla_stock
             FROM inventario_epp i
+            LEFT JOIN inventario_epp_tallas t ON i.id = t.inventario_epp_id
             WHERE {$where_sql}
-            ORDER BY i.fecha_ultima_edicion DESC";
+            ORDER BY i.articulo ASC, t.talla ASC";
     
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/**
- * Obtener un artículo del inventario por ID
- * @param int $id
- * @return array|false
- */
 function obtener_epp_por_id($id) {
     $pdo = conectarDB();
-    
     $stmt = $pdo->prepare("SELECT * FROM inventario_epp WHERE id = :id AND activo = 1");
     $stmt->execute([':id' => $id]);
-    
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 /**
- * Agregar nuevo artículo al inventario + movimiento automático de Entrada
- * @param array $datos Datos del formulario
- * @return array ['success', 'message', 'id']
+ * Agregar nuevo artículo + tallas + movimientos automáticos
  */
 function agregar_epp($datos) {
     $pdo = conectarDB();
@@ -146,7 +187,17 @@ function agregar_epp($datos) {
     try {
         $pdo->beginTransaction();
         
-        // 1. Insertar artículo en inventario
+        $tallas = $datos['tallas'] ?? [];
+        $stock_total = 0;
+        foreach ($tallas as $t) { $stock_total += (int) ($t['cantidad'] ?? 0); }
+        
+        if (empty($tallas)) {
+            $tallas = [['talla' => 'Única', 'cantidad' => (int) ($datos['stock'] ?? 0)]];
+            $stock_total = (int) ($datos['stock'] ?? 0);
+        }
+        
+        $tallas_resumen = implode(', ', array_column($tallas, 'talla'));
+        
         $stmt = $pdo->prepare("
             INSERT INTO inventario_epp (
                 categoria, articulo, unidad, lote_identificador, stock, talla,
@@ -164,8 +215,8 @@ function agregar_epp($datos) {
             ':articulo'             => $datos['articulo'],
             ':unidad'               => $datos['unidad'],
             ':lote_identificador'   => $datos['lote_identificador'] ?: null,
-            ':stock'                => (int) $datos['stock'],
-            ':talla'                => $datos['talla'] ?: null,
+            ':stock'                => $stock_total,
+            ':talla'                => $tallas_resumen ?: null,
             ':precio'               => $datos['precio'] ? (float) $datos['precio'] : null,
             ':nombre_proveedor'     => $datos['nombre_proveedor'] ?: null,
             ':observaciones'        => $datos['observaciones'] ?: null,
@@ -176,144 +227,225 @@ function agregar_epp($datos) {
         
         $inventario_id = $pdo->lastInsertId();
         
-        // 2. Crear movimiento automático de Entrada
+        $stmt_talla = $pdo->prepare("INSERT INTO inventario_epp_tallas (inventario_epp_id, talla, stock) VALUES (:epp_id, :talla, :stock)");
         $stmt_mov = $pdo->prepare("
             INSERT INTO movimientos_epp (
-                inventario_epp_id, tipo_movimiento, fecha_movimiento,
+                inventario_epp_id, talla_id, tipo_movimiento, fecha_movimiento,
                 categoria, articulo, talla, cantidad,
                 observaciones, stock_resultante,
                 usuario_id, usuario_nombre, departamento, es_automatico
             ) VALUES (
-                :inventario_epp_id, 'Entrada', :fecha_movimiento,
+                :epp_id, :talla_id, 'Entrada', :fecha,
                 :categoria, :articulo, :talla, :cantidad,
-                :observaciones, :stock_resultante,
+                'Entrada automática al agregar nuevo EPP', :stock_resultante,
                 :usuario_id, :usuario_nombre, :departamento, 1
             )
         ");
         
-        $stmt_mov->execute([
-            ':inventario_epp_id'  => $inventario_id,
-            ':fecha_movimiento'   => $datos['fecha_movimiento'] ?? date('Y-m-d H:i:s'),
-            ':categoria'          => $datos['categoria'],
-            ':articulo'           => $datos['articulo'],
-            ':talla'              => $datos['talla'] ?: null,
-            ':cantidad'           => (int) $datos['stock'],
-            ':observaciones'      => 'Entrada automática al agregar nuevo EPP al inventario',
-            ':stock_resultante'   => (int) $datos['stock'],
-            ':usuario_id'         => $datos['usuario_id'],
-            ':usuario_nombre'     => $datos['usuario_nombre'],
-            ':departamento'       => $datos['departamento']
-        ]);
-        
-        $pdo->commit();
-        
-        return [
-            'success' => true,
-            'message' => 'EPP agregado correctamente al inventario.',
-            'id'      => $inventario_id
-        ];
-        
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        error_log("Error al agregar EPP: " . $e->getMessage());
-        return [
-            'success' => false,
-            'message' => 'Error al agregar EPP: ' . $e->getMessage()
-        ];
-    }
-}
-
-/**
- * Actualizar artículo del inventario (edición inline)
- * @param int $id ID del artículo
- * @param string $campo Nombre del campo a actualizar
- * @param mixed $valor Nuevo valor
- * @return array ['success', 'message']
- */
-function actualizar_campo_epp($id, $campo, $valor) {
-    $pdo = conectarDB();
-    
-    // Campos permitidos para edición inline
-    $campos_permitidos = ['articulo', 'unidad', 'stock', 'talla', 'precio', 'nombre_proveedor', 'lote_identificador', 'observaciones', 'categoria'];
-    
-    if (!in_array($campo, $campos_permitidos)) {
-        return ['success' => false, 'message' => 'Campo no permitido para edición.'];
-    }
-    
-    try {
-        // Si se edita stock directamente, registrar el cambio
-        if ($campo === 'stock') {
-            $epp_actual = obtener_epp_por_id($id);
-            if (!$epp_actual) {
-                return ['success' => false, 'message' => 'Artículo no encontrado.'];
-            }
+        foreach ($tallas as $t) {
+            $talla_nombre = trim($t['talla']);
+            $talla_stock = (int) ($t['cantidad'] ?? 0);
+            if (empty($talla_nombre)) continue;
             
-            $stock_anterior = (int) $epp_actual['stock'];
-            $stock_nuevo = (int) $valor;
-            $diferencia = $stock_nuevo - $stock_anterior;
+            $stmt_talla->execute([':epp_id' => $inventario_id, ':talla' => $talla_nombre, ':stock' => $talla_stock]);
+            $talla_id = $pdo->lastInsertId();
             
-            if ($diferencia !== 0) {
-                // Crear movimiento automático por ajuste de stock
-                $tipo = $diferencia > 0 ? 'Entrada' : 'Salida';
-                $cantidad = abs($diferencia);
-                
-                $stmt_mov = $pdo->prepare("
-                    INSERT INTO movimientos_epp (
-                        inventario_epp_id, tipo_movimiento, fecha_movimiento,
-                        categoria, articulo, talla, cantidad,
-                        observaciones, stock_resultante,
-                        usuario_id, usuario_nombre, departamento, es_automatico
-                    ) VALUES (
-                        :inventario_epp_id, :tipo, NOW(),
-                        :categoria, :articulo, :talla, :cantidad,
-                        :observaciones, :stock_resultante,
-                        :usuario_id, :usuario_nombre, :departamento, 1
-                    )
-                ");
-                
+            if ($talla_stock > 0) {
                 $stmt_mov->execute([
-                    ':inventario_epp_id'  => $id,
-                    ':tipo'               => $tipo,
-                    ':categoria'          => $epp_actual['categoria'],
-                    ':articulo'           => $epp_actual['articulo'],
-                    ':talla'              => $epp_actual['talla'],
-                    ':cantidad'           => $cantidad,
-                    ':observaciones'      => "Ajuste de stock directo en tabla de inventario (de {$stock_anterior} a {$stock_nuevo})",
-                    ':stock_resultante'   => $stock_nuevo,
-                    ':usuario_id'         => $_SESSION['usuario_id'],
-                    ':usuario_nombre'     => $_SESSION['nombre_completo'],
-                    ':departamento'       => $_SESSION['departamento']
+                    ':epp_id' => $inventario_id, ':talla_id' => $talla_id,
+                    ':fecha' => $datos['fecha_movimiento'] ?? date('Y-m-d H:i:s'),
+                    ':categoria' => $datos['categoria'], ':articulo' => $datos['articulo'],
+                    ':talla' => $talla_nombre, ':cantidad' => $talla_stock,
+                    ':stock_resultante' => $talla_stock,
+                    ':usuario_id' => $datos['usuario_id'], ':usuario_nombre' => $datos['usuario_nombre'],
+                    ':departamento' => $datos['departamento']
                 ]);
             }
         }
         
-        $stmt = $pdo->prepare("UPDATE inventario_epp SET `{$campo}` = :valor WHERE id = :id AND activo = 1");
-        $stmt->execute([':valor' => $valor, ':id' => $id]);
-        
-        return ['success' => true, 'message' => 'Campo actualizado correctamente.'];
-        
+        $pdo->commit();
+        return ['success' => true, 'message' => 'EPP agregado correctamente al inventario.', 'id' => $inventario_id];
     } catch (Exception $e) {
-        error_log("Error al actualizar EPP: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()];
+        $pdo->rollBack();
+        error_log("Error al agregar EPP: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Error al agregar EPP: ' . $e->getMessage()];
     }
 }
 
 /**
- * Eliminar artículo del inventario (soft delete)
- * @param int $id
- * @return array ['success', 'message']
+ * Agregar stock a un artículo EXISTENTE (por talla existente o nueva talla)
  */
-function eliminar_epp($id) {
+function agregar_stock_existente($datos) {
     $pdo = conectarDB();
     
     try {
-        $stmt = $pdo->prepare("UPDATE inventario_epp SET activo = 0 WHERE id = :id");
-        $stmt->execute([':id' => $id]);
+        $pdo->beginTransaction();
         
+        $cantidad = (int) $datos['cantidad'];
+        $inventario_epp_id = (int) $datos['inventario_epp_id'];
+        
+        // ¿Es nueva talla o existente?
+        if (!empty($datos['nueva_talla_nombre'])) {
+            // === CREAR NUEVA TALLA ===
+            $nueva_talla = trim($datos['nueva_talla_nombre']);
+            
+            // Verificar que no exista ya
+            $check = $pdo->prepare("SELECT id FROM inventario_epp_tallas WHERE inventario_epp_id = :eid AND talla = :talla");
+            $check->execute([':eid' => $inventario_epp_id, ':talla' => $nueva_talla]);
+            if ($check->fetch()) {
+                $pdo->rollBack();
+                return ['success' => false, 'message' => "La talla '{$nueva_talla}' ya existe en este artículo. Selecciónala del dropdown."];
+            }
+            
+            // Insertar nueva talla con el stock
+            $pdo->prepare("INSERT INTO inventario_epp_tallas (inventario_epp_id, talla, stock) VALUES (:eid, :talla, :stock)")
+                ->execute([':eid' => $inventario_epp_id, ':talla' => $nueva_talla, ':stock' => $cantidad]);
+            $talla_id = $pdo->lastInsertId();
+            
+            // Obtener datos del artículo padre
+            $art = $pdo->prepare("SELECT * FROM inventario_epp WHERE id = :id");
+            $art->execute([':id' => $inventario_epp_id]);
+            $articulo_data = $art->fetch(PDO::FETCH_ASSOC);
+            
+            $talla_nombre = $nueva_talla;
+            $articulo_nombre = $articulo_data['articulo'];
+            $categoria_nombre = $articulo_data['categoria'];
+            $nuevo_stock = $cantidad;
+            
+        } else {
+            // === TALLA EXISTENTE ===
+            $talla_id = (int) $datos['talla_id'];
+            $talla = obtener_talla_por_id($talla_id, $pdo);
+            if (!$talla) {
+                $pdo->rollBack();
+                return ['success' => false, 'message' => 'Talla no encontrada.'];
+            }
+            
+            $stock_anterior = (int) $talla['stock'];
+            $nuevo_stock = $stock_anterior + $cantidad;
+            
+            // Actualizar stock de la talla existente
+            $pdo->prepare("UPDATE inventario_epp_tallas SET stock = :stock WHERE id = :id")
+                ->execute([':stock' => $nuevo_stock, ':id' => $talla_id]);
+            
+            $talla_nombre = $talla['talla'];
+            $articulo_nombre = $talla['articulo'];
+            $categoria_nombre = $talla['categoria'];
+            $inventario_epp_id = $talla['inventario_epp_id'];
+        }
+        
+        // Recalcular stock total del artículo
+        recalcular_stock_epp($inventario_epp_id, $pdo);
+        
+        // Registrar movimiento de entrada
+        $pdo->prepare("
+            INSERT INTO movimientos_epp (
+                inventario_epp_id, talla_id, tipo_movimiento, fecha_movimiento,
+                categoria, articulo, talla, cantidad,
+                observaciones, stock_resultante,
+                usuario_id, usuario_nombre, departamento, es_automatico
+            ) VALUES (
+                :epp_id, :talla_id, 'Entrada', :fecha,
+                :categoria, :articulo, :talla, :cantidad,
+                :obs, :stock_resultante,
+                :usuario_id, :usuario_nombre, :departamento, 0
+            )
+        ")->execute([
+            ':epp_id' => $inventario_epp_id, ':talla_id' => $talla_id,
+            ':fecha' => $datos['fecha_movimiento'] ?? date('Y-m-d H:i:s'),
+            ':categoria' => $categoria_nombre, ':articulo' => $articulo_nombre,
+            ':talla' => $talla_nombre, ':cantidad' => $cantidad,
+            ':obs' => $datos['observaciones'] ?: "Ingreso de stock a artículo existente",
+            ':stock_resultante' => $nuevo_stock,
+            ':usuario_id' => $datos['usuario_id'],
+            ':usuario_nombre' => $datos['usuario_nombre'],
+            ':departamento' => $datos['departamento']
+        ]);
+        
+        $pdo->commit();
+        return ['success' => true, 'message' => "Se agregaron {$cantidad} unidades a {$articulo_nombre} (talla {$talla_nombre}). Stock actual: {$nuevo_stock}"];
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Actualizar campo inline (NO stock)
+ */
+function actualizar_campo_epp($id, $campo, $valor) {
+    $pdo = conectarDB();
+    $campos_permitidos = ['articulo', 'unidad', 'precio', 'nombre_proveedor', 'lote_identificador', 'observaciones', 'categoria'];
+    if (!in_array($campo, $campos_permitidos)) {
+        return ['success' => false, 'message' => 'Campo no permitido para edición.'];
+    }
+    try {
+        $stmt = $pdo->prepare("UPDATE inventario_epp SET `{$campo}` = :valor WHERE id = :id AND activo = 1");
+        $stmt->execute([':valor' => $valor, ':id' => $id]);
+        return ['success' => true, 'message' => 'Campo actualizado correctamente.'];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Actualizar stock de una talla específica
+ */
+function actualizar_stock_talla($talla_id, $nuevo_stock) {
+    $pdo = conectarDB();
+    try {
+        $talla = obtener_talla_por_id($talla_id, $pdo);
+        if (!$talla) return ['success' => false, 'message' => 'Talla no encontrada.'];
+        
+        $stock_anterior = (int) $talla['stock'];
+        $nuevo_stock = (int) $nuevo_stock;
+        $diferencia = $nuevo_stock - $stock_anterior;
+        
+        $pdo->prepare("UPDATE inventario_epp_tallas SET stock = :stock WHERE id = :id")
+            ->execute([':stock' => $nuevo_stock, ':id' => $talla_id]);
+        
+        $stock_total = recalcular_stock_epp($talla['inventario_epp_id'], $pdo);
+        
+        if ($diferencia !== 0) {
+            $tipo = $diferencia > 0 ? 'Entrada' : 'Salida';
+            $pdo->prepare("
+                INSERT INTO movimientos_epp (
+                    inventario_epp_id, talla_id, tipo_movimiento, fecha_movimiento,
+                    categoria, articulo, talla, cantidad,
+                    observaciones, stock_resultante,
+                    usuario_id, usuario_nombre, departamento, es_automatico
+                ) VALUES (
+                    :epp_id, :talla_id, :tipo, NOW(),
+                    :categoria, :articulo, :talla, :cantidad,
+                    :obs, :stock_resultante,
+                    :usuario_id, :usuario_nombre, :departamento, 1
+                )
+            ")->execute([
+                ':epp_id' => $talla['inventario_epp_id'], ':talla_id' => $talla_id,
+                ':tipo' => $tipo, ':categoria' => $talla['categoria'],
+                ':articulo' => $talla['articulo'], ':talla' => $talla['talla'],
+                ':cantidad' => abs($diferencia),
+                ':obs' => "Ajuste directo (de {$stock_anterior} a {$nuevo_stock})",
+                ':stock_resultante' => $nuevo_stock,
+                ':usuario_id' => $_SESSION['usuario_id'],
+                ':usuario_nombre' => $_SESSION['nombre_completo'],
+                ':departamento' => $_SESSION['departamento']
+            ]);
+        }
+        
+        return ['success' => true, 'message' => 'Stock actualizado.', 'stock_total' => $stock_total];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+function eliminar_epp($id) {
+    $pdo = conectarDB();
+    try {
+        $pdo->prepare("UPDATE inventario_epp SET activo = 0 WHERE id = :id")->execute([':id' => $id]);
         return ['success' => true, 'message' => 'Artículo eliminado del inventario.'];
     } catch (Exception $e) {
-        error_log("Error al eliminar EPP: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Error al eliminar: ' . $e->getMessage()];
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
     }
 }
 
@@ -321,223 +453,128 @@ function eliminar_epp($id) {
 // FUNCIONES DE MOVIMIENTOS
 // =====================================================
 
-/**
- * Registrar un movimiento de Entrada o Salida
- * @param array $datos Datos del movimiento
- * @return array ['success', 'message']
- */
 function registrar_movimiento_epp($datos) {
     $pdo = conectarDB();
     
     try {
         $pdo->beginTransaction();
         
-        // Obtener artículo actual
-        $epp = obtener_epp_por_id($datos['inventario_epp_id']);
-        if (!$epp) {
-            return ['success' => false, 'message' => 'Artículo no encontrado en el inventario.'];
-        }
+        $talla_id = (int) ($datos['talla_id'] ?? 0);
+        if (!$talla_id) return ['success' => false, 'message' => 'Debe seleccionar una talla.'];
         
-        $stock_actual = (int) $epp['stock'];
+        $talla = obtener_talla_por_id($talla_id, $pdo);
+        if (!$talla) return ['success' => false, 'message' => 'Talla no encontrada.'];
+        
+        $stock_actual = (int) $talla['stock'];
         $cantidad = (int) $datos['cantidad'];
         
-        // Calcular nuevo stock
         if ($datos['tipo_movimiento'] === 'Entrada') {
             $nuevo_stock = $stock_actual + $cantidad;
         } else {
-            // Salida - verificar que haya suficiente stock
             if ($cantidad > $stock_actual) {
-                return ['success' => false, 'message' => "Stock insuficiente. Stock actual: {$stock_actual}, cantidad solicitada: {$cantidad}"];
+                return ['success' => false, 'message' => "Stock insuficiente (talla {$talla['talla']}). Actual: {$stock_actual}, solicitado: {$cantidad}"];
             }
             $nuevo_stock = $stock_actual - $cantidad;
         }
         
-        // 1. Insertar movimiento
         $stmt = $pdo->prepare("
             INSERT INTO movimientos_epp (
-                inventario_epp_id, tipo_movimiento, fecha_movimiento,
+                inventario_epp_id, talla_id, tipo_movimiento, fecha_movimiento,
                 categoria, articulo, talla, cantidad,
                 nombre_trabajador, observaciones, stock_resultante,
                 usuario_id, usuario_nombre, departamento, es_automatico
             ) VALUES (
-                :inventario_epp_id, :tipo_movimiento, :fecha_movimiento,
+                :epp_id, :talla_id, :tipo, :fecha,
                 :categoria, :articulo, :talla, :cantidad,
-                :nombre_trabajador, :observaciones, :stock_resultante,
+                :trabajador, :obs, :stock_resultante,
                 :usuario_id, :usuario_nombre, :departamento, 0
             )
         ");
-        
         $stmt->execute([
-            ':inventario_epp_id'  => $datos['inventario_epp_id'],
-            ':tipo_movimiento'    => $datos['tipo_movimiento'],
-            ':fecha_movimiento'   => $datos['fecha_movimiento'],
-            ':categoria'          => $datos['categoria'] ?: $epp['categoria'],
-            ':articulo'           => $datos['articulo'] ?: $epp['articulo'],
-            ':talla'              => $datos['talla'] ?: $epp['talla'],
-            ':cantidad'           => $cantidad,
-            ':nombre_trabajador'  => $datos['nombre_trabajador'] ?: null,
-            ':observaciones'      => $datos['observaciones'] ?: null,
-            ':stock_resultante'   => $nuevo_stock,
-            ':usuario_id'         => $datos['usuario_id'],
-            ':usuario_nombre'     => $datos['usuario_nombre'],
-            ':departamento'       => $datos['departamento']
+            ':epp_id' => $talla['inventario_epp_id'], ':talla_id' => $talla_id,
+            ':tipo' => $datos['tipo_movimiento'], ':fecha' => $datos['fecha_movimiento'],
+            ':categoria' => $talla['categoria'], ':articulo' => $talla['articulo'],
+            ':talla' => $talla['talla'], ':cantidad' => $cantidad,
+            ':trabajador' => $datos['nombre_trabajador'] ?: null,
+            ':obs' => $datos['observaciones'] ?: null,
+            ':stock_resultante' => $nuevo_stock,
+            ':usuario_id' => $datos['usuario_id'],
+            ':usuario_nombre' => $datos['usuario_nombre'],
+            ':departamento' => $datos['departamento']
         ]);
         
-        // 2. Actualizar stock en inventario
-        $stmt_stock = $pdo->prepare("UPDATE inventario_epp SET stock = :stock WHERE id = :id");
-        $stmt_stock->execute([':stock' => $nuevo_stock, ':id' => $datos['inventario_epp_id']]);
+        $pdo->prepare("UPDATE inventario_epp_tallas SET stock = :stock WHERE id = :id")
+            ->execute([':stock' => $nuevo_stock, ':id' => $talla_id]);
+        
+        recalcular_stock_epp($talla['inventario_epp_id'], $pdo);
         
         $pdo->commit();
-        
-        $tipo_label = $datos['tipo_movimiento'] === 'Entrada' ? 'Entrada' : 'Salida';
-        return [
-            'success' => true,
-            'message' => "Movimiento de {$tipo_label} registrado correctamente. Nuevo stock: {$nuevo_stock}"
-        ];
-        
+        return ['success' => true, 'message' => "Movimiento registrado. Talla {$talla['talla']}: stock {$nuevo_stock}"];
     } catch (Exception $e) {
         $pdo->rollBack();
-        error_log("Error al registrar movimiento EPP: " . $e->getMessage());
-        return ['success' => false, 'message' => 'Error al registrar movimiento: ' . $e->getMessage()];
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
     }
 }
 
-/**
- * Obtener movimientos con filtros
- * @param array $filtros ['categoria', 'tipo_movimiento', 'fecha_desde', 'fecha_hasta', 'busqueda']
- * @return array
- */
 function obtener_movimientos_epp($filtros = []) {
     $pdo = conectarDB();
-    
     $where = ["1=1"];
     $params = [];
     
-    if (!empty($filtros['categoria'])) {
-        $where[] = "m.categoria = :categoria";
-        $params[':categoria'] = $filtros['categoria'];
-    }
-    
-    if (!empty($filtros['tipo_movimiento'])) {
-        $where[] = "m.tipo_movimiento = :tipo_movimiento";
-        $params[':tipo_movimiento'] = $filtros['tipo_movimiento'];
-    }
-    
+    if (!empty($filtros['categoria'])) { $where[] = "m.categoria = :cat"; $params[':cat'] = $filtros['categoria']; }
+    if (!empty($filtros['tipo_movimiento'])) { $where[] = "m.tipo_movimiento = :tipo"; $params[':tipo'] = $filtros['tipo_movimiento']; }
     if (!empty($filtros['busqueda'])) {
-        $where[] = "(m.articulo LIKE :busqueda OR m.nombre_trabajador LIKE :busqueda2 OR m.observaciones LIKE :busqueda3)";
-        $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
-        $params[':busqueda2'] = '%' . $filtros['busqueda'] . '%';
-        $params[':busqueda3'] = '%' . $filtros['busqueda'] . '%';
+        $where[] = "(m.articulo LIKE :b1 OR m.nombre_trabajador LIKE :b2 OR m.observaciones LIKE :b3)";
+        $params[':b1'] = '%'.$filtros['busqueda'].'%'; $params[':b2'] = '%'.$filtros['busqueda'].'%'; $params[':b3'] = '%'.$filtros['busqueda'].'%';
     }
+    if (!empty($filtros['fecha_desde'])) { $where[] = "m.fecha_movimiento >= :fd"; $params[':fd'] = $filtros['fecha_desde'] . ' 00:00:00'; }
+    if (!empty($filtros['fecha_hasta'])) { $where[] = "m.fecha_movimiento <= :fh"; $params[':fh'] = $filtros['fecha_hasta'] . ' 23:59:59'; }
+    if (!empty($filtros['inventario_epp_id'])) { $where[] = "m.inventario_epp_id = :eid"; $params[':eid'] = $filtros['inventario_epp_id']; }
     
-    if (!empty($filtros['fecha_desde'])) {
-        $where[] = "m.fecha_movimiento >= :fecha_desde";
-        $params[':fecha_desde'] = $filtros['fecha_desde'] . ' 00:00:00';
-    }
-    
-    if (!empty($filtros['fecha_hasta'])) {
-        $where[] = "m.fecha_movimiento <= :fecha_hasta";
-        $params[':fecha_hasta'] = $filtros['fecha_hasta'] . ' 23:59:59';
-    }
-    
-    if (!empty($filtros['inventario_epp_id'])) {
-        $where[] = "m.inventario_epp_id = :inventario_epp_id";
-        $params[':inventario_epp_id'] = $filtros['inventario_epp_id'];
-    }
-    
-    $where_sql = implode(' AND ', $where);
-    
-    $sql = "SELECT m.*, i.stock as stock_actual, i.unidad
-            FROM movimientos_epp m
-            LEFT JOIN inventario_epp i ON m.inventario_epp_id = i.id
-            WHERE {$where_sql}
-            ORDER BY m.fecha_movimiento DESC, m.id DESC";
-    
+    $sql = "SELECT m.*, i.stock as stock_actual, i.unidad FROM movimientos_epp m LEFT JOIN inventario_epp i ON m.inventario_epp_id = i.id WHERE " . implode(' AND ', $where) . " ORDER BY m.fecha_movimiento DESC, m.id DESC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-/**
- * Obtener un movimiento por ID
- * @param int $id
- * @return array|false
- */
 function obtener_movimiento_por_id($id) {
     $pdo = conectarDB();
-    
-    $stmt = $pdo->prepare("
-        SELECT m.*, i.stock as stock_actual, i.unidad, i.nombre_proveedor, i.precio, i.lote_identificador
-        FROM movimientos_epp m
-        LEFT JOIN inventario_epp i ON m.inventario_epp_id = i.id
-        WHERE m.id = :id
-    ");
+    $stmt = $pdo->prepare("SELECT m.*, i.stock as stock_actual, i.unidad, i.nombre_proveedor, i.precio, i.lote_identificador FROM movimientos_epp m LEFT JOIN inventario_epp i ON m.inventario_epp_id = i.id WHERE m.id = :id");
     $stmt->execute([':id' => $id]);
-    
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
 // =====================================================
-// FUNCIONES DE ESTADÍSTICAS
+// ESTADÍSTICAS
 // =====================================================
 
-/**
- * Obtener estadísticas del inventario de EPP
- * @return array
- */
 function obtener_estadisticas_epp() {
     $pdo = conectarDB();
-    
     $stats = [];
+    $stats['total_articulos'] = $pdo->query("SELECT COUNT(*) FROM inventario_epp WHERE activo = 1")->fetchColumn();
+    $stats['total_stock'] = $pdo->query("SELECT COALESCE(SUM(t.stock), 0) FROM inventario_epp_tallas t JOIN inventario_epp i ON t.inventario_epp_id = i.id WHERE i.activo = 1")->fetchColumn();
+    $stats['sin_stock'] = $pdo->query("SELECT COUNT(*) FROM inventario_epp WHERE activo = 1 AND stock = 0")->fetchColumn();
+    $stats['total_movimientos'] = $pdo->query("SELECT COUNT(*) FROM movimientos_epp")->fetchColumn();
+    $stats['movimientos_mes'] = $pdo->query("SELECT COUNT(*) FROM movimientos_epp WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW())")->fetchColumn();
     
-    // Total artículos activos
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM inventario_epp WHERE activo = 1");
-    $stats['total_articulos'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    
-    // Total stock
-    $stmt = $pdo->query("SELECT COALESCE(SUM(stock), 0) as total FROM inventario_epp WHERE activo = 1");
-    $stats['total_stock'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    
-    // Artículos sin stock
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM inventario_epp WHERE activo = 1 AND stock = 0");
-    $stats['sin_stock'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    
-    // Total movimientos
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM movimientos_epp");
-    $stats['total_movimientos'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    
-    // Movimientos del mes
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM movimientos_epp WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW())");
-    $stats['movimientos_mes'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
-    
-    // Entradas vs Salidas del mes
-    $stmt = $pdo->query("
-        SELECT tipo_movimiento, COUNT(*) as total 
-        FROM movimientos_epp 
-        WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW())
-        GROUP BY tipo_movimiento
-    ");
+    $stmt = $pdo->query("SELECT tipo_movimiento, COUNT(*) as total FROM movimientos_epp WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW()) GROUP BY tipo_movimiento");
     $movs_mes = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
     $stats['entradas_mes'] = $movs_mes['Entrada'] ?? 0;
     $stats['salidas_mes'] = $movs_mes['Salida'] ?? 0;
-    
     return $stats;
 }
 
-/**
- * Obtener artículos para dropdown de selección (para formulario de movimientos)
- * @return array
- */
 function obtener_articulos_dropdown_epp() {
     $pdo = conectarDB();
-    
     $stmt = $pdo->query("
-        SELECT id, categoria, articulo, unidad, stock, talla 
-        FROM inventario_epp 
-        WHERE activo = 1 
-        ORDER BY categoria ASC, articulo ASC
+        SELECT i.id, i.categoria, i.articulo, i.unidad, i.stock as stock_total,
+               t.id as talla_id, t.talla, t.stock as talla_stock
+        FROM inventario_epp i
+        JOIN inventario_epp_tallas t ON i.id = t.inventario_epp_id
+        WHERE i.activo = 1 
+        ORDER BY i.categoria ASC, i.articulo ASC, t.talla ASC
     ");
-    
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
+
+?>

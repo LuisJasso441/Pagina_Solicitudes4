@@ -4,6 +4,7 @@
  * Ubicación: includes/sidebar/sidebar_inventario.php
  * 
  * EXCLUSIVO para: Almacén de Refacciones, Seguridad, Contabilidad
+ * Estructura consistente con sidebar_colaborativo.php y sidebar_normal.php
  */
 $current_page = basename($_SERVER['PHP_SELF']);
 
@@ -26,9 +27,20 @@ try {
     $stmt_movs = $pdo->query("SELECT COUNT(*) as total FROM movimientos_epp WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW())");
     $movs_mes = $stmt_movs->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
+    // Mantenimientos TI pendientes del usuario
+    $stmt_mant = $pdo->prepare("
+        SELECT COUNT(*) as total 
+        FROM solicitudes_mantenimiento_ti 
+        WHERE usuario_id = :usuario_id 
+        AND estado IN ('pendiente', 'en_proceso')
+    ");
+    $stmt_mant->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $mis_mant_pendientes = $stmt_mant->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
 } catch (Exception $e) {
     $epp_sin_stock = 0;
     $movs_mes = 0;
+    $mis_mant_pendientes = 0;
 }
 
 // Determinar páginas activas
@@ -57,7 +69,7 @@ $en_registrar_mov = ($current_page === 'registrar_movimiento.php');
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-shield-check text-white fs-1 mb-2"></i>
-        <h4>Inventario EPP</h4>
+        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
         <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
         <span class="badge bg-success mt-2"><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></span>
     </div>
@@ -67,38 +79,61 @@ $en_registrar_mov = ($current_page === 'registrar_movimiento.php');
             
             <!-- Inicio / Dashboard -->
             <li class="nav-item">
-                <a class="nav-link <?php echo ($en_inventario && !isset($_GET['vista'])) || ($current_page === 'inventario_epp.php' && ($_GET['vista'] ?? 'inventario') === 'inventario') ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php">
+                <a class="nav-link <?php echo $current_page == 'dashboard_epp.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/inventario_epp/dashboard_epp.php">
                     <i class="bi bi-house-door"></i> Inicio
                 </a>
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">INVENTARIO</small>
+            <small class="text-white-50 px-3 fw-bold">MODULO DE TI</small>
+            
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
+                    <i class="bi bi-plus-circle"></i> Nueva Solicitud
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>solicitudes/listar.php">
+                    <i class="bi bi-list-ul"></i> Mis Solicitudes
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
+                    <i class="bi bi-search"></i> Buscar
+                </a>
+            </li>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
+                    <i class="bi bi-tools"></i> Solicitar Mantenimiento
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
+                    <i class="bi bi-wrench"></i> Mis Mantenimientos
+                    <?php if ($mis_mant_pendientes > 0): ?>
+                    <span class="badge bg-info ms-2"><?php echo $mis_mant_pendientes; ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
+            
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">INVENTARIO EPP</small>
             
             <!-- Ver Inventario -->
             <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page === 'inventario_epp.php' && ($_GET['vista'] ?? 'inventario') === 'inventario') ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo ($current_page === 'inventario_epp.php' && ($_GET['vista'] ?? 'inventario') === 'inventario') || $en_inventario ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php?vista=inventario">
                     <i class="bi bi-box-seam"></i> Ver Inventario
                 </a>
             </li>
             
-            <!-- Ver Movimientos -->
-            <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page === 'inventario_epp.php' && ($_GET['vista'] ?? '') === 'movimientos') || $en_movimientos ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php?vista=movimientos">
-                    <i class="bi bi-arrow-left-right"></i> Movimientos
-                    <?php if ($movs_mes > 0): ?>
-                    <span class="badge bg-info text-dark ms-2"><?php echo $movs_mes; ?></span>
-                    <?php endif; ?>
-                </a>
-            </li>
-            
             <?php if ($permisos_epp['puede_crear']): ?>
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ACCIONES</small>
-            
             <!-- Agregar EPP -->
             <li class="nav-item">
                 <a class="nav-link <?php echo $en_agregar ? 'active' : ''; ?>" 
@@ -117,9 +152,6 @@ $en_registrar_mov = ($current_page === 'registrar_movimiento.php');
             <?php endif; ?>
             
             <?php if ($epp_sin_stock > 0): ?>
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ALERTAS</small>
-            
             <li class="nav-item">
                 <a class="nav-link text-warning" 
                    href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php?vista=inventario">
@@ -128,6 +160,16 @@ $en_registrar_mov = ($current_page === 'registrar_movimiento.php');
                 </a>
             </li>
             <?php endif; ?>
+            
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">&Oacute;RDENES DE SERVICIO</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
+                    <i class="bi bi-clipboard-check"></i> &Oacute;rdenes de Mantenimiento
+                </a>
+            </li>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">

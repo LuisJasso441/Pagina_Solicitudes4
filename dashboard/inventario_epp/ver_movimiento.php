@@ -161,25 +161,5 @@ $es_entrada = $movimiento['tipo_movimiento'] === 'Entrada';
             </div>
         </main>
     </div>
-    
-    <button class="theme-toggle-float" id="themeToggle" aria-label="Cambiar tema">
-        <span class="icon-sun"><i class="bi bi-sun-fill"></i></span>
-        <span class="icon-moon"><i class="bi bi-moon-fill"></i></span>
-    </button>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
-    <script>
-        const themeToggle = document.getElementById('themeToggle');
-        const bodyElement = document.body;
-        bodyElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
-        themeToggle.addEventListener('click', () => {
-            const newTheme = bodyElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-            themeToggle.classList.add('rotating');
-            setTimeout(() => themeToggle.classList.remove('rotating'), 500);
-            bodyElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-    </script>
 </body>
 </html>

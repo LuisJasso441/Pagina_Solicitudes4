@@ -1,33 +1,33 @@
 <?php
 /**
- * Dashboard para departamentos normales (NO colaborativos)
- * Para usuarios que NO son TI ni departamentos colaborativos ni EPP
+ * Dashboard para departamentos con acceso a Inventario EPP
+ * Ubicación: dashboard/inventario_epp/dashboard_epp.php
+ * 
+ * Estructura idéntica a dashboard/colaborativo/colaborativo.php
+ * EXCLUSIVO para: Almacén de Refacciones, Seguridad, Contabilidad
  */
 
 session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/inventario_epp/inventario_epp_funciones.php';
 
-// Verificar que NO sea TI ni colaborativo ni EPP - redirigir si corresponde
-if (es_usuario_ti()) {
-    redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
-}
-
-if (es_usuario_colaborativo()) {
-    redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
-}
-
-// ⭐ NUEVO: Redirigir usuarios de Inventario EPP
-$depto_codigo_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
-if (in_array($depto_codigo_actual, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
-    redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
+// Verificar permisos EPP
+$permisos = verificar_permisos_epp($_SESSION['usuario_id']);
+if (!$permisos['tiene_acceso']) {
+    establecer_alerta('error', 'No tienes acceso al módulo de Inventario de EPP.');
+    header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
+    exit;
 }
 
 $nombre_usuario = $_SESSION['nombre_completo'];
 $departamento = $_SESSION['departamento_nombre'];
 $usuario_id = $_SESSION['usuario_id'];
 
-// Estadísticas del usuario
+// ====================================
+// ESTADÍSTICAS DE SOLICITUDES (igual que colaborativo.php)
+// ====================================
 $stats = [
     'pendientes' => 0,
     'en_proceso' => 0,
@@ -35,9 +35,7 @@ $stats = [
     'total' => 0
 ];
 
-// Obtener estadísticas reales
 try {
-    require_once __DIR__ . '/../config/database.php';
     $pdo = conectarDB();
     
     // Contar solicitudes por estado
@@ -72,8 +70,19 @@ try {
     $stmt->execute([$usuario_id]);
     $solicitudes_recientes = $stmt->fetchAll();
     
+    // ====================================
+    // ESTADÍSTICAS DE INVENTARIO EPP
+    // ====================================
+    $stats_epp = obtener_estadisticas_epp();
+    
 } catch (Exception $e) {
     $solicitudes_recientes = [];
+    $stats_epp = [
+        'total_articulos' => 0,
+        'total_stock' => 0,
+        'sin_stock' => 0,
+        'movimientos_mes' => 0
+    ];
 }
 ?>
 <!DOCTYPE html>
@@ -81,7 +90,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - <?php echo htmlspecialchars($departamento); ?></title>
+    <title>Dashboard - <?php echo htmlspecialchars($departamento); ?> | <?php echo NOMBRE_SISTEMA; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -103,13 +112,12 @@ try {
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <?php include __DIR__ . '/../includes/sidebar/sidebar_normal.php'; ?>
+        <?php include __DIR__ . '/../../includes/sidebar/sidebar_inventario.php'; ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
             <div class="content-wrapper">
                 
-                <!-- Navbar superior -->
                 <div class="top-navbar d-flex justify-content-between align-items-center">
                     <div>
                         <h2 class="welcome-text">&iexcl;Bienvenido, <?php echo htmlspecialchars(explode(' ', $nombre_usuario)[0]); ?>!</h2>
@@ -119,8 +127,8 @@ try {
                         </p>
                     </div>
                     <div class="user-info">
-                        <span class="user-badge">
-                            <i class="bi bi-building"></i>
+                        <span class="user-badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <i class="bi bi-shield-check"></i>
                             <?php echo htmlspecialchars($departamento); ?>
                         </span>
                     </div>
@@ -169,8 +177,8 @@ try {
                     <div class="col-md-3 mb-3">
                         <div class="card card-custom card-stats">
                             <div class="card-body">
-                                <div class="icon-box mx-auto mb-3" style="background-color: #e3e6f0; color: #6c757d;">
-                                    <i class="bi bi-folder"></i>
+                                <div class="icon-box mx-auto mb-3" style="background: #e0e7ff; color: #6366f1;">
+                                    <i class="bi bi-file-earmark-text"></i>
                                 </div>
                                 <h2 class="stats-number"><?php echo $stats['total']; ?></h2>
                                 <p class="stats-label">Total</p>
@@ -179,7 +187,7 @@ try {
                     </div>
                 </div>
 
-                <!-- Acciones Rápidas -->
+                <!-- Acciones rápidas -->
                 <div class="row mb-4">
                     <div class="col-12">
                         <div class="card card-custom">
@@ -191,9 +199,46 @@ try {
                                     <a href="#" class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
                                         <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atenci&oacute;n
                                     </a>
-                                    <a href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php" class="btn btn-success">
-                                        <i class="bi bi-file-earmark-text"></i> Documentos SSC
+                                    <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php" class="btn btn-success">
+                                        <i class="bi bi-box-seam"></i> Inventario de EPP
                                     </a>
+                                    <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php" class="btn btn-success">
+                                        <i class="bi bi-clipboard-check"></i> &Oacute;rdenes de Mantenimiento
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumen rápido de Inventario EPP -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card card-custom">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span><i class="bi bi-shield-check"></i> Resumen Inventario EPP</span>
+                                <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php" class="btn btn-sm btn-light">
+                                    Ver completo
+                                </a>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-3 col-6 mb-2">
+                                        <h4 class="mb-0 fw-bold" style="color: #10b981;"><?php echo $stats_epp['total_articulos']; ?></h4>
+                                        <small class="text-muted">Art&iacute;culos</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-2">
+                                        <h4 class="mb-0 fw-bold" style="color: #3b82f6;"><?php echo $stats_epp['total_stock']; ?></h4>
+                                        <small class="text-muted">Stock Total</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-2">
+                                        <h4 class="mb-0 fw-bold" style="color: <?php echo $stats_epp['sin_stock'] > 0 ? '#dc3545' : '#6c757d'; ?>;"><?php echo $stats_epp['sin_stock']; ?></h4>
+                                        <small class="text-muted">Sin Stock</small>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-2">
+                                        <h4 class="mb-0 fw-bold" style="color: #6366f1;"><?php echo $stats_epp['movimientos_mes']; ?></h4>
+                                        <small class="text-muted">Movimientos (Mes)</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -264,7 +309,7 @@ try {
     </button>
 
     <!-- Modal de Nueva Solicitud -->
-    <?php include __DIR__ . '/../solicitudes/modal_crear.php'; ?>
+    <?php include __DIR__ . '/../../solicitudes/modal_crear.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -272,7 +317,6 @@ try {
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
     <script>
-        // Modo oscuro
         const themeToggle = document.getElementById('themeToggle');
         const bodyElement = document.body;
         const currentTheme = localStorage.getItem('theme') || 'light';

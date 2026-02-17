@@ -126,7 +126,7 @@ try {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     }
     elseif (in_array($departamento_lower, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
-        redirigir(URL_BASE . 'dashboard/inventario_epp/inventario_epp.php');
+    redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
     }
     elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');

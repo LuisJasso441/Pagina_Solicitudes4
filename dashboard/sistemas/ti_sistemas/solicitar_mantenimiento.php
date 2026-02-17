@@ -190,6 +190,8 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
             include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php';
         } elseif (es_usuario_colaborativo()) {
             include __DIR__ . '/../../../includes/sidebar/sidebar_colaborativo.php';
+        } elseif (es_usuario_epp()) {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_inventario.php';
         } else {
             include __DIR__ . '/../../../includes/sidebar/sidebar_normal.php';
         }
