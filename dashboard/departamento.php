@@ -1,20 +1,26 @@
 <?php
 /**
  * Dashboard para departamentos normales (NO colaborativos)
- * Para usuarios que NO son TI ni departamentos colaborativos
+ * Para usuarios que NO son TI ni departamentos colaborativos ni EPP
  */
 
 session_start();
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../auth/verificar_sesion.php';
 
-// Verificar que NO sea TI ni colaborativo
+// Verificar que NO sea TI ni colaborativo ni EPP - redirigir si corresponde
 if (es_usuario_ti()) {
-    redirigir(URL_BASE . 'dashboard/ti_sistemas.php');
+    redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
 }
 
 if (es_usuario_colaborativo()) {
-    redirigir(URL_BASE . 'dashboard/colaborativo.php');
+    redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
+}
+
+// ⭐ NUEVO: Redirigir usuarios de Inventario EPP
+$depto_codigo_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+if (in_array($depto_codigo_actual, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
+    redirigir(URL_BASE . 'dashboard/inventario_epp/inventario_epp.php');
 }
 
 $nombre_usuario = $_SESSION['nombre_completo'];
@@ -106,7 +112,7 @@ try {
                 <!-- Navbar superior -->
                 <div class="top-navbar d-flex justify-content-between align-items-center">
                     <div>
-                        <h2 class="welcome-text">¡Bienvenido, <?php echo htmlspecialchars(explode(' ', $nombre_usuario)[0]); ?>!</h2>
+                        <h2 class="welcome-text">&iexcl;Bienvenido, <?php echo htmlspecialchars(explode(' ', $nombre_usuario)[0]); ?>!</h2>
                         <p class="text-muted mb-0">
                             <i class="bi bi-calendar3"></i> 
                             <?php echo obtener_fecha_actual_espanol(); ?>
@@ -178,12 +184,12 @@ try {
                     <div class="col-12">
                         <div class="card card-custom">
                             <div class="card-header">
-                                <i class="bi bi-lightning-charge"></i> Acciones Rápidas
+                                <i class="bi bi-lightning-charge"></i> Acciones R&aacute;pidas
                             </div>
                             <div class="card-body">
                                 <div class="d-flex flex-wrap gap-3">
                                     <a href="#" class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
-                                        <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atención
+                                        <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atenci&oacute;n
                                     </a>
                                     <a href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php" class="btn btn-success">
                                         <i class="bi bi-file-earmark-text"></i> Documentos SSC
@@ -203,14 +209,14 @@ try {
                             </div>
                             <div class="card-body">
                                 <?php if (empty($solicitudes_recientes)): ?>
-                                <p class="text-muted text-center mb-0">No tienes solicitudes aún</p>
+                                <p class="text-muted text-center mb-0">No tienes solicitudes a&uacute;n</p>
                                 <?php else: ?>
                                 <div class="table-responsive-custom">
                                     <table class="table table-custom">
                                         <thead>
                                             <tr>
                                                 <th>Folio</th>
-                                                <th>Descripción</th>
+                                                <th>Descripci&oacute;n</th>
                                                 <th>Fecha</th>
                                                 <th>Estado</th>
                                                 <th>Prioridad</th>

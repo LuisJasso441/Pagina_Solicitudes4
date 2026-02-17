@@ -1,6 +1,6 @@
 /**
- * Sistema de notificaciones - VERSIÓN COMPLETA
- * assets/js/notificaciones.js
+ * Sistema de notificaciones en tiempo real - VERSIÓN CORREGIDA
+ * Con rutas absolutas y mejor manejo de errores
  */
 
 console.log('🔔 Script notificaciones.js cargado');
@@ -8,16 +8,17 @@ console.log('🔔 Script notificaciones.js cargado');
 class SistemaNotificaciones {
     constructor() {
         console.log('🔔 Constructor llamado');
-        
-        // ⭐ INICIALIZAR URL_BASE desde window (definido en PHP)
-        this.urlBase = window.URL_BASE || '/';
-        console.log('→ URL_BASE inicializada:', this.urlBase);
-        
         this.eventSource = null;
         this.reconnectInterval = 5000;
         this.reconnectTimer = null;
+        this.maxReconnectAttempts = 5; // Máximo intentos de reconexión
+        this.reconnectAttempts = 0;
         this.notificacionesActivas = new Map();
         this.sonidoActivado = true;
+        
+        // URL BASE - HARDCODEADA para evitar problemas de detección
+        this.URL_BASE = '/Pagina_Solicitudes4/';
+        console.log('→ URL_BASE configurada:', this.URL_BASE);
         
         console.log('🔔 Llamando a init()...');
         this.init();
@@ -31,7 +32,7 @@ class SistemaNotificaciones {
             console.log('🔳 PASO 1: Solicitando permisos...');
             await this.solicitarPermisos();
             
-            // 2. Registrar Service Worker
+            // 2. Registrar Service Worker (opcional, no bloquea si falla)
             console.log('🔳 PASO 2: Registrando Service Worker...');
             await this.registrarServiceWorker();
             
@@ -101,12 +102,11 @@ class SistemaNotificaciones {
         console.log('✅ Navegador soporta Service Workers');
         
         try {
-            // ⭐ USAR this.urlBase para ruta absoluta
-            const swUrl = this.urlBase + 'sw.js';
+            const swUrl = this.URL_BASE + 'sw.js';
             console.log('→ Registrando SW en:', swUrl);
             
             const registration = await navigator.serviceWorker.register(swUrl, {
-                scope: this.urlBase
+                scope: this.URL_BASE
             });
             
             console.log('✅ Service Worker registrado');
@@ -116,7 +116,8 @@ class SistemaNotificaciones {
             return registration;
             
         } catch (error) {
-            console.error('❌ Error al registrar Service Worker:', error);
+            // No es crítico si falla el SW, las notificaciones aún funcionan
+            console.warn('⚠️ Service Worker no disponible (no crítico):', error.message);
             return false;
         }
     }
@@ -124,33 +125,57 @@ class SistemaNotificaciones {
     conectarSSE() {
         console.log('→ Iniciando conexión SSE...');
         
+        // Verificar si ya alcanzamos el máximo de intentos
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.warn('⚠️ Máximo de intentos de reconexión alcanzado. Deteniendo SSE.');
+            this.mostrarEstadoConexion(false);
+            return;
+        }
+        
         if (this.eventSource) {
             console.log('→ Cerrando conexión anterior...');
             this.eventSource.close();
         }
         
-        // ⭐ USAR this.urlBase para ruta absoluta
-        const sseUrl = this.urlBase + 'notificaciones/stream.php';
+        const sseUrl = this.URL_BASE + 'notificaciones/stream.php';
         console.log('→ Conectando a:', sseUrl);
         
         try {
             this.eventSource = new EventSource(sseUrl);
             
             this.eventSource.addEventListener('connected', (e) => {
-                const data = JSON.parse(e.data);
-                console.log('✅ SSE Conectado:', data.message);
-                this.mostrarEstadoConexion(true);
+                try {
+                    const data = JSON.parse(e.data);
+                    console.log('✅ SSE Conectado:', data.message);
+                    this.mostrarEstadoConexion(true);
+                    this.reconnectAttempts = 0; // Reset intentos en conexión exitosa
+                } catch (err) {
+                    console.log('✅ SSE Conectado');
+                }
             });
             
             this.eventSource.addEventListener('notificacion', (e) => {
-                const notificacion = JSON.parse(e.data);
-                console.log('🔔 Nueva notificación recibida:', notificacion);
-                this.procesarNotificacion(notificacion);
+                try {
+                    const notificacion = JSON.parse(e.data);
+                    console.log('📬 Nueva notificación recibida:', notificacion);
+                    this.procesarNotificacion(notificacion);
+                } catch (err) {
+                    console.error('Error procesando notificación:', err);
+                }
             });
             
             this.eventSource.addEventListener('heartbeat', (e) => {
-                console.log('💓 Heartbeat recibido');
+                // Solo log cada 5 heartbeats para no saturar la consola
+                if (Math.random() < 0.2) {
+                    console.log('💓 Heartbeat recibido');
+                }
             });
+            
+            this.eventSource.onopen = () => {
+                console.log('✅ Conexión SSE abierta');
+                this.mostrarEstadoConexion(true);
+                this.reconnectAttempts = 0;
+            };
             
             this.eventSource.onerror = (error) => {
                 console.error('❌ Error en conexión SSE:', error);
@@ -158,10 +183,17 @@ class SistemaNotificaciones {
                 this.mostrarEstadoConexion(false);
                 this.eventSource.close();
                 
-                console.log('→ Intentando reconectar en 5 segundos...');
-                this.reconnectTimer = setTimeout(() => {
-                    this.conectarSSE();
-                }, this.reconnectInterval);
+                this.reconnectAttempts++;
+                
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    const delay = this.reconnectInterval * this.reconnectAttempts;
+                    console.log(`→ Intento ${this.reconnectAttempts}/${this.maxReconnectAttempts}. Reconectando en ${delay/1000} segundos...`);
+                    this.reconnectTimer = setTimeout(() => {
+                        this.conectarSSE();
+                    }, delay);
+                } else {
+                    console.warn('⚠️ SSE deshabilitado tras múltiples fallos. Las notificaciones en tiempo real no estarán disponibles.');
+                }
             };
             
             console.log('✅ EventSource creado');
@@ -188,11 +220,10 @@ class SistemaNotificaciones {
         console.log('→ Mostrando notificación de escritorio...');
         
         try {
-            // ⭐ USAR this.urlBase para el icono
-            const notification = new Notification(notificacion.titulo, {
-                body: notificacion.mensaje,
-                icon: this.urlBase + 'assets/img/notification-icon.png',
-                tag: `notif-${notificacion.id}`,
+            const notification = new Notification(notificacion.titulo || 'Nueva notificación', {
+                body: notificacion.mensaje || '',
+                icon: this.URL_BASE + 'assets/img/notification-icon.png',
+                tag: `notif-${notificacion.id || Date.now()}`,
                 data: notificacion.datos
             });
             
@@ -216,8 +247,12 @@ class SistemaNotificaciones {
         console.log('→ Actualizando contador...');
         
         try {
-            // ⭐ USAR this.urlBase para ruta absoluta
-            const response = await fetch(this.urlBase + 'notificaciones/contar.php');
+            const response = await fetch(this.URL_BASE + 'notificaciones/contar.php');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
             const data = await response.json();
             
             console.log('→ Notificaciones no leídas:', data.count);
@@ -233,74 +268,37 @@ class SistemaNotificaciones {
             }
             
         } catch (error) {
-            console.error('❌ Error al actualizar contador:', error);
+            console.warn('⚠️ No se pudo actualizar contador:', error.message);
         }
     }
     
     agregarNotificacionUI(notificacion) {
-        console.log('→ Agregando a UI...', notificacion);
+        const contenedor = document.getElementById('notificaciones-lista');
+        if (!contenedor) return;
         
-        const lista = document.getElementById('notificaciones-lista');
-        if (!lista) {
-            console.warn('⚠️ No se encontró #notificaciones-lista');
-            return;
-        }
-        
-        // Si la lista está vacía (mensaje "No hay notificaciones"), limpiarla
-        const mensajeVacio = lista.querySelector('.text-center.py-5');
-        if (mensajeVacio) {
-            lista.innerHTML = '';
-        }
-        
-        // Determinar el color del badge según el tipo
-        let badgeColor = 'primary';
-        if (notificacion.tipo.includes('orden')) badgeColor = 'info';
-        if (notificacion.tipo.includes('firma')) badgeColor = 'warning';
-        if (notificacion.tipo.includes('completada')) badgeColor = 'success';
-        if (notificacion.tipo.includes('devuelta')) badgeColor = 'danger';
-        
-        // Crear elemento de notificación
-        const notifElement = document.createElement('div');
-        notifElement.className = 'notificacion-item nueva';
-        notifElement.dataset.id = notificacion.id;
-        
-        const url = notificacion.datos?.url || '#';
-        const timeAgo = 'Ahora mismo';
-        
-        notifElement.innerHTML = `
-            <div class="notificacion-content" style="padding-right: 30px;">
-                <div class="notificacion-header">
-                    <span class="badge bg-${badgeColor}">
-                        ${notificacion.titulo}
-                    </span>
-                    <small class="text-muted">${timeAgo}</small>
-                </div>
-                <p class="notificacion-mensaje mb-2">
-                    ${notificacion.mensaje}
-                </p>
-                ${url !== '#' ? `
-                <a href="${url}" 
-                   class="btn btn-sm btn-outline-primary"
-                   onclick="sistemaNotificaciones.marcarComoLeida(${notificacion.id})">
-                    <i class="bi bi-eye"></i> Ver detalles
-                </a>
-                ` : ''}
+        const elemento = document.createElement('div');
+        elemento.className = 'notificacion-item nueva';
+        elemento.dataset.id = notificacion.id;
+        elemento.innerHTML = `
+            <div class="notificacion-icono">
+                <i class="bi bi-bell-fill"></i>
             </div>
-            <button class="btn btn-sm btn-link notificacion-cerrar" 
-                    onclick="event.stopPropagation(); sistemaNotificaciones.marcarComoLeida(${notificacion.id})">
-                <i class="bi bi-x"></i>
+            <div class="notificacion-contenido">
+                <strong>${notificacion.titulo || 'Notificación'}</strong>
+                <p>${notificacion.mensaje || ''}</p>
+                <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+            </div>
+            <button class="btn btn-sm btn-link" onclick="sistemaNotificaciones.marcarComoLeida(${notificacion.id})">
+                <i class="bi bi-check"></i>
             </button>
         `;
         
-        // Insertar al inicio de la lista
-        lista.insertBefore(notifElement, lista.firstChild);
+        contenedor.insertBefore(elemento, contenedor.firstChild);
         
-        // Quitar clase 'nueva' después de 3 segundos
+        // Remover clase 'nueva' después de animación
         setTimeout(() => {
-            notifElement.classList.remove('nueva');
+            elemento.classList.remove('nueva');
         }, 3000);
-        
-        console.log('✅ Notificación agregada a UI');
     }
     
     mostrarEstadoConexion(conectado) {
@@ -308,20 +306,21 @@ class SistemaNotificaciones {
         const indicador = document.getElementById('conexion-estado');
         if (indicador) {
             indicador.className = 'conexion-estado ' + (conectado ? 'conectado' : 'desconectado');
+            indicador.title = conectado ? 'Conectado al servidor' : 'Desconectado';
         }
     }
     
     configurarUI() {
         console.log('→ Configurando UI...');
+        // La UI se configura automáticamente al cargar la página
     }
     
     mostrarNotificacionBienvenida() {
         console.log('→ Mostrando notificación de bienvenida...');
         try {
-            // ⭐ USAR this.urlBase para el icono
             new Notification('🔔 Notificaciones Activadas', {
                 body: 'Recibirás notificaciones en tiempo real',
-                icon: this.urlBase + 'assets/img/notification-icon.png'
+                icon: this.URL_BASE + 'assets/img/notification-icon.png'
             });
         } catch (error) {
             console.error('Error al mostrar bienvenida:', error);
@@ -332,8 +331,7 @@ class SistemaNotificaciones {
         console.log('→ Marcando como leída:', id);
         
         try {
-            // ⭐ USAR this.urlBase para ruta absoluta
-            const response = await fetch(this.urlBase + 'notificaciones/marcar_leida.php', {
+            const response = await fetch(this.URL_BASE + 'notificaciones/marcar_leida.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -359,6 +357,9 @@ class SistemaNotificaciones {
     }
     
     destruir() {
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+        }
         if (this.eventSource) {
             this.eventSource.close();
             console.log('🔌 Conexión SSE cerrada');
@@ -367,13 +368,17 @@ class SistemaNotificaciones {
 }
 
 // Instancia global
-let sistemaNotificaciones;
+let sistemaNotificaciones = null;
 
 console.log('→ Esperando DOMContentLoaded...');
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ DOM cargado, creando instancia...');
-    sistemaNotificaciones = new SistemaNotificaciones();
+    
+    // Pequeño delay para asegurar que Bootstrap esté cargado
+    setTimeout(() => {
+        sistemaNotificaciones = new SistemaNotificaciones();
+    }, 100);
 });
 
 window.addEventListener('beforeunload', () => {

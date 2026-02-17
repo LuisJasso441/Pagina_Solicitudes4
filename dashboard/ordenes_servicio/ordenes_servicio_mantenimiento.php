@@ -27,6 +27,23 @@ $es_ti = in_array($departamento_codigo, ['ti', 'sistemas', 'ti_sistemas']);
 
 $pdo = conectarDB();
 
+// ========================================
+// VERIFICAR PERMISOS OSM - CREADOR
+// Para mostrar/ocultar botón "Nueva Orden de Servicio"
+// ========================================
+$puede_crear_osm = false;
+if (!$es_mantenimiento) {
+    try {
+        $stmt_permisos_osm = $pdo->prepare("SELECT creador FROM permisos_osm WHERE user_id = :user_id");
+        $stmt_permisos_osm->execute([':user_id' => $_SESSION['usuario_id']]);
+        $permisos_osm = $stmt_permisos_osm->fetch(PDO::FETCH_ASSOC);
+        $puede_crear_osm = ($permisos_osm && $permisos_osm['creador'] == 1);
+    } catch (Exception $e) {
+        error_log("Error verificando permisos OSM: " . $e->getMessage());
+        $puede_crear_osm = false;
+    }
+}
+
 // Determinar qué base mostrar (local = activas, global = finalizadas)
 $filtro_base = $_GET['base'] ?? 'local';
 
@@ -370,7 +387,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                             <?php endif; ?>
                         </div>
                         
-                        <?php if (!$es_mantenimiento): ?>
+                        <?php if ($puede_crear_osm): ?>
                         <div>
                             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCrearOrdenServicio">
                                 <i class="bi bi-plus-circle"></i> Nueva Orden de Servicio
@@ -522,8 +539,8 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                     <button type="button" class="btn btn-success btn-sm" onclick="descargarExcel()">
                         <i class="bi bi-file-earmark-excel"></i> Descargar registros (Mes actual)
                     </button>
-                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalDescargarRango">
-                        <i class="bi bi-calendar-range"></i> Descargar registros (Rango de fechas)
+                    <button type="button" class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#modalDescargarRango">
+                        <i class="bi bi-calendar-range"></i> Descargar por rango de fechas
                     </button>
                 </div>
                 <?php endif; ?>
@@ -687,8 +704,8 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
         
     </div>
     
-    <!-- Modal para crear nueva orden (solo para usuarios NO-Mantenimiento) -->
-    <?php if (!$es_mantenimiento): ?>
+    <!-- Modal para crear nueva orden (solo si tiene permisos de creador OSM) -->
+    <?php if ($puede_crear_osm): ?>
         <?php include __DIR__ . '/../../includes/ordenes_servicio/modal_crear_orden_servicio.php'; ?>
     <?php endif; ?>
     
@@ -774,11 +791,73 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     
     <script>
-        // Auto-recargar cada 2 minutos (solo en base local)
+        // ========================================
+        // SISTEMA DE AUTO-RELOAD INTELIGENTE
+        // Pausa cuando hay modales abiertos
+        // ========================================
         <?php if ($filtro_base === 'local'): ?>
-        setTimeout(function() {
-            location.reload();
-        }, 120000);
+        (function() {
+            var AUTO_RELOAD_INTERVAL = 120000; // 2 minutos
+            var autoReloadTimer = null;
+            var modalAbierto = false;
+            
+            // Función para iniciar el timer de auto-reload
+            function iniciarAutoReload() {
+                // Cancelar timer existente si hay uno
+                if (autoReloadTimer) {
+                    clearTimeout(autoReloadTimer);
+                }
+                
+                // Solo iniciar si no hay modal abierto
+                if (!modalAbierto) {
+                    autoReloadTimer = setTimeout(function() {
+                        // Verificar una vez más antes de recargar
+                        if (!modalAbierto) {
+                            location.reload();
+                        } else {
+                            // Si hay modal abierto, reintentar después
+                            iniciarAutoReload();
+                        }
+                    }, AUTO_RELOAD_INTERVAL);
+                    console.log('⏱️ Auto-reload programado en 2 minutos');
+                }
+            }
+            
+            // Función para pausar el auto-reload
+            function pausarAutoReload() {
+                if (autoReloadTimer) {
+                    clearTimeout(autoReloadTimer);
+                    autoReloadTimer = null;
+                    console.log('⏸️ Auto-reload pausado (modal abierto)');
+                }
+                modalAbierto = true;
+            }
+            
+            // Función para reanudar el auto-reload
+            function reanudarAutoReload() {
+                modalAbierto = false;
+                iniciarAutoReload();
+                console.log('▶️ Auto-reload reanudado');
+            }
+            
+            // Escuchar eventos de TODOS los modales en la página
+            document.addEventListener('shown.bs.modal', function(e) {
+                pausarAutoReload();
+            });
+            
+            document.addEventListener('hidden.bs.modal', function(e) {
+                // Pequeño delay para verificar si hay otro modal abierto
+                setTimeout(function() {
+                    var modalesAbiertos = document.querySelectorAll('.modal.show');
+                    if (modalesAbiertos.length === 0) {
+                        reanudarAutoReload();
+                    }
+                }, 100);
+            });
+            
+            // Iniciar el auto-reload al cargar la página
+            iniciarAutoReload();
+        })();
         <?php endif; ?>
 
         <?php if ($es_mantenimiento): ?>

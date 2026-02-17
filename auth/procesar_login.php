@@ -115,29 +115,27 @@ try {
     // Establecer mensaje de bienvenida
     establecer_alerta('success', '¡Bienvenido, ' . $usuario_db['nombre_completo'] . '!');
     
-    // ⭐ REDIRIGIR AL DASHBOARD CORRESPONDIENTE CON DETECCIÓN DE MANTENIMIENTO
-    $departamento_lower = strtolower($usuario_db['departamento']);
+    // ⭐ REDIRIGIR AL DASHBOARD CORRESPONDIENTE
+    $departamento_lower = $usuario_db['departamento_codigo'] ?? strtolower(trim($usuario_db['departamento']));
     
     // Determinar el dashboard según el tipo de usuario
     if ($departamento_lower === 'sistemas' || $departamento_lower === 'ti') {
-        // Usuario de TI/Sistemas
         redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
     } 
     elseif ($departamento_lower === 'mantenimiento') {
-        // ⭐ USUARIO DE MANTENIMIENTO - DASHBOARD ESPECÍFICO
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     }
+    elseif (in_array($departamento_lower, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
+        redirigir(URL_BASE . 'dashboard/inventario_epp/inventario_epp.php');
+    }
     elseif (es_usuario_colaborativo()) {
-        // Usuario colaborativo (Normatividad, Ventas, Laboratorio)
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
     } 
     else {
-        // Usuario normal
         redirigir(URL_BASE . 'dashboard/departamento.php');
     }
     
 } catch (Exception $e) {
-    // Error de conexión o consulta
     if (DEV_MODE) {
         establecer_alerta('error', 'Error en el login: ' . $e->getMessage());
     } else {

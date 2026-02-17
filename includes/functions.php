@@ -176,6 +176,8 @@ function redirigir_dashboard() {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     } elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
+    } elseif (in_array($depto_codigo, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
+        redirigir(URL_BASE . 'dashboard/inventario_epp/inventario_epp.php');
     } else {
         redirigir(URL_BASE . 'dashboard/mis_ordenes_servicio.php');
     }
