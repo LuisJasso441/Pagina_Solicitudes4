@@ -28,6 +28,9 @@ $usuario_id = $_SESSION['usuario_id'];
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     
+    <!-- CSS para formularios y modales (incluye estilos de modo oscuro) -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
+    
     <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
@@ -84,6 +87,9 @@ $usuario_id = $_SESSION['usuario_id'];
                             </div>
                             <div class="card-body">
                                 <div class="d-flex flex-wrap gap-3">
+                                    <a href="#" class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
+                                        <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atención
+                                    </a>
                                     <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php" class="btn btn-gradient">
                                         <i class="bi bi-tools"></i> Órdenes de Servicio
                                     </a>

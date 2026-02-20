@@ -153,6 +153,15 @@ function es_usuario_epp() {
     return in_array($depto, ['almacen_refacciones', 'seguridad', 'contabilidad']);
 }
 
+/**
+ * Verificar si el usuario pertenece al departamento de Mantenimiento
+ * @return bool
+ */
+function es_mantenimiento() {
+    $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+    return ($departamento === 'mantenimiento');
+}
+
 // ====================================
 // FUNCIONES DE REDIRECCIÓN
 // ====================================

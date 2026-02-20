@@ -1,0 +1,195 @@
+/**
+ * Estilos del módulo Reservación de Sala de Juntas (RSJ)
+ * Ubicación: assets/css/reservaciones.css
+ */
+
+/* ==========================================
+   FORZAR COLORES EN FULLCALENDAR
+   ========================================== */
+
+#calendario-index .fc, #calendario-index .fc table,
+#calendario-index .fc td, #calendario-index .fc th,
+#calendario-index .fc a, #calendario-index .fc span, #calendario-index .fc div,
+#calendario .fc, #calendario .fc table,
+#calendario .fc td, #calendario .fc th,
+#calendario .fc a, #calendario .fc span, #calendario .fc div {
+    color: #333 !important;
+}
+
+.fc .fc-col-header-cell, .fc .fc-col-header-cell a, .fc .fc-col-header-cell-cushion {
+    color: #333 !important; font-weight: 600 !important; font-size: 0.78rem !important; text-decoration: none !important;
+}
+
+.fc .fc-timegrid-slot-label, .fc .fc-timegrid-slot-label-cushion, .fc .fc-timegrid-axis-cushion {
+    color: #555 !important; font-size: 0.72rem !important; font-weight: 500 !important;
+}
+
+.fc .fc-toolbar-title { font-size: 1rem !important; font-weight: 600 !important; color: #333 !important; }
+.fc .fc-daygrid-day-number { font-size: 0.75rem; color: #333 !important; }
+.fc .fc-scrollgrid { background-color: #fff !important; }
+.fc .fc-timegrid-col, .fc .fc-daygrid-day { background-color: #fff !important; }
+.fc .fc-scrollgrid td, .fc .fc-scrollgrid th { border-color: #e5e7eb !important; }
+.fc .fc-day-today { background-color: rgba(14, 104, 71, 0.04) !important; }
+
+/* ==========================================
+   BOTONES DEL TOOLBAR
+   ========================================== */
+
+.fc .fc-button { font-size: 0.75rem !important; padding: 0.25rem 0.5rem !important; border-radius: 4px !important; }
+.fc .fc-button-primary { background-color: #0E6847 !important; border-color: #0E6847 !important; color: #fff !important; }
+.fc .fc-button-primary:hover { background-color: #07492E !important; border-color: #07492E !important; color: #fff !important; }
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active { background-color: #04CF85 !important; border-color: #04CF85 !important; color: #000 !important; }
+
+/* ==========================================
+   CONFIG GENERAL
+   ========================================== */
+
+#calendario, #calendario-index { font-size: 0.8rem; }
+.fc .fc-toolbar { flex-wrap: wrap; gap: 0.5rem; }
+.fc .fc-timegrid-slot { height: 2.2em !important; }
+
+/* ==========================================
+   EVENTOS - BLOQUE
+   ========================================== */
+
+.fc-event {
+    border: none !important;
+    border-radius: 4px !important;
+    padding: 1px 3px !important;
+    cursor: pointer;
+    font-size: 0.68rem !important;
+    line-height: 1.15;
+    overflow: hidden;
+    transition: opacity 0.2s;
+}
+.fc-event:hover { opacity: 0.85; }
+
+/* Texto de eventos hereda su propio color */
+.fc-event, .fc-event *, .fc-event a, .fc-event span, .fc-event div {
+    color: inherit !important;
+}
+
+.fc .fc-daygrid-event { font-size: 0.65rem !important; }
+
+.fc .fc-timegrid-now-indicator-line { border-color: #dc3545 !important; border-width: 2px; }
+.fc .fc-timegrid-now-indicator-arrow { border-color: #dc3545 !important; }
+
+/* ==========================================
+   CONTENIDO PERSONALIZADO DEL EVENTO
+   ========================================== */
+
+.rsj-event-content { padding: 1px 0; overflow: hidden; line-height: 1.2; }
+.rsj-event-time { font-size: 0.6rem; opacity: 0.85; font-weight: 400; white-space: nowrap; }
+.rsj-event-name { font-size: 0.68rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rsj-event-lugar { font-size: 0.58rem; opacity: 0.8; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rsj-event-motivo { font-size: 0.55rem; opacity: 0.75; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+
+/* ==========================================
+   POPOVER DE EVENTO
+   ========================================== */
+
+.rsj-popover {
+    position: absolute;
+    z-index: 9999;
+    background: #fff !important;
+    border-radius: 8px;
+    min-width: 230px;
+    max-width: 300px;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.1);
+    animation: rsjPopoverIn 0.15s ease-out;
+}
+
+@keyframes rsjPopoverIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.rsj-popover-header {
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+}
+
+.rsj-popover-close {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+}
+.rsj-popover-close:hover { opacity: 1; }
+
+.rsj-popover-body {
+    padding: 10px 12px;
+    font-size: 0.78rem;
+    color: #333 !important;
+}
+
+.rsj-popover-body > div {
+    margin-bottom: 5px;
+    color: #333 !important;
+}
+
+.rsj-popover-body i {
+    color: #6c757d;
+    font-size: 0.75rem;
+    width: 16px;
+    display: inline-block;
+}
+
+.rsj-popover-actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 6px;
+}
+
+.rsj-popover-actions .btn { font-size: 0.72rem; }
+
+/* ==========================================
+   WIDGET CALENDARIO EN INDEX
+   ========================================== */
+
+.calendario-widget { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+.calendario-widget-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+.calendario-widget-header h2 { font-size: 1.3rem; font-weight: 600; color: #fff !important; margin: 0; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.calendario-card { background: #fff !important; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); padding: 15px; border: 1px solid #e9ecef; }
+
+/* ==========================================
+   LEYENDA DE COLORES
+   ========================================== */
+
+.leyenda-departamentos { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #eee; }
+.leyenda-item { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: #555 !important; font-weight: 500; }
+.leyenda-color { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* ==========================================
+   TABLA
+   ========================================== */
+
+.table th { font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.table td { font-size: 0.78rem; vertical-align: middle; }
+.form-label.fw-semibold { font-size: 0.82rem; }
+
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
+
+@media (max-width: 768px) {
+    .fc .fc-toolbar { flex-direction: column; align-items: flex-start; }
+    .fc .fc-toolbar-title { font-size: 0.9rem !important; }
+    .rsj-popover {
+        position: fixed !important; top: 50% !important; left: 50% !important;
+        transform: translate(-50%, -50%) !important; min-width: 280px;
+    }
+    .calendario-widget { padding: 0 10px; }
+    .calendario-widget-header h2 { font-size: 1.1rem; }
+}

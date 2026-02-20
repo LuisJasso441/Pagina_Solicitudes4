@@ -1,6 +1,7 @@
 <?php
 /**
  * Sidebar para departamento de Mantenimiento
+ * CORREGIDO: Incluye modal_crear.php para el botón "Nueva Solicitud"
  */
 $current_page = basename($_SERVER['PHP_SELF']);
 
@@ -56,7 +57,7 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
+            <small class="text-white-50 px-3 fw-bold">MÓDULO DE TI</small>
             
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
@@ -78,19 +79,16 @@ try {
                 </a>
             </li>
             
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">MANTENIMIENTO DE EQUIPOS TI</small>
-            
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
-                    <i class="bi bi-pc-display"></i> Solicitar Mantenimiento TI
+                    <i class="bi bi-tools"></i> Solicitar Mantenimiento
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
-                    <i class="bi bi-wrench"></i> Mis Mantenimientos TI
+                    <i class="bi bi-wrench"></i> Mis Mantenimientos
                     <?php if ($mis_mant_pendientes > 0): ?>
                     <span class="badge bg-info ms-2"><?php echo $mis_mant_pendientes; ?></span>
                     <?php endif; ?>
@@ -103,7 +101,17 @@ try {
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
-                    <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                    <i class="bi bi-clipboard-check"></i> Órdenes de Servicio para Mantenimiento
+                </a>
+            </li>
+
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">SALA DE JUNTAS</small>
+
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'reservaciones_sala.php' ? 'active' : ''; ?>" 
+                href="<?php echo URL_BASE; ?>dashboard/reservaciones/reservaciones_sala.php">
+                    <i class="bi bi-calendar-event"></i> Reservar Sala de Juntas
                 </a>
             </li>
             
@@ -116,3 +124,13 @@ try {
         </ul>
     </nav>
 </aside>
+
+<!-- ========================================
+     MODAL PARA CREAR NUEVA SOLICITUD DE TI
+     Este include es NECESARIO para que funcione
+     el botón "Nueva Solicitud" del sidebar
+     
+     El modal está definido en solicitudes/modal_crear.php
+     y tiene el ID #modalNuevaSolicitud
+     ======================================== -->
+<?php include __DIR__ . '/../../solicitudes/modal_crear.php'; ?>

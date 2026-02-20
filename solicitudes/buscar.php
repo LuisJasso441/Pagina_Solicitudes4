@@ -129,6 +129,10 @@ function obtener_badge_prioridad($prioridad) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    
+    <!-- CSS para formularios y modales (incluye estilos de modo oscuro) -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
+    
     <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
@@ -148,6 +152,8 @@ function obtener_badge_prioridad($prioridad) {
             include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
         } elseif (es_usuario_epp()) {
             include __DIR__ . '/../includes/sidebar/sidebar_inventario.php';
+        } elseif (es_mantenimiento()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_mantenimiento.php';
         } else {
             include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
         }
