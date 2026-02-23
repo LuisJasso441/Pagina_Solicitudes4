@@ -191,8 +191,8 @@ try {
                                     <a href="#" class="btn btn-gradient" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
                                         <i class="bi bi-plus-circle"></i> Nueva Solicitud de Atenci&oacute;n
                                     </a>
-                                    <a href="<?php echo URL_BASE; ?>dashboard/documentos_colaborativos.php" class="btn btn-success">
-                                        <i class="bi bi-file-earmark-text"></i> Documentos SSC
+                                    <a href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php" class="btn btn-success">
+                                        <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                                     </a>
                                 </div>
                             </div>

@@ -100,9 +100,6 @@ try {
                 </a>
             </li>
             
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">MANTENIMIENTO DE EQUIPOS</small>
-            
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
