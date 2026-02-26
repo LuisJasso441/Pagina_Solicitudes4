@@ -3,6 +3,17 @@
  * Sidebar para departamento de Mantenimiento
  * CORREGIDO: Incluye modal_crear.php para el botón "Nueva Solicitud"
  */
+
+// ⭐ PROTECCIÓN DE SESIÓN - Redirigir si la sesión expiró
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) {
+        destruir_sesion();
+    }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // IMPORTANTE: Incluir database.php ANTES de usar conectarDB()
@@ -44,7 +55,7 @@ try {
     <div class="sidebar-header">
         <i class="bi bi-tools text-white fs-1 mb-2"></i>
         <h4>Mantenimiento</h4>
-        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
+        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo'] ?? ''); ?></small>
     </div>
     
     <nav class="sidebar-nav">

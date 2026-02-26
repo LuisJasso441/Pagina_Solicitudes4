@@ -4,6 +4,17 @@
  * Actualizado: Enero 2026
  * Incluye módulo de Cotizaciones Químicos/Residuos (solo Normatividad y Ventas)
  */
+
+// ⭐ PROTECCIÓN DE SESIÓN - Redirigir si la sesión expiró
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) {
+        destruir_sesion();
+    }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // ⭐ IMPORTANTE: Incluir database.php ANTES de usar conectarDB()
@@ -94,8 +105,8 @@ try {
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
-        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
-        <small><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
+        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ''); ?></h4>
+        <small><?php echo htmlspecialchars($_SESSION['nombre_completo'] ?? ''); ?></small>
         <span class="badge bg-info mt-2">Colaborativo</span>
     </div>
     
@@ -128,9 +139,6 @@ try {
                     <i class="bi bi-search"></i> Buscar
                 </a>
             </li>
-            
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">MANTENIMIENTO DE EQUIPOS</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 

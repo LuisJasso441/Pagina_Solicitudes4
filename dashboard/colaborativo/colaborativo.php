@@ -1,10 +1,25 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+/**
+ * Dashboard para departamentos colaborativos
+ */
 
 session_start();
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../auth/verificar_sesion.php';
+
+// ⭐ LLAMAR a verificar_sesion() - antes solo se incluía el archivo
+verificar_sesion();
+
+// ⭐ Verificar expiración por inactividad
+if (sesion_expirada()) {
+    destruir_sesion();
+    session_start();
+    establecer_alerta('warning', 'Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.');
+    redirigir(URL_BASE . 'auth/InicioSesion.php');
+}
+
+// ⭐ Renovar tiempo de actividad
+actualizar_sesion();
 
 if (!es_usuario_colaborativo()) {
     establecer_alerta('error', 'No tiene acceso a este panel');
@@ -106,6 +121,10 @@ try {
                         </p>
                     </div>
                     <div class="user-info">
+                        <button class="btn-anuncios-trigger" onclick="new bootstrap.Modal(document.getElementById('modalAnuncios')).show()" title="Anuncios">
+                            <i class="bi bi-megaphone-fill"></i>
+                            <span class="badge-count" id="anunciosBadge"></span>
+                        </button>
                         <span class="user-badge" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                             <i class="bi bi-people-fill"></i>
                             <?php echo htmlspecialchars($departamento); ?>
@@ -278,6 +297,9 @@ try {
             localStorage.setItem('theme', newTheme);
         });
     </script>
+
+    <!-- Modal de Anuncios -->
+    <?php include __DIR__ . '/../../includes/anuncios/modal_anuncios.php'; ?>
 
 </body>
 </html>

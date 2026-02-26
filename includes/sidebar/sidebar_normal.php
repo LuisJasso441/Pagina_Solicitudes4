@@ -2,6 +2,17 @@
 /**
  * Sidebar para usuarios normales (no colaborativos, no TI)
  */
+
+// ⭐ PROTECCIÓN DE SESIÓN - Redirigir si la sesión expiró
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) {
+        destruir_sesion();
+    }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Determinar si está en sección de órdenes de servicio
@@ -22,18 +33,25 @@ $en_mantenimientos_ti = in_array($current_page, [
 require_once __DIR__ . '/../../config/database.php';
 
 // Obtener contador de órdenes pendientes de validación (solo del usuario actual)
-$pdo = conectarDB();
-$stmt_pendientes = $pdo->prepare("
-    SELECT COUNT(*) as total 
-    FROM ordenes_servicio_mantenimiento 
-    WHERE usuario_id = :usuario_id 
-    AND estado = 'pendiente_usuario'
-");
-$stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
-$ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+try {
+    $pdo = conectarDB();
+    $stmt_pendientes = $pdo->prepare("
+        SELECT COUNT(*) as total 
+        FROM ordenes_servicio_mantenimiento 
+        WHERE usuario_id = :usuario_id 
+        AND estado = 'pendiente_usuario'
+    ");
+    $stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+} catch (Exception $e) {
+    $ordenes_pendientes_validar = 0;
+}
 
 // Obtener contador de mantenimientos pendientes del usuario
 try {
+    if (!isset($pdo)) {
+        $pdo = conectarDB();
+    }
     $stmt_mant = $pdo->prepare("
         SELECT COUNT(*) as total 
         FROM solicitudes_mantenimiento_ti 
@@ -66,8 +84,8 @@ try {
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-building text-white fs-1 mb-2"></i>
-        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
-        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
+        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ''); ?></h4>
+        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo'] ?? ''); ?></small>
     </div>
     
     <nav class="sidebar-nav">

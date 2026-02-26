@@ -4,6 +4,16 @@
  * Componente reutilizable
  */
 
+// ⭐ PROTECCIÓN DE SESIÓN - Redirigir si la sesión expiró
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) {
+        destruir_sesion();
+    }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 // Obtener página actual para marcar como activa
 $current_page = basename($_SERVER['PHP_SELF']);
 
@@ -95,7 +105,7 @@ try {
     <div class="sidebar-header">
         <i class="bi bi-laptop text-white fs-1 mb-2"></i>
         <h4>TI / Sistemas</h4>
-        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
+        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo'] ?? ''); ?></small>
         <span class="badge bg-danger mt-2">Administrador</span>
     </div>
     

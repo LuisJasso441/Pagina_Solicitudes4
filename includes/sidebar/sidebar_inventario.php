@@ -6,6 +6,17 @@
  * EXCLUSIVO para: Almacén de Refacciones, Seguridad, Contabilidad
  * Estructura consistente con sidebar_colaborativo.php y sidebar_normal.php
  */
+
+// ⭐ PROTECCIÓN DE SESIÓN - Redirigir si la sesión expiró
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) {
+        destruir_sesion();
+    }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Incluir database.php ANTES de usar conectarDB()
@@ -69,9 +80,9 @@ $en_registrar_mov = ($current_page === 'registrar_movimiento.php');
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <i class="bi bi-shield-check text-white fs-1 mb-2"></i>
-        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
-        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
-        <span class="badge bg-success mt-2"><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></span>
+        <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ''); ?></h4>
+        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo'] ?? ''); ?></small>
+        <span class="badge bg-success mt-2"><?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ''); ?></span>
     </div>
     
     <nav class="sidebar-nav">

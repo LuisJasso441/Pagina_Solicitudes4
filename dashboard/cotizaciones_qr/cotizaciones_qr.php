@@ -15,11 +15,23 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../config/database.php';
 
-// Verificar sesión
+// ⭐ Verificar sesión activa
 if (!sesion_activa()) {
-    header('Location: ' . URL_BASE . 'auth/login.php');
+    destruir_sesion();
+    header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
+
+// ⭐ Verificar expiración por inactividad
+if (sesion_expirada()) {
+    destruir_sesion();
+    session_start();
+    establecer_alerta('warning', 'Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.');
+    redirigir(URL_BASE . 'auth/InicioSesion.php');
+}
+
+// ⭐ Renovar tiempo de actividad
+actualizar_sesion();
 
 // Incluir funciones CQR
 $funciones_cqr = __DIR__ . '/../../includes/cotizaciones_qr/cotizaciones_qr_funciones.php';
@@ -418,5 +430,9 @@ $page_title = "Cotizaciones de Químicos y/o Residuos";
             });
         }, 5000);
     </script>
+
+    <!-- Modal de Anuncios -->
+    <?php include __DIR__ . '/../../includes/anuncios/modal_anuncios.php'; ?>
+    
 </body>
 </html>

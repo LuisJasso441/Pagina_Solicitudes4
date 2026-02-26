@@ -7,6 +7,20 @@ session_start();
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../auth/verificar_sesion.php';
 
+// ⭐ LLAMAR a verificar_sesion()
+verificar_sesion();
+
+// ⭐ Verificar expiración por inactividad
+if (sesion_expirada()) {
+    destruir_sesion();
+    session_start();
+    establecer_alerta('warning', 'Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.');
+    redirigir(URL_BASE . 'auth/InicioSesion.php');
+}
+
+// ⭐ Renovar tiempo de actividad
+actualizar_sesion();
+
 // Verificar que sea departamento de Mantenimiento
 if (strtolower($_SESSION['departamento']) !== 'mantenimiento') {
     header('Location: ' . URL_BASE . 'dashboard/index.php');
@@ -61,6 +75,10 @@ $usuario_id = $_SESSION['usuario_id'];
                         </p>
                     </div>
                     <div class="user-info">
+                        <button class="btn-anuncios-trigger" onclick="new bootstrap.Modal(document.getElementById('modalAnuncios')).show()" title="Anuncios">
+                            <i class="bi bi-megaphone-fill"></i>
+                            <span class="badge-count" id="anunciosBadge"></span>
+                        </button>
                         <span class="user-badge" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                             <i class="bi bi-tools"></i>
                             MANTENIMIENTO
@@ -138,6 +156,9 @@ $usuario_id = $_SESSION['usuario_id'];
             localStorage.setItem('theme', newTheme);
         });
     </script>
+
+    <!-- Modal de Anuncios -->
+    <?php include __DIR__ . '/../../includes/anuncios/modal_anuncios.php'; ?>
 
 </body>
 </html>
