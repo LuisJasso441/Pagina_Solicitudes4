@@ -2,6 +2,8 @@
 /**
  * Crear Nuevo Usuario
  * Solo accesible para usuarios del departamento de Sistemas
+ * 
+ * ⭐ ACTUALIZADO: Campos de Vacaciones (no_nomina, puesto, fecha_ingreso, es_admin_area)
  */
 
 session_start();
@@ -101,26 +103,34 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
         
         <!-- SIDEBAR -->
         <?php include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php'; ?>
-
+        
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
-            <div class="content-wrapper">
+            <div class="container-fluid py-4">
                 
-                <div class="row mb-3">
-                    <div class="col">
-                        <div class="d-flex align-items-center">
-                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php" class="btn btn-outline-secondary btn-sm me-3">
-                                <i class="bi bi-arrow-left"></i>
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php">
+                                <i class="bi bi-house-door"></i> Inicio
                             </a>
-                            <h4 class="mb-0"><i class="bi bi-person-plus me-2"></i>Crear Nuevo Usuario</h4>
-                        </div>
-                    </div>
-                </div>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php">Gestión de Usuarios</a>
+                        </li>
+                        <li class="breadcrumb-item active">Crear Usuario</li>
+                    </ol>
+                </nav>
 
-                <!-- Mostrar errores -->
+                <h3 class="mb-4">
+                    <i class="bi bi-person-plus me-2"></i>Crear Nuevo Usuario
+                </h3>
+
+                <!-- Mostrar errores si existen -->
                 <?php if (!empty($errores)): ?>
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong>Por favor corrija los siguientes errores:</strong>
+                        <strong><i class="bi bi-exclamation-triangle me-2"></i>Error:</strong>
                         <ul class="mb-0 mt-2">
                             <?php foreach ($errores as $error): ?>
                                 <li><?php echo htmlspecialchars($error); ?></li>
@@ -130,15 +140,17 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                     </div>
                 <?php endif; ?>
 
-                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/procesar_usuario.php" method="POST" id="formCrearUsuario">
+                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/procesar_usuario.php" method="POST">
                     <input type="hidden" name="accion" value="crear">
                     
                     <div class="row">
+                        <!-- Formulario principal -->
                         <div class="col-lg-8">
-                            <!-- Información básica -->
+                            
+                            <!-- Datos personales -->
                             <div class="form-section">
                                 <div class="form-section-title">
-                                    <i class="bi bi-person me-2"></i>Información del Usuario
+                                    <i class="bi bi-person me-2"></i>Datos del Usuario
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
@@ -167,6 +179,27 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
+
+                                    <!-- ⭐ VACACIONES: Campos nuevos -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">No. Nómina</label>
+                                        <input type="text" name="no_nomina" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['no_nomina'] ?? ''); ?>"
+                                               maxlength="20" placeholder="Ej: 1234">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Puesto</label>
+                                        <input type="text" name="puesto" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>"
+                                               maxlength="100" placeholder="Ej: Analista de Sistemas">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Fecha de Ingreso</label>
+                                        <input type="date" name="fecha_ingreso" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['fecha_ingreso'] ?? ''); ?>">
+                                    </div>
+                                    <!-- FIN VACACIONES -->
+
                                     <div class="col-md-6">
                                         <label class="form-label">Estado Inicial</label>
                                         <select name="activo" class="form-select">
@@ -180,16 +213,15 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                             <!-- Contraseña -->
                             <div class="form-section">
                                 <div class="form-section-title">
-                                    <i class="bi bi-shield-lock me-2"></i>Contraseña
+                                    <i class="bi bi-lock me-2"></i>Contraseña
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label required">Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password" class="form-control" 
-                                                   id="inputPassword" required minlength="8" placeholder="Mínimo 8 caracteres">
-                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
-                                                    onclick="togglePassword('inputPassword', this)">
+                                                   id="password" required minlength="8" placeholder="Mínimo 8 caracteres">
+                                            <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('password', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                         </div>
@@ -198,17 +230,13 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <label class="form-label required">Confirmar Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password_confirm" class="form-control" 
-                                                   id="inputPasswordConfirm" required minlength="8" placeholder="Repetir contraseña">
-                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
-                                                    onclick="togglePassword('inputPasswordConfirm', this)">
+                                                   id="password_confirm" required minlength="8" placeholder="Repetir contraseña">
+                                            <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('password_confirm', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                         </div>
-                                    </div>
-                                    <div class="col-12">
                                         <small class="text-muted">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            La contraseña debe tener al menos 8 caracteres. Se permiten letras, números y signos.
+                                            Se permiten letras, números y signos.
                                         </small>
                                     </div>
                                 </div>
@@ -306,6 +334,49 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                     <i class="bi bi-lightbulb me-1"></i>
                                     <strong>CQR:</strong> Creador = Ventas (crea solicitudes), Editor = Normatividad (responde solicitudes)
                                 </small>
+
+                                <!-- ⭐ VACACIONES: Rol Administrativo de Área -->
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="form-section-title">
+                                        <i class="bi bi-calendar-check me-2"></i>Vacaciones
+                                    </div>
+                                    <table class="table table-bordered permisos-table mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 60%;">Rol</th>
+                                                <th style="width: 40%;">Asignado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>Administrativo de Área</strong><br>
+                                                    <small class="text-muted">Jefe/Responsable del departamento — puede aprobar solicitudes de vacaciones</small>
+                                                </td>
+                                                <td>
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="checkbox" name="es_admin_area" value="1" class="form-check-input" 
+                                                               id="es_admin_area" <?php echo (isset($form_data['es_admin_area']) && $form_data['es_admin_area']) ? 'checked' : ''; ?>>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <small class="text-muted mt-1 d-block">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Al marcar esta casilla, el usuario podrá aprobar/rechazar solicitudes de vacaciones de su departamento.
+                                    </small>
+                                </div>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="d-flex gap-2 mb-4">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-person-plus me-1"></i>Crear Usuario
+                                </button>
+                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg me-1"></i>Cancelar
+                                </a>
                             </div>
                         </div>
 
@@ -327,70 +398,45 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                     </ul>
                                     
                                     <h6>Estado</h6>
-                                    <p class="text-muted mb-0">
+                                    <p class="text-muted">
                                         <span class="badge bg-success">Activo</span> El usuario puede iniciar sesión.<br>
                                         <span class="badge bg-danger">Inactivo</span> El usuario no puede iniciar sesión.
+                                    </p>
+                                    
+                                    <h6>Vacaciones</h6>
+                                    <p class="text-muted">
+                                        <span class="badge bg-primary">Admin. de Área</span> 
+                                        Permite aprobar/rechazar solicitudes de vacaciones de los empleados del mismo departamento.
+                                        Puede haber varios por departamento.
+                                    </p>
+                                    
+                                    <h6>Datos adicionales</h6>
+                                    <p class="text-muted mb-0">
+                                        <strong>No. Nómina, Puesto y Fecha de Ingreso</strong> son opcionales al crear, pero se requieren para el módulo de Vacaciones.
                                     </p>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <!-- Botones de acción -->
-                    <div class="row mt-3">
-                        <div class="col-lg-8">
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg me-1"></i>Crear Usuario
-                                </button>
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php" class="btn btn-outline-secondary">
-                                    <i class="bi bi-x-lg me-1"></i>Cancelar
-                                </a>
-                            </div>
-                        </div>
-                    </div>
                 </form>
-                
             </div>
         </main>
-
     </div>
-
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     <script>
-        // Toggle mostrar/ocultar contraseña
-        function togglePassword(inputId, btn) {
+        function togglePassword(inputId, button) {
             const input = document.getElementById(inputId);
-            const icon = btn.querySelector('i');
+            const icon = button.querySelector('i');
             
             if (input.type === 'password') {
                 input.type = 'text';
-                icon.classList.remove('bi-eye');
-                icon.classList.add('bi-eye-slash');
+                icon.classList.replace('bi-eye', 'bi-eye-slash');
             } else {
                 input.type = 'password';
-                icon.classList.remove('bi-eye-slash');
-                icon.classList.add('bi-eye');
+                icon.classList.replace('bi-eye-slash', 'bi-eye');
             }
         }
-
-        // Validar nombre de usuario sin espacios
-        document.querySelector('input[name="usuario"]').addEventListener('input', function(e) {
-            this.value = this.value.replace(/\s/g, '').toUpperCase();
-        });
-
-        // Validar que las contraseñas coincidan antes de enviar
-        document.getElementById('formCrearUsuario').addEventListener('submit', function(e) {
-            const password = document.getElementById('inputPassword').value;
-            const passwordConfirm = document.getElementById('inputPasswordConfirm').value;
-            
-            if (password !== passwordConfirm) {
-                e.preventDefault();
-                alert('Las contraseñas no coinciden.');
-                document.getElementById('inputPasswordConfirm').focus();
-            }
-        });
     </script>
 </body>
 </html>

@@ -192,10 +192,20 @@ $en_registrar_mov = ($current_page === 'registrar_movimiento.php');
                 </a>
             </li>
             
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">VACACIONES</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['mis_vacaciones.php', 'nueva_solicitud_vacaciones.php', 'ver_solicitud_vacaciones.php']) ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php">
+                    <i class="bi bi-calendar-check"></i> Mis Vacaciones
+                </a>
+            </li>
+            
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesi&oacute;n
+                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
                 </a>
             </li>
         </ul>

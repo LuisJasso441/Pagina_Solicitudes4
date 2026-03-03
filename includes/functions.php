@@ -78,11 +78,17 @@ function iniciar_sesion_usuario($usuario) {
     $_SESSION['usuario_id'] = $usuario['id'];
     $_SESSION['usuario'] = $usuario['usuario'];
     $_SESSION['nombre_completo'] = $usuario['nombre_completo'];
-    $_SESSION['departamento'] = $usuario['departamento']; // Texto original (legacy)
+    $_SESSION['departamento'] = $usuario['departamento'];
     $_SESSION['departamento_codigo'] = $usuario['departamento_codigo'] ?? strtolower(trim($usuario['departamento']));
     $_SESSION['departamento_nombre'] = $usuario['departamento_nombre'] ?? ucfirst($usuario['departamento']);
+    $_SESSION['departamento_id'] = $usuario['departamento_id'] ?? null;
     $_SESSION['es_ti'] = (strtolower($_SESSION['departamento_codigo']) === 'sistemas');
     $_SESSION['es_colaborativo'] = es_departamento_colaborativo($_SESSION['departamento_codigo']);
+    // Campos de vacaciones
+    $_SESSION['no_nomina'] = $usuario['no_nomina'] ?? null;
+    $_SESSION['puesto'] = $usuario['puesto'] ?? null;
+    $_SESSION['fecha_ingreso'] = $usuario['fecha_ingreso'] ?? null;
+    $_SESSION['es_admin_area'] = intval($usuario['es_admin_area'] ?? 0);
     $_SESSION['ultimo_acceso'] = time();
     $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
 }
@@ -150,7 +156,16 @@ function es_usuario_colaborativo() {
  */
 function es_usuario_epp() {
     $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
-    return in_array($depto, ['almacen_refacciones', 'seguridad', 'contabilidad']);
+    return in_array($depto, ['almacen_refacciones', 'seguridad']);
+}
+
+/**
+ * Verificar si el usuario es administrador de área (módulo Vacaciones)
+ * ⭐ NUEVO: Para determinar si puede aprobar solicitudes de vacaciones
+ * @return bool
+ */
+function es_admin_area() {
+    return isset($_SESSION['es_admin_area']) && $_SESSION['es_admin_area'] == 1;
 }
 
 /**
@@ -184,6 +199,7 @@ function redirigir_login() {
 
 /**
  * Redirigir al dashboard según tipo de usuario
+ * ⭐ ACTUALIZADO: Contabilidad redirige a GTH en vez de EPP
  */
 function redirigir_dashboard() {
     $depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']));
@@ -194,8 +210,10 @@ function redirigir_dashboard() {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     } elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
-    } elseif (in_array($depto_codigo, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
+    } elseif (in_array($depto_codigo, ['almacen_refacciones', 'seguridad'])) {
         redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
+    } elseif (in_array($depto_codigo, ['gestion_talento', 'contabilidad'])) {
+        redirigir(URL_BASE . 'dashboard/vacaciones/vacaciones_gth.php');
     } else {
         redirigir(URL_BASE . 'dashboard/mis_ordenes_servicio.php');
     }

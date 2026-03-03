@@ -2,6 +2,8 @@
 /**
  * Editar Usuario
  * Solo accesible para usuarios del departamento de Sistemas
+ * 
+ * ⭐ ACTUALIZADO: Campos de Vacaciones (no_nomina, puesto, fecha_ingreso, es_admin_area)
  */
 
 session_start();
@@ -33,7 +35,7 @@ $usuario_id = (int)$_GET['id'];
 // Conexión a BD
 $pdo = conectarDB();
 
-// Obtener datos del usuario CON permisos CQR
+// Obtener datos del usuario CON permisos
 $sql = "SELECT 
             u.*,
             d.nombre AS departamento_nombre,
@@ -159,46 +161,34 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
         
         <!-- SIDEBAR -->
         <?php include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php'; ?>
-
+        
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
-            <div class="content-wrapper">
+            <div class="container-fluid py-4">
                 
-                <div class="row mb-3">
-                    <div class="col">
-                        <div class="d-flex align-items-center">
-                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php" class="btn btn-outline-secondary btn-sm me-3">
-                                <i class="bi bi-arrow-left"></i>
+                <!-- Breadcrumb -->
+                <nav aria-label="breadcrumb" class="mb-3">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item">
+                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php">
+                                <i class="bi bi-house-door"></i> Inicio
                             </a>
-                            <h4 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Editar Usuario</h4>
-                        </div>
-                    </div>
-                </div>
+                        </li>
+                        <li class="breadcrumb-item">
+                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php">Gestión de Usuarios</a>
+                        </li>
+                        <li class="breadcrumb-item active">Editar Usuario</li>
+                    </ol>
+                </nav>
 
-                <!-- Mostrar mensajes -->
-                <?php if (isset($_GET['msg'])): ?>
-                    <?php if ($_GET['msg'] === 'actualizado'): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="bi bi-check-circle me-2"></i>Usuario actualizado correctamente.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php elseif ($_GET['msg'] === 'activado'): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="bi bi-check-circle me-2"></i>Usuario activado correctamente.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php elseif ($_GET['msg'] === 'desactivado'): ?>
-                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-                            <i class="bi bi-exclamation-triangle me-2"></i>Usuario desactivado correctamente.
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-                <?php endif; ?>
+                <h3 class="mb-4">
+                    <i class="bi bi-person-gear me-2"></i>Editar Usuario: <?php echo htmlspecialchars($usuario['nombre_completo']); ?>
+                </h3>
 
-                <!-- Mostrar errores -->
+                <!-- Mostrar errores si existen -->
                 <?php if (!empty($errores)): ?>
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong>Por favor corrija los siguientes errores:</strong>
+                        <strong><i class="bi bi-exclamation-triangle me-2"></i>Error:</strong>
                         <ul class="mb-0 mt-2">
                             <?php foreach ($errores as $error): ?>
                                 <li><?php echo htmlspecialchars($error); ?></li>
@@ -208,16 +198,18 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                     </div>
                 <?php endif; ?>
 
-                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/procesar_usuario.php" method="POST" id="formEditarUsuario">
+                <form id="formEditarUsuario" action="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/procesar_usuario.php" method="POST">
                     <input type="hidden" name="accion" value="editar">
                     <input type="hidden" name="id" value="<?php echo $usuario_id; ?>">
                     
                     <div class="row">
+                        <!-- Formulario principal -->
                         <div class="col-lg-8">
-                            <!-- Información básica -->
+                            
+                            <!-- Datos personales -->
                             <div class="form-section">
                                 <div class="form-section-title">
-                                    <i class="bi bi-person me-2"></i>Información del Usuario
+                                    <i class="bi bi-person me-2"></i>Datos del Usuario
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
@@ -246,22 +238,41 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
+
+                                    <!-- ⭐ VACACIONES: Campos nuevos -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">No. Nómina</label>
+                                        <input type="text" name="no_nomina" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['no_nomina'] ?? ''); ?>"
+                                               maxlength="20" placeholder="Ej: 1234">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Puesto</label>
+                                        <input type="text" name="puesto" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>"
+                                               maxlength="100" placeholder="Ej: Analista de Sistemas">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Fecha de Ingreso</label>
+                                        <input type="date" name="fecha_ingreso" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['fecha_ingreso'] ?? ''); ?>">
+                                    </div>
+                                    <!-- FIN VACACIONES -->
                                 </div>
                             </div>
 
-                            <!-- Contraseña (opcional) -->
+                            <!-- Contraseña (opcional en edición) -->
                             <div class="form-section">
                                 <div class="form-section-title">
-                                    <i class="bi bi-shield-lock me-2"></i>Cambiar Contraseña
+                                    <i class="bi bi-lock me-2"></i>Cambiar Contraseña <small class="text-muted fw-normal">(Opcional - dejar vacío para no cambiar)</small>
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label class="form-label">Nueva Contraseña</label>
                                         <div class="input-group">
                                             <input type="password" name="password" class="form-control" 
-                                                   id="inputPassword" minlength="8" placeholder="Dejar vacío para no cambiar">
-                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
-                                                    onclick="togglePassword('inputPassword', this)">
+                                                   id="inputPassword" minlength="8" placeholder="Mínimo 8 caracteres">
+                                            <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('inputPassword', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                         </div>
@@ -271,16 +282,12 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <div class="input-group">
                                             <input type="password" name="password_confirm" class="form-control" 
                                                    id="inputPasswordConfirm" minlength="8" placeholder="Repetir contraseña">
-                                            <button type="button" class="btn btn-outline-secondary password-toggle" 
-                                                    onclick="togglePassword('inputPasswordConfirm', this)">
+                                            <button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword('inputPasswordConfirm', this)">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                         </div>
-                                    </div>
-                                    <div class="col-12">
                                         <small class="text-muted">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            Solo complete estos campos si desea cambiar la contraseña. Mínimo 8 caracteres.
+                                            Se permiten letras, números y signos.
                                         </small>
                                     </div>
                                 </div>
@@ -291,6 +298,10 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                 <div class="form-section-title">
                                     <i class="bi bi-key me-2"></i>Permisos por Módulo
                                 </div>
+                                <p class="text-muted small mb-3">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Todos los usuarios tienen permiso de Lector por defecto. Si marca Editor o Creador, Lector se activará automáticamente.
+                                </p>
                                 
                                 <table class="table table-bordered permisos-table mb-0">
                                     <thead class="table-light">
@@ -374,6 +385,39 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                     <i class="bi bi-lightbulb me-1"></i>
                                     <strong>CQR:</strong> Creador = Ventas (crea solicitudes), Editor = Normatividad (responde solicitudes)
                                 </small>
+
+                                <!-- ⭐ VACACIONES: Rol Administrativo de Área -->
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="form-section-title">
+                                        <i class="bi bi-calendar-check me-2"></i>Vacaciones
+                                    </div>
+                                    <table class="table table-bordered permisos-table mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th style="width: 60%;">Rol</th>
+                                                <th style="width: 40%;">Asignado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>Administrativo de Área</strong><br>
+                                                    <small class="text-muted">Jefe/Responsable del departamento — puede aprobar solicitudes de vacaciones</small>
+                                                </td>
+                                                <td>
+                                                    <div class="form-check d-flex justify-content-center">
+                                                        <input type="checkbox" name="es_admin_area" value="1" class="form-check-input" 
+                                                               id="es_admin_area" <?php echo ($form_data['es_admin_area'] ?? 0) ? 'checked' : ''; ?>>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <small class="text-muted mt-1 d-block">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Al marcar esta casilla, el usuario podrá aprobar/rechazar solicitudes de vacaciones de su departamento.
+                                    </small>
+                                </div>
                             </div>
 
                             <!-- Botones de acción -->
