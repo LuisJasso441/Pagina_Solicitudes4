@@ -1,11 +1,40 @@
 <?php
 /**
- * Sidebar para usuarios colaborativos
- * includes/sidebar/sidebar_colaborativo.php
+ * Sidebar para GTH (Gestion de Talento Humano) y Contabilidad
+ * includes/sidebar/sidebar_gth.php
+ * Incluye acceso directo a Panel GTH de Vacaciones
  */
+
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) { destruir_sesion(); }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
 require_once __DIR__ . '/../../config/database.php';
+
+$pdo = conectarDB();
+
+// Ordenes pendientes de validacion
+$stmt_pendientes = $pdo->prepare("
+    SELECT COUNT(*) as total 
+    FROM ordenes_servicio_mantenimiento 
+    WHERE usuario_id = :usuario_id 
+    AND estado = 'pendiente_usuario'
+");
+$stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
+$ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+
+// Solicitudes de vacaciones pendientes GTH
+try {
+    $stmt_vac = $pdo->query("SELECT COUNT(*) FROM solicitudes_vacaciones WHERE estado = 'pendiente_gth'");
+    $vacaciones_pendientes_gth = (int)$stmt_vac->fetchColumn();
+} catch (Exception $e) {
+    $vacaciones_pendientes_gth = 0;
+}
 ?>
 
 <!-- Boton Hamburguesa para Sidebar Responsive -->
@@ -28,15 +57,15 @@ require_once __DIR__ . '/../../config/database.php';
     <div class="sidebar-header">
         <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
         <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
-        <small><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
-        <span class="badge bg-info mt-2">Colaborativo</span>
+        <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
+        <span class="badge bg-success mt-2">GTH</span>
     </div>
     
     <nav class="sidebar-nav">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'colaborativo.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php">
+                <a class="nav-link <?php echo $current_page == 'departamento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/departamento.php">
                     <i class="bi bi-house-door"></i> Inicio
                 </a>
             </li>
@@ -93,7 +122,7 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-file-earmark-medical"></i> Cotizaciones QR
                 </a>
             </li>
-            
+
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ORDENES DE SERVICIO</small>
             
@@ -103,6 +132,16 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-clipboard-check"></i> Ordenes de Mantenimiento
                 </a>
             </li>
+            
+            <?php if ($ordenes_pendientes_validar > 0): ?>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'mis_ordenes_servicio.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/mis_ordenes_servicio.php">
+                    <i class="bi bi-exclamation-circle"></i> Mis Ordenes
+                    <span class="badge bg-warning text-dark ms-auto"><?php echo $ordenes_pendientes_validar; ?></span>
+                </a>
+            </li>
+            <?php endif; ?>
 
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">SALA DE JUNTAS</small>
@@ -113,10 +152,10 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-calendar-event"></i> Reservar Sala de Juntas
                 </a>
             </li>
-
+            
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">VACACIONES</small>
-
+            
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'mis_vacaciones.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php">
@@ -131,14 +170,15 @@ require_once __DIR__ . '/../../config/database.php';
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (function_exists('es_usuario_gth') && es_usuario_gth()): ?>
             <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['vacaciones_gth.php', 'ver_solicitud_vacaciones.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_gth.php">
                     <i class="bi bi-clipboard2-check"></i> Panel GTH
+                    <?php if ($vacaciones_pendientes_gth > 0): ?>
+                    <span class="badge bg-warning text-dark ms-auto"><?php echo $vacaciones_pendientes_gth; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
-            <?php endif; ?>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">
@@ -149,3 +189,8 @@ require_once __DIR__ . '/../../config/database.php';
         </ul>
     </nav>
 </aside>
+
+<?php 
+$modal_path = __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php';
+if (file_exists($modal_path)) { include $modal_path; }
+?>

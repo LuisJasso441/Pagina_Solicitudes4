@@ -96,9 +96,21 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vacaciones - Admin de Área - <?php echo NOMBRE_SISTEMA; ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="<?php echo URL_BASE; ?>assets/css/sidebar.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
+    
+    <!-- CSS Modular Responsive -->
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    
+    <!-- Sistema de notificaciones -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
         .filter-tabs .nav-link {
             color: #6c757d;
