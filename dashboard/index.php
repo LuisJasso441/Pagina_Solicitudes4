@@ -31,9 +31,9 @@ if (es_usuario_ti()) {
     // Usuario de departamento colaborativo (Normatividad, Ventas, Laboratorio)
     echo "<!-- Redirigiendo a Colaborativo -->";
     redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
-} elseif (in_array($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'])), ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
-    echo "<!-- Redirigiendo a Dashboard EPP -->";
-    redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
+} elseif (in_array($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'])), ['gestion_talento', 'contabilidad'])) {
+    echo "<!-- Redirigiendo a Dashboard GTH -->";
+    redirigir(URL_BASE . 'dashboard/gth/dashboard_gth.php');
 } else {
     // Usuario de departamento normal
     echo "<!-- Redirigiendo a Departamento Normal -->";

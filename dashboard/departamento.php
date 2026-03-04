@@ -31,12 +31,6 @@ if (es_usuario_colaborativo()) {
     redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
 }
 
-// ⭐ NUEVO: Redirigir usuarios de Inventario EPP
-$depto_codigo_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
-if (in_array($depto_codigo_actual, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
-    redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
-}
-
 $nombre_usuario = $_SESSION['nombre_completo'];
 $departamento = $_SESSION['departamento_nombre'];
 $usuario_id = $_SESSION['usuario_id'];

@@ -47,10 +47,9 @@ $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total']
             <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
             
             <li class="nav-item"><a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud"><i class="bi bi-plus-circle"></i> Nueva Solicitud</a></li>
-            <li class="nav-item"><a class="nav-link <?php echo $current_page == 'crear_mantenimiento.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/registrar_mantenimiento.php"><i class="bi bi-tools"></i> Solicitar Mantenimiento</a></li>
             <li class="nav-item"><a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>solicitudes/listar.php"><i class="bi bi-list-ul"></i> Mis Solicitudes</a></li>
-            <li class="nav-item"><a class="nav-link <?php echo $current_page == 'listar_mantenimientos.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>solicitudes/listar_mantenimientos.php"><i class="bi bi-wrench"></i> Mis Mantenimientos</a></li>
-            <li class="nav-item"><a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>solicitudes/buscar.php"><i class="bi bi-search"></i> Buscar</a></li>
+            <li class="nav-item"><a class="nav-link <?php echo $current_page == 'crear_mantenimiento.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php"><i class="bi bi-tools"></i> Solicitar Mantenimiento</a></li>
+            <li class="nav-item"><a class="nav-link <?php echo $current_page == 'listar_mantenimientos.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"><i class="bi bi-wrench"></i> Mis Mantenimientos</a></li>
             
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ORDENES DE SERVICIO</small>

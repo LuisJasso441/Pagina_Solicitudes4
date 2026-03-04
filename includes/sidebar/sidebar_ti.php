@@ -56,7 +56,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'pendiente') ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=pendiente">
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'pendiente') ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/gestion_solicitudes.php?estado=pendiente">
                     <i class="bi bi-clock-history"></i> Pendientes
                     <?php if ($stats_sidebar['pendientes'] > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $stats_sidebar['pendientes']; ?></span>
@@ -64,7 +64,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'en_proceso') ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=en_proceso">
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'en_proceso') ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/gestion_solicitudes.php?estado=en_proceso">
                     <i class="bi bi-gear"></i> En Proceso
                     <?php if ($stats_sidebar['en_proceso'] > 0): ?>
                     <span class="badge bg-info text-dark ms-2"><?php echo $stats_sidebar['en_proceso']; ?></span>
@@ -72,7 +72,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'finalizada') ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php?estado=finalizada">
+                <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && $filtro_estado_actual == 'finalizada') ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/gestion_solicitudes.php?estado=finalizada">
                     <i class="bi bi-check-circle"></i> Finalizadas
                 </a>
             </li>
@@ -98,7 +98,7 @@ try {
             <small class="text-white-50 px-3 fw-bold">INVENTARIO</small>
             
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/inventario.php">
+                <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php">
                     <i class="bi bi-pc-display"></i> Equipos
                     <?php if ($total_equipos > 0): ?>
                     <span class="badge bg-secondary ms-2"><?php echo $total_equipos; ?></span>
@@ -106,7 +106,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'mantenimientos.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/mantenimientos.php">
+                <a class="nav-link <?php echo $current_page == 'mantenimientos.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
                     <?php if ($mant_pendientes > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $mant_pendientes; ?></span>
@@ -132,7 +132,7 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>ti_sistemas/reportes.php">
+                <a class="nav-link <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/reportes.php">
                     <i class="bi bi-graph-up"></i> Reportes
                 </a>
             </li>

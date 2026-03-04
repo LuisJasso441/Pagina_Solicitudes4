@@ -128,11 +128,8 @@ try {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     }
     // ⭐ VACACIONES: Contabilidad separada de EPP → ahora va con GTH
-    elseif (in_array($departamento_lower, ['almacen_refacciones', 'seguridad'])) {
-        redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
-    }
     elseif (in_array($departamento_lower, ['gestion_talento', 'contabilidad'])) {
-        redirigir(URL_BASE . 'dashboard/vacaciones/vacaciones_gth.php');
+        redirigir(URL_BASE . 'dashboard/gth/dashboard_gth.php');
     }
     elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');

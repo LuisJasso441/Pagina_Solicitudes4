@@ -145,12 +145,10 @@ function redirigir_dashboard() {
         redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
     } elseif ($depto_codigo === 'mantenimiento') {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
+    } elseif (in_array($depto_codigo, ['gestion_talento', 'contabilidad'])) {
+        redirigir(URL_BASE . 'dashboard/gth/dashboard_gth.php');
     } elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
-    } elseif (in_array($depto_codigo, ['almacen_refacciones', 'seguridad'])) {
-        redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
-    } elseif (in_array($depto_codigo, ['gestion_talento', 'contabilidad'])) {
-        redirigir(URL_BASE . 'dashboard/vacaciones/vacaciones_gth.php');
     } else {
         redirigir(URL_BASE . 'dashboard/departamento.php');
     }

@@ -42,20 +42,26 @@ function es_usuario_gth_proc() {
 // Helper: insertar notificación (silencioso si falla)
 function notificar_vacaciones($pdo, $usuario_id, $mensaje, $solicitud_id) {
     try {
-        $stmt_check = $pdo->query("SHOW TABLES LIKE 'notificaciones'");
-        if ($stmt_check->rowCount() > 0) {
-            $stmt = $pdo->prepare("
-                INSERT INTO notificaciones (usuario_id, tipo, mensaje, url, leida, fecha_creacion)
-                VALUES (?, 'vacaciones', ?, ?, 0, NOW())
-            ");
-            $stmt->execute([
-                $usuario_id,
-                $mensaje,
-                "dashboard/vacaciones/ver_solicitud_vacaciones.php?id={$solicitud_id}"
-            ]);
-        }
+        $stmt = $pdo->prepare("
+            INSERT INTO notificaciones 
+            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, 0, NOW())
+        ");
+        
+        $datos_json = json_encode([
+            'solicitud_id' => $solicitud_id,
+            'url' => URL_BASE . 'dashboard/vacaciones/ver_solicitud_vacaciones.php?id=' . $solicitud_id
+        ], JSON_UNESCAPED_UNICODE);
+        
+        $stmt->execute([
+            'vacaciones',
+            'Vacaciones',
+            $mensaje,
+            $usuario_id,
+            $datos_json
+        ]);
     } catch (Exception $e) {
-        error_log("Error notificación vacaciones: " . $e->getMessage());
+        error_log("Error notificacion vacaciones: " . $e->getMessage());
     }
 }
 

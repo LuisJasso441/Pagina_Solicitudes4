@@ -2,7 +2,9 @@
 /**
  * Sidebar para GTH (Gestion de Talento Humano) y Contabilidad
  * includes/sidebar/sidebar_gth.php
- * Incluye acceso directo a Panel GTH de Vacaciones
+ * 
+ * Sidebar exclusivo e independiente para GTH y Contabilidad.
+ * NO incluye modulos colaborativos (SSC), CQR ni inventario EPP.
  */
 
 if (!isset($_SESSION['usuario_id'])) {
@@ -19,14 +21,18 @@ require_once __DIR__ . '/../../config/database.php';
 $pdo = conectarDB();
 
 // Ordenes pendientes de validacion
-$stmt_pendientes = $pdo->prepare("
-    SELECT COUNT(*) as total 
-    FROM ordenes_servicio_mantenimiento 
-    WHERE usuario_id = :usuario_id 
-    AND estado = 'pendiente_usuario'
-");
-$stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
-$ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+try {
+    $stmt_pendientes = $pdo->prepare("
+        SELECT COUNT(*) as total 
+        FROM ordenes_servicio_mantenimiento 
+        WHERE usuario_id = :usuario_id 
+        AND estado = 'pendiente_usuario'
+    ");
+    $stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+} catch (Exception $e) {
+    $ordenes_pendientes_validar = 0;
+}
 
 // Solicitudes de vacaciones pendientes GTH
 try {
@@ -58,14 +64,13 @@ try {
         <i class="bi bi-people-fill text-white fs-1 mb-2"></i>
         <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
         <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
-        <span class="badge bg-success mt-2">GTH</span>
     </div>
     
     <nav class="sidebar-nav">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'departamento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/departamento.php">
+                <a class="nav-link <?php echo $current_page == 'dashboard_gth.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/gth/dashboard_gth.php">
                     <i class="bi bi-house-door"></i> Inicio
                 </a>
             </li>
@@ -85,44 +90,18 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                    <i class="bi bi-search"></i> Buscar
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'crear_mantenimiento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/registrar_mantenimiento.php">
+                <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
                     <i class="bi bi-tools"></i> Solicitar Mantenimiento
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'listar_mantenimientos.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/listar_mantenimientos.php">
+                <a class="nav-link <?php echo $current_page == 'mantenimientos.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
                     <i class="bi bi-wrench"></i> Mis Mantenimientos
                 </a>
             </li>
             
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>
-            
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'documentos_colaborativos.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/colaborativo/documentos_colaborativos.php">
-                    <i class="bi bi-file-earmark-text"></i> Solicitudes de Servicio a Clientes
-                </a>
-            </li>
-            
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">COTIZACIONES QUIMICOS</small>
-            
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'cotizaciones_qr.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/cotizaciones_qr/cotizaciones_qr.php">
-                    <i class="bi bi-file-earmark-medical"></i> Cotizaciones QR
-                </a>
-            </li>
-
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ORDENES DE SERVICIO</small>
             
