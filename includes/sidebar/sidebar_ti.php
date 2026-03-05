@@ -161,11 +161,6 @@ try {
                 </a>
             </li>
             <?php endif; ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo in_array($current_page, ['vacaciones_gth.php','ver_solicitud_vacaciones.php']) ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_gth.php">
-                    <i class="bi bi-clipboard2-check"></i> Panel GTH
-                </a>
-            </li>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">

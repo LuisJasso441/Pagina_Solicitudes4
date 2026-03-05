@@ -178,7 +178,15 @@ $es_ti = in_array($depto_codigo, ['sistemas', 'ti']);
                 <div class="page-header">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <h1><i class="bi bi-building-check"></i> Vacaciones - Gestión de Talento Humano</h1>
+                            <h1><i class="bi bi-clipboard2-check"></i> Vacaciones - Panel GTH</h1>
+                        </div>
+                        <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/descargar_vacaciones_excel.php?anio=<?php echo date('Y'); ?>" 
+                           class="btn btn-success">
+                            <i class="bi bi-file-earmark-excel me-1"></i> Descargar BD
+                        </a>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
                             <p class="text-muted mb-0" style="font-size: 0.8rem;">
                                 Gestión de solicitudes de vacaciones de todos los departamentos
                             </p>

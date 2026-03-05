@@ -67,7 +67,6 @@ $ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total']
             <li class="nav-item"><a class="nav-link <?php echo $current_page == 'vacaciones_admin.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_admin.php"><i class="bi bi-person-check"></i> Panel Admin Area</a></li>
             <?php endif; ?>
             <?php if (function_exists('es_usuario_gth') && es_usuario_gth()): ?>
-            <li class="nav-item"><a class="nav-link <?php echo in_array($current_page, ['vacaciones_gth.php','ver_solicitud_vacaciones.php']) ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_gth.php"><i class="bi bi-clipboard2-check"></i> Panel GTH</a></li>
             <?php endif; ?>
             
             <hr class="text-white-50 my-3">

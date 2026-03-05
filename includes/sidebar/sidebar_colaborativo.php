@@ -125,14 +125,6 @@ require_once __DIR__ . '/../../config/database.php';
                 </a>
             </li>
             <?php endif; ?>
-            <?php if (function_exists('es_usuario_gth') && es_usuario_gth()): ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo in_array($current_page, ['vacaciones_gth.php', 'ver_solicitud_vacaciones.php']) ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_gth.php">
-                    <i class="bi bi-clipboard2-check"></i> Panel GTH
-                </a>
-            </li>
-            <?php endif; ?>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">
