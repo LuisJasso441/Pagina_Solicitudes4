@@ -257,6 +257,22 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <input type="date" name="fecha_ingreso" class="form-control" 
                                                value="<?php echo htmlspecialchars($form_data['fecha_ingreso'] ?? ''); ?>">
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Periodo</label>
+                                        <select name="periodo_pago" class="form-select">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="quincenal" <?php echo (($form_data['periodo_pago'] ?? '') === 'quincenal') ? 'selected' : ''; ?>>Quincenal</option>
+                                            <option value="semanal" <?php echo (($form_data['periodo_pago'] ?? '') === 'semanal') ? 'selected' : ''; ?>>Semanal</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Empresa</label>
+                                        <select name="empresa" class="form-select">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="resimex" <?php echo (($form_data['empresa'] ?? '') === 'resimex') ? 'selected' : ''; ?>>Resimex</option>
+                                            <option value="carganova" <?php echo (($form_data['empresa'] ?? '') === 'carganova') ? 'selected' : ''; ?>>Carganova</option>
+                                        </select>
+                                    </div>
                                     <!-- FIN VACACIONES -->
                                 </div>
                             </div>

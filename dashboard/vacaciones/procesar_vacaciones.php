@@ -253,6 +253,7 @@ elseif ($accion === 'aprobar_admin') {
     
     $solicitud_id = intval($_POST['solicitud_id'] ?? 0);
     $firma_admin  = $_POST['firma_admin'] ?? '';
+    $firma_empleado_manual = $_POST['firma_empleado_manual'] ?? '';
     $comentarios  = mb_substr(trim($_POST['comentarios_admin'] ?? ''), 0, 500);
     
     if (empty($_SESSION['es_admin_area'])) {
@@ -320,6 +321,147 @@ elseif ($accion === 'aprobar_admin') {
         error_log("Error aprobar_admin vacaciones: " . $e->getMessage());
         $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Error al aprobar la solicitud.'];
         header('Location: ' . URL_BASE . 'dashboard/vacaciones/ver_solicitud_vacaciones.php?id=' . $solicitud_id);
+        exit;
+    }
+}
+
+// =====================================================
+// ACCION: CREAR SOLICITUD MANUAL (Admin de Area)
+// =====================================================
+if ($accion === 'crear_manual') {
+    
+    // Verificar que sea Admin de Area
+    if (empty($_SESSION['es_admin_area'])) {
+        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'No tienes permisos para crear solicitudes manuales.'];
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/vacaciones_admin.php');
+        exit;
+    }
+    
+    $nombre_manual = trim($_POST['nombre_manual'] ?? '');
+    $no_nomina_manual = trim($_POST['no_nomina_manual'] ?? '');
+    $departamento_id_manual = intval($_POST['departamento_id_manual'] ?? 0);
+    $puesto_manual = trim($_POST['puesto_manual'] ?? '');
+    $fecha_ingreso_manual = trim($_POST['fecha_ingreso_manual'] ?? '');
+    $periodo_pago_manual = trim($_POST['periodo_pago_manual'] ?? '');
+    $empresa_manual = trim($_POST['empresa_manual'] ?? '');
+    $dias_ya_tomados = intval($_POST['dias_ya_tomados'] ?? 0);
+    
+    $fecha_inicio = trim($_POST['fecha_inicio'] ?? '');
+    $fecha_fin = trim($_POST['fecha_fin'] ?? '');
+    $fecha_regreso = trim($_POST['fecha_regreso'] ?? '');
+    $motivo = trim($_POST['motivo'] ?? '');
+    $firma_admin = $_POST['firma_admin'] ?? '';
+    $firma_empleado_manual = $_POST['firma_empleado_manual'] ?? '';
+    
+    // Validaciones
+    if (empty($nombre_manual)) {
+        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'El nombre del empleado es obligatorio.'];
+        $_SESSION['form_data_vacaciones_manual'] = $_POST;
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_manual.php');
+        exit;
+    }
+    
+    if (empty($fecha_ingreso_manual) || empty($fecha_inicio) || empty($fecha_fin)) {
+        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Las fechas son obligatorias.'];
+        $_SESSION['form_data_vacaciones_manual'] = $_POST;
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_manual.php');
+        exit;
+    }
+    
+    if ($departamento_id_manual <= 0) {
+        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Debe seleccionar un departamento.'];
+        $_SESSION['form_data_vacaciones_manual'] = $_POST;
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_manual.php');
+        exit;
+    }
+    
+    if (empty($firma_admin)) {
+        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'La firma del administrador es obligatoria.'];
+        $_SESSION['form_data_vacaciones_manual'] = $_POST;
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_manual.php');
+        exit;
+    }
+    
+    // Calcular dias solicitados (L-S)
+    $dias_solicitados = 0;
+    $d = new DateTime($fecha_inicio);
+    $fin_dt = new DateTime($fecha_fin);
+    while ($d <= $fin_dt) {
+        if ($d->format('N') <= 6) $dias_solicitados++;
+        $d->modify('+1 day');
+    }
+    
+    // Calcular dias LFT desde fecha_ingreso_manual
+    $fi_dt = new DateTime($fecha_ingreso_manual);
+    $hoy_dt = new DateTime();
+    $diff_anios = max(1, (int)$fi_dt->diff($hoy_dt)->y);
+    $dias_correspondientes = dias_vacaciones_lft($diff_anios);
+    $dias_pendientes = max(0, $dias_correspondientes - $dias_ya_tomados);
+    $saldo_dias = $dias_pendientes - $dias_solicitados;
+    
+    $periodo_vacacional = $diff_anios . json_decode('"\u00b0"') . ' a' . json_decode('"\u00f1"') . 'o';
+    
+    $motivo = mb_substr($motivo, 0, 500);
+    
+    try {
+        $pdo->beginTransaction();
+        
+        $folio = generar_folio_vacaciones($pdo);
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO solicitudes_vacaciones (
+                folio, usuario_id, departamento_id,
+                fecha_solicitud, periodo_vacacional, dias_correspondientes, dias_pendientes,
+                dias_solicitados, saldo_dias_pendientes,
+                fecha_inicio, fecha_fin, fecha_regreso, motivo,
+                firma_empleado, fecha_firma_empleado,
+                firma_admin, fecha_firma_admin, admin_id,
+                estado, fecha_creacion,
+                es_manual, admin_creador_id,
+                nombre_manual, no_nomina_manual, puesto_manual,
+                fecha_ingreso_manual, periodo_pago_manual, empresa_manual
+            ) VALUES (?, NULL, ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), ?, 'pendiente_gth', NOW(), 1, ?, ?, ?, ?, ?, ?, ?)
+        ");
+        $stmt->execute([
+            $folio, $departamento_id_manual,
+            $periodo_vacacional, $dias_correspondientes, $dias_pendientes,
+            $dias_solicitados, $saldo_dias,
+            $fecha_inicio, $fecha_fin, $fecha_regreso ?: null, $motivo ?: null,
+            $firma_empleado_manual,
+            $firma_admin, $_SESSION['usuario_id'],
+            $_SESSION['usuario_id'],
+            $nombre_manual, $no_nomina_manual ?: null, $puesto_manual ?: null,
+            $fecha_ingreso_manual, $periodo_pago_manual ?: null, $empresa_manual ?: null
+        ]);
+        
+        $solicitud_id = $pdo->lastInsertId();
+        
+        // Notificar a GTH (salta aprobacion admin porque el admin ya firmo)
+        $stmt_gth = $pdo->prepare("
+            SELECT u.id FROM usuarios u
+            INNER JOIN departamentos d ON u.departamento_id = d.id
+            WHERE d.codigo IN ('gestion_talento', 'contabilidad') AND u.activo = 1
+        ");
+        $stmt_gth->execute();
+        $usuarios_gth = $stmt_gth->fetchAll(PDO::FETCH_COLUMN);
+        
+        $nombre_admin = $_SESSION['nombre_completo'];
+        foreach ($usuarios_gth as $gth_id) {
+            notificar_vacaciones($pdo, $gth_id, "{$nombre_admin} ha creado solicitud manual de vacaciones ({$folio}) para {$nombre_manual}. Pendiente de GTH.", $solicitud_id);
+        }
+        
+        $pdo->commit();
+        
+        $_SESSION['alerta'] = ['tipo' => 'success', 'mensaje' => "Solicitud manual creada exitosamente. Folio: <strong>{$folio}</strong>. Estado: Pendiente de GTH."];
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/vacaciones_admin.php');
+        exit;
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Error crear solicitud manual vacaciones: " . $e->getMessage());
+        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Error al crear la solicitud: ' . $e->getMessage()];
+        $_SESSION['form_data_vacaciones_manual'] = $_POST;
+        header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_manual.php');
         exit;
     }
 }

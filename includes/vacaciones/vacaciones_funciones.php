@@ -261,17 +261,26 @@ function generar_folio_vacaciones($pdo) {
     $fecha = date('Ymd');
     $prefijo = "VAC-{$fecha}-";
     
-    $stmt = $pdo->prepare("SELECT folio FROM solicitudes_vacaciones WHERE folio LIKE ? ORDER BY id DESC LIMIT 1");
+    // Usar MAX para obtener el numero mas alto del dia, incluyendo registros borrados en el auto_increment
+    $stmt = $pdo->prepare("SELECT MAX(CAST(SUBSTRING(folio, -4) AS UNSIGNED)) FROM solicitudes_vacaciones WHERE folio LIKE ?");
     $stmt->execute([$prefijo . '%']);
-    $ultimo = $stmt->fetchColumn();
+    $max = $stmt->fetchColumn();
     
-    if ($ultimo) {
-        $numero = intval(substr($ultimo, -4)) + 1;
-    } else {
-        $numero = 1;
+    $numero = ($max !== null && $max !== false) ? intval($max) + 1 : 1;
+    
+    // Verificar que no exista (por seguridad)
+    $folio = $prefijo . str_pad($numero, 4, '0', STR_PAD_LEFT);
+    $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM solicitudes_vacaciones WHERE folio = ?");
+    $stmt2->execute([$folio]);
+    
+    // Si existe, incrementar hasta encontrar uno libre
+    while ((int)$stmt2->fetchColumn() > 0) {
+        $numero++;
+        $folio = $prefijo . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        $stmt2->execute([$folio]);
     }
     
-    return $prefijo . str_pad($numero, 4, '0', STR_PAD_LEFT);
+    return $folio;
 }
 
 // =====================================================

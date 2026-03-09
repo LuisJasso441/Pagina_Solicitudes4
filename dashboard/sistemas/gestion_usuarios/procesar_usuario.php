@@ -112,6 +112,8 @@ if ($accion === 'crear') {
     $no_nomina = trim($_POST['no_nomina'] ?? '');
     $puesto = trim($_POST['puesto'] ?? '');
     $fecha_ingreso = trim($_POST['fecha_ingreso'] ?? '');
+    $periodo_pago = trim($_POST['periodo_pago'] ?? '');
+    $empresa = trim($_POST['empresa'] ?? '');
     $es_admin_area = isset($_POST['es_admin_area']) ? 1 : 0;
     
     // Permisos SSC
@@ -179,14 +181,16 @@ if ($accion === 'crear') {
     
     try {
         // ⭐ Insertar usuario (con campos de Vacaciones)
-        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, usuario, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, periodo_pago, empresa, usuario, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $nombre_completo,
             $no_nomina ?: null,
             $puesto ?: null,
             $fecha_ingreso ?: null,
+            $periodo_pago ?: null,
+            $empresa ?: null,
             strtoupper($usuario), 
             $password_hash, 
             $departamento_codigo, 
@@ -251,6 +255,8 @@ elseif ($accion === 'editar') {
     $no_nomina = trim($_POST['no_nomina'] ?? '');
     $puesto = trim($_POST['puesto'] ?? '');
     $fecha_ingreso = trim($_POST['fecha_ingreso'] ?? '');
+    $periodo_pago = trim($_POST['periodo_pago'] ?? '');
+    $empresa = trim($_POST['empresa'] ?? '');
     $es_admin_area = isset($_POST['es_admin_area']) ? 1 : 0;
     
     // Permisos SSC
@@ -324,6 +330,7 @@ elseif ($accion === 'editar') {
                         no_nomina = ?,
                         puesto = ?,
                         fecha_ingreso = ?,
+                        periodo_pago = ?,
                         usuario = ?, 
                         password = ?,
                         departamento = ?, 
@@ -338,6 +345,7 @@ elseif ($accion === 'editar') {
                 $no_nomina ?: null,
                 $puesto ?: null,
                 $fecha_ingreso ?: null,
+                $periodo_pago ?: null,
                 strtoupper($usuario),
                 $password_hash,
                 $departamento_codigo,

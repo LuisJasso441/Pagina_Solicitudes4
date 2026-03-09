@@ -232,11 +232,11 @@ $es_mantenimiento = ($depto_codigo === 'mantenimiento');
                                 <div class="row g-3 mb-4">
                                     <div class="col-md-6">
                                         <div class="detail-label">Nombre completo</div>
-                                        <div class="detail-value"><?php echo htmlspecialchars($sol['nombre_completo']); ?></div>
+                                        <div class="detail-value"><?php echo htmlspecialchars($sol['nombre_completo'] ?? $sol['nombre_manual'] ?? ''); ?></div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="detail-label">No. Nómina</div>
-                                        <div class="detail-value"><?php echo htmlspecialchars($sol['no_nomina'] ?: 'N/A'); ?></div>
+                                        <div class="detail-value"><?php echo htmlspecialchars($sol['no_nomina'] ?? $sol['no_nomina_manual'] ?? 'N/A'); ?></div>
                                     </div>
                                     <div class="col-md-3">
                                         <div class="detail-label">Departamento</div>
@@ -244,11 +244,11 @@ $es_mantenimiento = ($depto_codigo === 'mantenimiento');
                                     </div>
                                     <div class="col-md-4">
                                         <div class="detail-label">Puesto</div>
-                                        <div class="detail-value"><?php echo htmlspecialchars($sol['puesto'] ?: 'N/A'); ?></div>
+                                        <div class="detail-value"><?php echo htmlspecialchars($sol['puesto'] ?? $sol['puesto_manual'] ?? 'N/A'); ?></div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="detail-label">Fecha de ingreso</div>
-                                        <div class="detail-value"><?php echo fecha_corta_es($sol['fecha_ingreso']); ?></div>
+                                        <div class="detail-value"><?php echo htmlspecialchars($sol['fecha_ingreso'] ?? $sol['fecha_ingreso_manual'] ?? ''); ?></div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="detail-label">Antigüedad</div>

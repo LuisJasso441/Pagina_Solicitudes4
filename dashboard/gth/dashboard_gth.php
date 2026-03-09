@@ -301,7 +301,7 @@ $fecha_hoy = obtener_fecha_actual_espanol();
                                             <?php foreach ($recientes as $sol): ?>
                                             <tr>
                                                 <td><span class="badge bg-success bg-opacity-10 text-success"><?php echo htmlspecialchars($sol['folio']); ?></span></td>
-                                                <td><?php echo htmlspecialchars($sol['nombre_completo']); ?></td>
+                                                <td><?php echo htmlspecialchars($sol['nombre_completo'] ?? $sol['nombre_manual'] ?? ''); ?></td>
                                                 <td><small class="text-muted"><?php echo htmlspecialchars($sol['departamento_nombre']); ?></small></td>
                                                 <td><span class="fw-bold"><?php echo $sol['dias_solicitados']; ?></span></td>
                                                 <td>

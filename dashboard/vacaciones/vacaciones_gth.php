@@ -311,7 +311,7 @@ $es_ti = in_array($depto_codigo, ['sistemas', 'ti']);
                                             <strong class="text-primary"><?php echo htmlspecialchars($sol['folio']); ?></strong>
                                         </td>
                                         <td>
-                                            <div><?php echo htmlspecialchars($sol['nombre_completo']); ?></div>
+                                            <div><?php echo htmlspecialchars($sol['nombre_completo'] ?? $sol['nombre_manual'] ?? ''); ?></div>
                                             <small class="text-muted"><?php echo htmlspecialchars($sol['no_nomina'] ?: ''); ?></small>
                                         </td>
                                         <td>

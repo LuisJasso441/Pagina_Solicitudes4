@@ -198,7 +198,10 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                                 Solicitudes del departamento: <strong><?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ''); ?></strong>
                             </p>
                         </div>
-                        <div>
+                        <div class="d-flex gap-2">
+                            <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/nueva_solicitud_manual.php" class="btn btn-warning btn-sm">
+                                <i class="bi bi-pencil-square me-1"></i> Solicitud Manual
+                            </a>
                             <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-arrow-left me-1"></i> Mis Vacaciones
                             </a>
