@@ -95,10 +95,11 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">INVENTARIO</small>
+            <small class="text-white-50 px-3 fw-bold">INVENTARIO TI</small>
             
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php">
+                <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php">
                     <i class="bi bi-pc-display"></i> Equipos
                     <?php if ($total_equipos > 0): ?>
                     <span class="badge bg-secondary ms-2"><?php echo $total_equipos; ?></span>
@@ -106,7 +107,14 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'mantenimientos.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
+                <a class="nav-link <?php echo $current_page == 'crear_equipo.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/crear_equipo.php">
+                    <i class="bi bi-plus-circle"></i> Nuevo Equipo
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
                     <?php if ($mant_pendientes > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $mant_pendientes; ?></span>
@@ -120,20 +128,6 @@ try {
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
                     <i class="bi bi-clipboard-check"></i> Ordenes de Mantenimiento
-                </a>
-            </li>
-            
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">HERRAMIENTAS</small>
-            
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                    <i class="bi bi-search"></i> Buscar
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>" href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/reportes.php">
-                    <i class="bi bi-graph-up"></i> Reportes
                 </a>
             </li>
 
