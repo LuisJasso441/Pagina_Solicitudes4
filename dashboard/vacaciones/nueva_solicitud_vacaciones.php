@@ -3,7 +3,7 @@
  * Nueva Solicitud de Vacaciones
  * dashboard/vacaciones/nueva_solicitud_vacaciones.php
  * Formato basado en documento oficial GrupoVerden
- * jSignature via CDN (igual que OSM)
+ * ACTUALIZADO: Dias festivos MX + jornada L-V/L-S
  */
 session_start();
 require_once __DIR__ . '/../../config/config.php';
@@ -50,15 +50,11 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
-    
-    <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-    
-    <!-- Sistema de notificaciones -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
         .doc-container{background:#fff;border:2px solid #000;max-width:900px;margin:0 auto}
@@ -93,6 +89,7 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
         .dias-highlight{font-size:1.2rem;font-weight:700;color:#198754;transition:all .3s}
         .dias-highlight.excedido{color:#dc3545}
         .fecha-solicitud{text-align:right;padding:10px 20px;border-bottom:1px solid #dee2e6;font-size:.88rem}
+        .festivo-info{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;font-size:.8rem;margin-top:8px;display:none}
         @media(max-width:768px){.firmas-row{flex-direction:column}.fechas-row{flex-direction:column;gap:10px}}
     </style>
 </head>
@@ -168,7 +165,7 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
                                 </div>
                             </div>
 
-                            <!-- Tabla periodo (igual al PDF) -->
+                            <!-- Tabla periodo -->
                             <table class="tabla-periodo">
                                 <tr><th>Periodo Vacacional Corriente</th><td><?php echo $periodo_vacacional; ?></td></tr>
                                 <tr><th>D&iacute;as de Vacaciones Correspondientes al Periodo</th><td><?php echo $dias_correspondientes; ?></td></tr>
@@ -181,10 +178,13 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
                                 <i class="bi bi-exclamation-triangle me-1"></i> Excede los d&iacute;as disponibles.
                             </div>
 
-                            <p class="text-muted mt-2 mb-3" style="font-size:.8rem">
+                            <p class="text-muted mt-2 mb-1" style="font-size:.8rem">
                                 <i class="bi bi-info-circle me-1"></i>
-                                De acuerdo con la Ley Federal de Trabajo, Art&iacute;culos 76 y 80. D&iacute;as h&aacute;biles: Lunes a S&aacute;bado.
+                                De acuerdo con la Ley Federal de Trabajo, Art&iacute;culos 76 y 80. Se excluyen domingos, d&iacute;as festivos oficiales y los extras de la empresa.
                             </p>
+                            <div id="festivoInfo" class="festivo-info">
+                                <i class="bi bi-calendar-x me-1"></i> <span id="festivoTexto"></span>
+                            </div>
 
                             <!-- DEL / AL / REGRESA -->
                             <h6 class="text-uppercase fw-bold mt-4 mb-3">D&iacute;as de Vacaciones</h6>
@@ -204,7 +204,7 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
                             </div>
                             <small class="text-muted" id="diasInfo">Seleccione las fechas de inicio y fin</small>
 
-                            <!-- 3 Firmas (formato PDF) -->
+                            <!-- 3 Firmas -->
                             <div class="firmas-row">
                                 <div class="firma-box">
                                     <div class="firma-canvas-container" id="firmaContainer">
@@ -245,7 +245,36 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
         const diasPendientes = <?php echo $dias_pendientes; ?>;
         let firmaOk = false, diasHabiles = 0;
 
-        // jSignature - CDN igual que OSM
+        // Festivos y jornada desde API
+        let diasFestivos = [];
+        let festivosDetalle = [];
+        let jornadaEmpleado = 'lunes_sabado';
+
+        fetch('<?php echo URL_BASE; ?>api/dias_festivos.php?anio=' + new Date().getFullYear() + '&usuario_id=<?php echo $_SESSION["usuario_id"]; ?>')
+            .then(r => r.json())
+            .then(data => {
+                diasFestivos = data.festivos_fechas || [];
+                festivosDetalle = data.festivos || [];
+                jornadaEmpleado = data.jornada || 'lunes_sabado';
+            })
+            .catch(() => {});
+
+        // Helper: formato fecha YYYY-MM-DD
+        function fmtFecha(d) {
+            return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        }
+
+        // Helper: es dia habil?
+        function esDiaHabil(fecha) {
+            const dow = fecha.getDay();
+            const fechaStr = fmtFecha(fecha);
+            if (dow === 0) return false; // domingo
+            if (jornadaEmpleado === 'lunes_viernes' && dow === 6) return false; // sabado si L-V
+            if (diasFestivos.includes(fechaStr)) return false; // festivo
+            return true;
+        }
+
+        // jSignature
         const $firma = $("#firma");
         $firma.jSignature({ color:'#000000', lineWidth:2, background:'#ffffff', width:'100%', height:120, 'decor-color':'transparent' });
 
@@ -266,7 +295,7 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
             validar();
         });
 
-        // Calculo dias habiles L-S
+        // Calculo dias habiles con festivos y jornada
         function calcular() {
             const fi = document.getElementById('fecha_inicio').value;
             const ff = document.getElementById('fecha_fin').value;
@@ -275,29 +304,57 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
             const elI = document.getElementById('diasInfo');
             const elA = document.getElementById('alertaExceso');
             const elR = document.getElementById('fecha_regreso');
+            const elFI = document.getElementById('festivoInfo');
+            const elFT = document.getElementById('festivoTexto');
 
-            if (!fi || !ff) { elD.textContent='0'; elD.classList.remove('excedido'); elS.textContent=diasPendientes; elI.textContent='Seleccione las fechas'; elA.style.display='none'; elR.value=''; diasHabiles=0; validar(); return; }
+            if (!fi || !ff) { elD.textContent='0'; elD.classList.remove('excedido'); elS.textContent=diasPendientes; elI.textContent='Seleccione las fechas'; elA.style.display='none'; elR.value=''; elFI.style.display='none'; diasHabiles=0; validar(); return; }
 
             const inicio = new Date(fi+'T00:00:00'), fin = new Date(ff+'T00:00:00');
             if (inicio > fin) { elD.textContent='0'; elD.classList.add('excedido'); elI.innerHTML='<span class="text-danger">Fecha "Al" debe ser posterior a "Del"</span>'; diasHabiles=0; validar(); return; }
 
-            let dias = 0; const c = new Date(inicio);
-            while (c <= fin) { if (c.getDay() >= 1 && c.getDay() <= 6) dias++; c.setDate(c.getDate()+1); }
+            // Contar dias habiles y detectar festivos en rango
+            let dias = 0;
+            let festivosEnRango = [];
+            const c = new Date(inicio);
+            while (c <= fin) {
+                const fechaStr = fmtFecha(c);
+                if (esDiaHabil(c)) {
+                    dias++;
+                } else if (diasFestivos.includes(fechaStr) && c.getDay() !== 0) {
+                    // Es festivo y no domingo (mostrar info)
+                    const detalle = festivosDetalle.find(f => f.fecha === fechaStr);
+                    if (detalle) festivosEnRango.push(detalle.nombre + ' (' + fechaStr + ')');
+                }
+                c.setDate(c.getDate()+1);
+            }
 
             diasHabiles = dias; elD.textContent = dias;
             const saldo = diasPendientes - dias; elS.textContent = saldo;
 
-            // Fecha regreso = siguiente dia habil despues de fin
+            // Fecha regreso = siguiente dia habil
             const reg = new Date(fin); reg.setDate(reg.getDate()+1);
-            while (reg.getDay() === 0) reg.setDate(reg.getDate()+1);
-            elR.value = reg.getFullYear()+'-'+String(reg.getMonth()+1).padStart(2,'0')+'-'+String(reg.getDate()).padStart(2,'0');
+            for (let i = 0; i < 30; i++) {
+                if (esDiaHabil(reg)) break;
+                reg.setDate(reg.getDate()+1);
+            }
+            elR.value = fmtFecha(reg);
+
+            // Info festivos
+            if (festivosEnRango.length > 0) {
+                elFT.textContent = 'D\u00edas festivos en el rango (no se cuentan): ' + festivosEnRango.join(', ');
+                elFI.style.display = 'block';
+            } else {
+                elFI.style.display = 'none';
+            }
+
+            const jornadaTxt = jornadaEmpleado === 'lunes_viernes' ? 'Lunes a Viernes' : 'Lunes a S\u00e1bado';
 
             if (dias > diasPendientes) {
                 elD.classList.add('excedido'); elS.style.color='#dc3545';
                 elI.innerHTML='<span class="text-danger">Excede los '+diasPendientes+' dias disponibles</span>'; elA.style.display='block';
             } else {
                 elD.classList.remove('excedido'); elS.style.color='';
-                elI.textContent=dias+' dia'+(dias!==1?'s':'')+' habil'+(dias!==1?'es':'')+' (Lunes a Sabado)'; elA.style.display='none';
+                elI.textContent=dias+' dia'+(dias!==1?'s':'')+' habil'+(dias!==1?'es':'')+' ('+jornadaTxt+', excl. festivos)'; elA.style.display='none';
             }
             validar();
         }

@@ -295,9 +295,11 @@ elseif ($accion === 'aprobar_admin') {
         
         $nombre_admin = $_SESSION['nombre_completo'];
         
-        // Notificar al empleado
-        notificar_vacaciones($pdo, $solicitud['usuario_id'],
-            "Tu solicitud ({$solicitud['folio']}) fue aprobada por {$nombre_admin}. Pendiente de GTH.", $solicitud_id);
+        // Notificar al empleado (si tiene cuenta)
+        if (!empty($solicitud['usuario_id'])) {
+            notificar_vacaciones($pdo, $solicitud['usuario_id'],
+                "Tu solicitud ({$solicitud['folio']}) fue aprobada por {$nombre_admin}. Pendiente de GTH.", $solicitud_id);
+        }
         
         // Notificar a GTH
         $stmt_gth = $pdo->prepare("
@@ -494,12 +496,6 @@ elseif ($accion === 'rechazar_admin') {
         exit;
     }
     
-    if (empty($comentarios)) {
-        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Debe indicar un motivo de rechazo.'];
-        header('Location: ' . URL_BASE . 'dashboard/vacaciones/ver_solicitud_vacaciones.php?id=' . $solicitud_id);
-        exit;
-    }
-    
     try {
         $pdo->beginTransaction();
         
@@ -511,8 +507,10 @@ elseif ($accion === 'rechazar_admin') {
         ");
         $stmt->execute([$_SESSION['usuario_id'], $comentarios, $solicitud_id]);
         
-        notificar_vacaciones($pdo, $solicitud['usuario_id'],
-            "Tu solicitud ({$solicitud['folio']}) fue rechazada por " . $_SESSION['nombre_completo'] . ".", $solicitud_id);
+        if (!empty($solicitud['usuario_id'])) {
+            notificar_vacaciones($pdo, $solicitud['usuario_id'],
+                "Tu solicitud ({$solicitud['folio']}) fue rechazada por " . $_SESSION['nombre_completo'] . "." . ($comentarios ? " Motivo: {$comentarios}" : ""), $solicitud_id);
+        }
         
         $pdo->commit();
         
@@ -577,9 +575,11 @@ elseif ($accion === 'aprobar_gth') {
         
         $nombre_gth = $_SESSION['nombre_completo'];
         
-        // Notificar al empleado
-        notificar_vacaciones($pdo, $solicitud['usuario_id'],
-            "Tu solicitud ({$solicitud['folio']}) fue aprobada por GTH ({$nombre_gth}). ¡Disfruta tus vacaciones!", $solicitud_id);
+        // Notificar al empleado (si tiene cuenta)
+        if (!empty($solicitud['usuario_id'])) {
+            notificar_vacaciones($pdo, $solicitud['usuario_id'],
+                "Tu solicitud ({$solicitud['folio']}) fue aprobada por GTH ({$nombre_gth}). ¡Disfruta tus vacaciones!", $solicitud_id);
+        }
         
         // Notificar al Admin que aprobó
         if (!empty($solicitud['admin_id'])) {
@@ -630,12 +630,6 @@ elseif ($accion === 'rechazar_gth') {
         exit;
     }
     
-    if (empty($comentarios)) {
-        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Debe indicar un motivo de rechazo.'];
-        header('Location: ' . URL_BASE . 'dashboard/vacaciones/ver_solicitud_vacaciones.php?id=' . $solicitud_id);
-        exit;
-    }
-    
     try {
         $pdo->beginTransaction();
         
@@ -649,9 +643,11 @@ elseif ($accion === 'rechazar_gth') {
         
         $nombre_gth = $_SESSION['nombre_completo'];
         
-        // Notificar al empleado
-        notificar_vacaciones($pdo, $solicitud['usuario_id'],
-            "Tu solicitud ({$solicitud['folio']}) fue rechazada por GTH ({$nombre_gth}).", $solicitud_id);
+        // Notificar al empleado (si tiene cuenta)
+        if (!empty($solicitud['usuario_id'])) {
+            notificar_vacaciones($pdo, $solicitud['usuario_id'],
+                "Tu solicitud ({$solicitud['folio']}) fue rechazada por GTH." . ($comentarios ? " Motivo: {$comentarios}" : ""), $solicitud_id);
+        }
         
         // Notificar al Admin que aprobó
         if (!empty($solicitud['admin_id'])) {

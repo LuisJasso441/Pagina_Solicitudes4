@@ -93,6 +93,12 @@ try {
                     <i class="bi bi-person-plus"></i> Nuevo Usuario
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'promover_empleado.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/promover_empleado.php">
+                    <i class="bi bi-person-up"></i> Promover Empleado
+                </a>
+            </li>
             
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">INVENTARIO TI</small>

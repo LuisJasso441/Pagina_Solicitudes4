@@ -5,7 +5,7 @@
  *
  * Solo accesible por Admin de Area (es_admin_area = 1)
  * Permite crear solicitudes para empleados SIN cuenta en el sistema.
- * El admin llena todos los campos del empleado manualmente.
+ * ACTUALIZADO: Dias festivos MX + jornada L-V/L-S + dias periodo anterior
  */
 session_start();
 require_once __DIR__ . '/../../config/config.php';
@@ -15,7 +15,6 @@ require_once __DIR__ . '/../../includes/vacaciones/vacaciones_funciones.php';
 
 if (!sesion_activa()) { header('Location: ' . URL_BASE . 'auth/InicioSesion.php'); exit; }
 
-// Solo Admin de Area puede acceder
 if (empty($_SESSION['es_admin_area'])) {
     $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Solo los Administradores de Area pueden crear solicitudes manuales.'];
     header('Location: ' . URL_BASE . 'dashboard/vacaciones/vacaciones_admin.php');
@@ -24,7 +23,6 @@ if (empty($_SESSION['es_admin_area'])) {
 
 $pdo = conectarDB();
 
-// Obtener lista de departamentos para el select
 $stmt_deptos = $pdo->query("SELECT id, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre");
 $departamentos_lista = $stmt_deptos->fetchAll(PDO::FETCH_ASSOC);
 
@@ -65,6 +63,7 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
         .firma-canvas-container { border: 2px dashed #ced4da; border-radius: 8px; background: #fff; min-height: 120px; }
         .firma-canvas-container.firmado { border-color: #198754; border-style: solid; }
         .firma-linea { border-top: 2px solid #000; padding-top: 6px; font-size: 0.78rem; font-weight: 600; text-transform: uppercase; text-align: center; }
+        .festivo-info{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:8px 12px;font-size:.8rem;margin-top:8px;display:none}
     </style>
 </head>
 <body>
@@ -114,7 +113,7 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                     <input type="hidden" name="firma_empleado_manual" id="firma_empleado_manual" value="">
                     <input type="hidden" name="firma_admin" id="firma_admin" value="">
 
-                    <!-- SECCION 1: DATOS DEL EMPLEADO (manual) -->
+                    <!-- SECCION 1: DATOS DEL EMPLEADO -->
                     <div class="emp-section">
                         <div class="section-title">
                             <i class="bi bi-person-badge me-2"></i>Datos del Empleado
@@ -171,9 +170,16 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                                     <option value="carganova" <?php echo (($form_data['empresa_manual'] ?? '') === 'carganova') ? 'selected' : ''; ?>>Carganova</option>
                                 </select>
                             </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Jornada</label>
+                                <select name="jornada_manual" id="jornada_manual" class="form-select">
+                                    <option value="lunes_sabado" <?php echo (($form_data['jornada_manual'] ?? 'lunes_sabado') === 'lunes_sabado') ? 'selected' : ''; ?>>Lunes a S&aacute;bado</option>
+                                    <option value="lunes_viernes" <?php echo (($form_data['jornada_manual'] ?? '') === 'lunes_viernes') ? 'selected' : ''; ?>>Lunes a Viernes</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <!-- Info calculada a partir de fecha_ingreso -->
+                        <!-- Info calculada -->
                         <div class="row g-3 mt-2">
                             <div class="col-md-3">
                                 <label class="form-label text-muted small">Antiguedad</label>
@@ -191,6 +197,35 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                             <div class="col-md-3">
                                 <label class="form-label text-muted small">Dias Disponibles</label>
                                 <div id="info_dias_disponibles" class="fw-bold text-success fs-5">--</div>
+                            </div>
+                        </div>
+
+                        <!-- Dias pendientes del periodo pasado -->
+                        <div class="row g-3 mt-3">
+                            <div class="col-12">
+                                <label class="form-label fw-semibold">&iquest;Tiene d&iacute;as pendientes de su periodo pasado?</label>
+                                <div class="d-flex gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tiene_dias_periodo_anterior" id="diasAntNo" value="no" <?php echo (($form_data['tiene_dias_periodo_anterior'] ?? 'no') === 'no') ? 'checked' : ''; ?>>
+                                        <label class="form-check-label" for="diasAntNo">No</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="tiene_dias_periodo_anterior" id="diasAntSi" value="si" <?php echo (($form_data['tiene_dias_periodo_anterior'] ?? '') === 'si') ? 'checked' : ''; ?>>
+                                        <label class="form-check-label" for="diasAntSi">S&iacute;</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4" id="campoDiasAnteriores" style="display:none">
+                                <label class="form-label fw-semibold">D&iacute;as pendientes del periodo anterior</label>
+                                <input type="number" name="dias_periodo_anterior" id="dias_periodo_anterior" class="form-control" min="1" max="99" value="<?php echo htmlspecialchars($form_data['dias_periodo_anterior'] ?? ''); ?>" placeholder="Ej: 4">
+                                <small class="text-muted">Estos d&iacute;as se tomar&aacute;n de primera mano</small>
+                            </div>
+                            <div class="col-md-8" id="infoDiasAnteriores" style="display:none">
+                                <div class="alert alert-info py-2 mb-0 mt-4" style="font-size:.82rem">
+                                    <i class="bi bi-info-circle me-1"></i> 
+                                    El sistema tomar&aacute; primero los <strong><span id="txtDiasAnt">0</span> d&iacute;as</strong> del periodo anterior. 
+                                    Solo podr&aacute; solicitar esa cantidad en esta solicitud. Para usar d&iacute;as del periodo actual, deber&aacute; crear otra solicitud.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -223,7 +258,10 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                         <div id="alertaExceso" class="alert alert-danger py-2" style="display:none;font-size:.85rem">
                             <i class="bi bi-exclamation-triangle me-1"></i> Excede los dias disponibles.
                         </div>
-                        <div class="mb-3">
+                        <div id="festivoInfo" class="festivo-info">
+                            <i class="bi bi-calendar-x me-1"></i> <span id="festivoTexto"></span>
+                        </div>
+                        <div class="mb-3 mt-3">
                             <label class="form-label fw-semibold">Motivo (opcional)</label>
                             <textarea name="motivo" class="form-control" rows="2" maxlength="500" placeholder="Motivo de las vacaciones..."><?php echo htmlspecialchars($form_data['motivo'] ?? ''); ?></textarea>
                         </div>
@@ -234,7 +272,6 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                         <div class="card-body">
                             <h6 class="fw-bold mb-3"><i class="bi bi-pen me-2"></i>Firmas</h6>
                             <div class="row g-4">
-                                <!-- Firma del Solicitante (empleado) -->
                                 <div class="col-md-6">
                                     <div class="firma-canvas-container" id="firmaEmpleadoContainer">
                                         <div id="firmaEmpleado" style="width:100%;height:120px"></div>
@@ -245,7 +282,6 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                                     </div>
                                     <div class="firma-linea">Nombre y Firma del Solicitante</div>
                                 </div>
-                                <!-- Firma del Admin de Area -->
                                 <div class="col-md-6">
                                     <div class="firma-canvas-container" id="firmaAdminContainer">
                                         <div id="firmaAdmin" style="width:100%;height:120px"></div>
@@ -279,7 +315,19 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jSignature/2.1.3/jSignature.min.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        let firmaOk = false, diasHabiles = 0, diasDisponibles = 0;
+        let diasHabiles = 0, diasDisponibles = 0;
+
+        // Festivos desde API
+        let diasFestivos = [];
+        let festivosDetalle = [];
+
+        fetch('<?php echo URL_BASE; ?>api/dias_festivos.php?anio=' + new Date().getFullYear())
+            .then(r => r.json())
+            .then(data => {
+                diasFestivos = data.festivos_fechas || [];
+                festivosDetalle = data.festivos || [];
+            })
+            .catch(() => {});
 
         // Tabla LFT (Art. 76, Reforma 2023)
         const tablaLFT = {1:12,2:14,3:16,4:18,5:20,6:22,7:22,8:22,9:22,10:22,11:24,12:24,13:24,14:24,15:24,16:26,17:26,18:26,19:26,20:26};
@@ -288,6 +336,27 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
             if (anios <= 0) return 0;
             if (anios <= 20) return tablaLFT[anios] || 22;
             return 26 + Math.floor((anios - 16) / 5) * 2;
+        }
+
+        // Helper: formato fecha YYYY-MM-DD
+        function fmtFecha(d) {
+            return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        }
+
+        // Helper: jornada (default L-S para manual)
+        function getJornada() {
+            return document.getElementById('jornada_manual')?.value || 'lunes_sabado';
+        }
+
+        // Helper: es dia habil?
+        function esDiaHabil(fecha) {
+            const dow = fecha.getDay();
+            const fechaStr = fmtFecha(fecha);
+            const jornada = getJornada();
+            if (dow === 0) return false;
+            if (jornada === 'lunes_viernes' && dow === 6) return false;
+            if (diasFestivos.includes(fechaStr)) return false;
+            return true;
         }
 
         // Calcular info del empleado al cambiar fecha_ingreso
@@ -321,8 +390,49 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
 
         document.getElementById('fecha_ingreso_manual').addEventListener('change', calcularInfoEmpleado);
         document.getElementById('dias_ya_tomados').addEventListener('input', calcularInfoEmpleado);
+        document.getElementById('jornada_manual').addEventListener('change', calcularDias);
 
+        // =====================================================
+        // Radio buttons: dias periodo anterior
+        // =====================================================
+        const radioNo = document.getElementById('diasAntNo');
+        const radioSi = document.getElementById('diasAntSi');
+        const campoDiasAnt = document.getElementById('campoDiasAnteriores');
+        const infoDiasAnt = document.getElementById('infoDiasAnteriores');
+        const inputDiasAnt = document.getElementById('dias_periodo_anterior');
+        const txtDiasAnt = document.getElementById('txtDiasAnt');
+        let usandoPeriodoAnterior = false;
+        let diasPeriodoAnterior = 0;
+
+        function toggleDiasAnteriores() {
+            const esSi = radioSi.checked;
+            campoDiasAnt.style.display = esSi ? 'block' : 'none';
+            infoDiasAnt.style.display = esSi ? 'block' : 'none';
+            usandoPeriodoAnterior = esSi;
+            if (!esSi) {
+                inputDiasAnt.value = '';
+                diasPeriodoAnterior = 0;
+            } else {
+                diasPeriodoAnterior = parseInt(inputDiasAnt.value) || 0;
+                txtDiasAnt.textContent = diasPeriodoAnterior;
+            }
+            calcularDias();
+        }
+
+        radioNo.addEventListener('change', toggleDiasAnteriores);
+        radioSi.addEventListener('change', toggleDiasAnteriores);
+        inputDiasAnt.addEventListener('input', function() {
+            diasPeriodoAnterior = parseInt(this.value) || 0;
+            txtDiasAnt.textContent = diasPeriodoAnterior;
+            calcularDias();
+        });
+
+        // Restaurar estado si hay datos previos
+        if (radioSi.checked) toggleDiasAnteriores();
+
+        // =====================================================
         // jSignature - Firma Empleado
+        // =====================================================
         let firmaEmpleadoOk = false;
         const $firmaEmp = $("#firmaEmpleado");
         $firmaEmp.jSignature({ color:'#000', lineWidth:2, background:'#fff', width:'100%', height:120, 'decor-color':'transparent' });
@@ -342,7 +452,9 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
             validar();
         });
 
+        // =====================================================
         // jSignature - Firma Admin
+        // =====================================================
         let firmaAdminOk = false;
         const $firmaAdm = $("#firmaAdmin");
         $firmaAdm.jSignature({ color:'#000', lineWidth:2, background:'#fff', width:'100%', height:120, 'decor-color':'transparent' });
@@ -362,31 +474,72 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
             validar();
         });
 
-        // Calcular dias habiles L-S
+        // =====================================================
+        // Calcular dias habiles con festivos + periodo anterior
+        // =====================================================
         function calcularDias() {
             const fi = document.getElementById('fecha_inicio').value;
             const ff = document.getElementById('fecha_fin').value;
             const elD = document.getElementById('diasSolicitados');
             const elA = document.getElementById('alertaExceso');
             const elR = document.getElementById('fecha_regreso');
+            const elFI = document.getElementById('festivoInfo');
+            const elFT = document.getElementById('festivoTexto');
 
-            if (!fi || !ff) { elD.textContent='0'; elD.classList.remove('excedido'); elA.style.display='none'; elR.value=''; diasHabiles=0; validar(); return; }
+            if (!fi || !ff) { elD.textContent='0'; elD.classList.remove('excedido'); elA.style.display='none'; elR.value=''; elFI.style.display='none'; diasHabiles=0; validar(); return; }
 
             const inicio = new Date(fi+'T00:00:00'), fin = new Date(ff+'T00:00:00');
             if (inicio > fin) { elD.textContent='0'; elD.classList.add('excedido'); diasHabiles=0; validar(); return; }
 
-            let dias = 0; const c = new Date(inicio);
-            while (c <= fin) { if (c.getDay() >= 1 && c.getDay() <= 6) dias++; c.setDate(c.getDate()+1); }
+            let dias = 0;
+            let festivosEnRango = [];
+            const c = new Date(inicio);
+            while (c <= fin) {
+                const fechaStr = fmtFecha(c);
+                if (esDiaHabil(c)) {
+                    dias++;
+                } else if (diasFestivos.includes(fechaStr) && c.getDay() !== 0) {
+                    const detalle = festivosDetalle.find(f => f.fecha === fechaStr);
+                    if (detalle) festivosEnRango.push(detalle.nombre + ' (' + fechaStr + ')');
+                }
+                c.setDate(c.getDate()+1);
+            }
+
             diasHabiles = dias; elD.textContent = dias;
 
+            // Fecha regreso
             const reg = new Date(fin); reg.setDate(reg.getDate()+1);
-            while (reg.getDay() === 0) reg.setDate(reg.getDate()+1);
-            elR.value = reg.getFullYear()+'-'+String(reg.getMonth()+1).padStart(2,'0')+'-'+String(reg.getDate()).padStart(2,'0');
+            for (let i = 0; i < 30; i++) {
+                if (esDiaHabil(reg)) break;
+                reg.setDate(reg.getDate()+1);
+            }
+            elR.value = fmtFecha(reg);
 
-            if (diasDisponibles > 0 && dias > diasDisponibles) {
-                elD.classList.add('excedido'); elA.style.display='block';
+            // Info festivos
+            if (festivosEnRango.length > 0) {
+                elFT.textContent = 'D\u00edas festivos en el rango (no se cuentan): ' + festivosEnRango.join(', ');
+                elFI.style.display = 'block';
             } else {
-                elD.classList.remove('excedido'); elA.style.display='none';
+                elFI.style.display = 'none';
+            }
+
+            // Validacion de dias: periodo anterior vs disponibles
+            if (usandoPeriodoAnterior && diasPeriodoAnterior > 0) {
+                if (dias > diasPeriodoAnterior) {
+                    elD.classList.add('excedido');
+                    elA.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Solo puede tomar ' + diasPeriodoAnterior + ' d\u00edas del periodo anterior. Para m\u00e1s d\u00edas, cree otra solicitud con el periodo actual.';
+                    elA.style.display = 'block';
+                } else {
+                    elD.classList.remove('excedido'); elA.style.display='none';
+                }
+            } else {
+                if (diasDisponibles > 0 && dias > diasDisponibles) {
+                    elD.classList.add('excedido');
+                    elA.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i> Excede los dias disponibles.';
+                    elA.style.display='block';
+                } else {
+                    elD.classList.remove('excedido'); elA.style.display='none';
+                }
             }
             validar();
         }
@@ -397,27 +550,36 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
         });
         document.getElementById('fecha_fin').addEventListener('change', calcularDias);
 
+        // =====================================================
+        // Validacion general
+        // =====================================================
         function validar() {
             const nombreOk = document.querySelector('[name="nombre_manual"]').value.trim().length > 0;
             const fechaIngresoOk = document.getElementById('fecha_ingreso_manual').value !== '';
             const deptoOk = document.querySelector('[name="departamento_id_manual"]').value !== '';
             const fechasOk = document.getElementById('fecha_inicio').value && document.getElementById('fecha_fin').value;
-            const diasOk = diasHabiles > 0 && (diasDisponibles <= 0 || diasHabiles <= diasDisponibles);
+
+            let diasOk = false;
+            if (usandoPeriodoAnterior && diasPeriodoAnterior > 0) {
+                diasOk = diasHabiles > 0 && diasHabiles <= diasPeriodoAnterior;
+            } else {
+                diasOk = diasHabiles > 0 && (diasDisponibles <= 0 || diasHabiles <= diasDisponibles);
+            }
 
             document.getElementById('btnEnviar').disabled = !(nombreOk && fechaIngresoOk && deptoOk && fechasOk && diasOk && firmaEmpleadoOk && firmaAdminOk);
         }
 
-        // Validar en tiempo real
         document.querySelector('[name="nombre_manual"]').addEventListener('input', validar);
         document.querySelector('[name="departamento_id_manual"]').addEventListener('change', validar);
 
+        // =====================================================
+        // Submit
+        // =====================================================
         document.getElementById('formSolicitudManual').addEventListener('submit', function(e) {
             if (!firmaEmpleadoOk || !firmaAdminOk) { e.preventDefault(); alert('Ambas firmas son obligatorias.'); return; }
-            // Firma empleado
             const fdEmp = $firmaEmp.jSignature('getData','image');
             if (fdEmp && fdEmp.length > 1) { document.getElementById('firma_empleado_manual').value = 'data:'+fdEmp[0]+','+fdEmp[1]; }
             else { e.preventDefault(); alert('Error al capturar firma del empleado.'); return; }
-            // Firma admin
             const fdAdm = $firmaAdm.jSignature('getData','image');
             if (fdAdm && fdAdm.length > 1) { document.getElementById('firma_admin').value = 'data:'+fdAdm[0]+','+fdAdm[1]; }
             else { e.preventDefault(); alert('Error al capturar firma del admin.'); return; }
@@ -429,7 +591,6 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
         if(hb&&sb){hb.addEventListener('click',function(){sb.classList.toggle('active');if(ov)ov.classList.toggle('active');});}
         if(ov){ov.addEventListener('click',function(){sb.classList.remove('active');this.classList.remove('active');});}
 
-        // Calcular al cargar si hay datos previos
         if (document.getElementById('fecha_ingreso_manual').value) calcularInfoEmpleado();
     });
     </script>

@@ -395,7 +395,7 @@ $es_mantenimiento = ($depto_codigo === 'mantenimiento');
                                 </p>
                                 
                                 <div class="mb-3">
-                                    <label class="form-label">Comentarios (obligatorio al rechazar)</label>
+                                    <label class="form-label">Comentarios (opcional)</label>
                                     <textarea id="comentariosAdmin" class="form-control" rows="3" maxlength="500"
                                               placeholder="Ej: Aprobado sin observaciones / No es posible en esas fechas..."></textarea>
                                     <small class="text-muted"><span id="contadorComentariosAdmin">0</span>/500</small>
@@ -454,7 +454,7 @@ $es_mantenimiento = ($depto_codigo === 'mantenimiento');
                                 </p>
                                 
                                 <div class="mb-3">
-                                    <label class="form-label">Comentarios (obligatorio al rechazar)</label>
+                                    <label class="form-label">Comentarios (opcional)</label>
                                     <textarea id="comentariosGth" class="form-control" rows="3" maxlength="500"
                                               placeholder="Ej: Aprobado / No procede por..."></textarea>
                                     <small class="text-muted"><span id="contadorComentariosGth">0</span>/500</small>
@@ -749,11 +749,6 @@ $es_mantenimiento = ($depto_codigo === 'mantenimiento');
         });
         
         document.getElementById('btnRechazarAdmin').addEventListener('click', function() {
-            if (!document.getElementById('comentariosAdmin').value.trim()) {
-                alert('Debe escribir un comentario indicando el motivo del rechazo.');
-                document.getElementById('comentariosAdmin').focus();
-                return;
-            }
             new bootstrap.Modal(document.getElementById('modalRechazarAdmin')).show();
         });
         
@@ -807,11 +802,6 @@ $es_mantenimiento = ($depto_codigo === 'mantenimiento');
         });
         
         document.getElementById('btnRechazarGth').addEventListener('click', function() {
-            if (!document.getElementById('comentariosGth').value.trim()) {
-                alert('Debe escribir un comentario indicando el motivo del rechazo.');
-                document.getElementById('comentariosGth').focus();
-                return;
-            }
             new bootstrap.Modal(document.getElementById('modalRechazarGth')).show();
         });
         
