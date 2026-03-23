@@ -289,6 +289,110 @@ function obtener_periodo_actual($fecha_ingreso) {
 }
 
 // =====================================================
+// PERIODO ANTERIOR + DIAS PENDIENTES + VENCIMIENTO
+// =====================================================
+
+/**
+ * Obtener datos del periodo vacacional ANTERIOR
+ * 
+ * @param string $fecha_ingreso
+ * @return array|null ['inicio', 'fin', 'anio_periodo', 'fecha_vencimiento', 'vencido']
+ */
+function obtener_periodo_anterior($fecha_ingreso) {
+    if (empty($fecha_ingreso)) return null;
+    
+    try {
+        $ingreso = new DateTime($fecha_ingreso);
+        $hoy = new DateTime();
+        $anios = calcular_antiguedad($fecha_ingreso)['anios_completos'];
+        
+        // Si tiene menos de 1 anio, no hay periodo anterior
+        if ($anios < 1) return null;
+        
+        // Periodo anterior = un periodo atras
+        $anios_anterior = $anios - 1;
+        $inicio_anterior = clone $ingreso;
+        $inicio_anterior->modify("+{$anios_anterior} years");
+        
+        $fin_anterior = clone $inicio_anterior;
+        $fin_anterior->modify('+1 year');
+        $fin_anterior->modify('-1 day');
+        
+        // Vencimiento = fin del periodo anterior + 18 meses (1.5 anios)
+        $fecha_vencimiento = clone $fin_anterior;
+        $fecha_vencimiento->modify('+18 months');
+        
+        $vencido = ($hoy > $fecha_vencimiento);
+        
+        return [
+            'inicio'             => $inicio_anterior->format('Y-m-d'),
+            'fin'                => $fin_anterior->format('Y-m-d'),
+            'anio_periodo'       => $anios_anterior + 1,
+            'fecha_vencimiento'  => $fecha_vencimiento->format('Y-m-d'),
+            'vencido'            => $vencido
+        ];
+    } catch (Exception $e) {
+        return null;
+    }
+}
+
+/**
+ * Obtener dias pendientes del periodo anterior de un empleado
+ * Si vencidos (>1.5 anios), retorna 0 (desaparecen completamente)
+ * 
+ * @param PDO $pdo
+ * @param int $usuario_id
+ * @return array ['dias_pendientes' => int, 'periodo' => array|null, 'vencido' => bool, 'dias_lft' => int, 'dias_tomados' => int]
+ */
+function obtener_dias_periodo_anterior($pdo, $usuario_id) {
+    $resultado = [
+        'dias_pendientes' => 0,
+        'periodo' => null,
+        'vencido' => false,
+        'dias_lft' => 0,
+        'dias_tomados' => 0
+    ];
+    
+    // Obtener fecha de ingreso
+    $stmt = $pdo->prepare("SELECT fecha_ingreso FROM usuarios WHERE id = ?");
+    $stmt->execute([$usuario_id]);
+    $fecha_ingreso = $stmt->fetchColumn();
+    
+    if (empty($fecha_ingreso)) return $resultado;
+    
+    $periodo_ant = obtener_periodo_anterior($fecha_ingreso);
+    if (!$periodo_ant) return $resultado;
+    
+    $resultado['periodo'] = $periodo_ant;
+    $resultado['vencido'] = $periodo_ant['vencido'];
+    
+    // Si ya vencio, desaparecen completamente
+    if ($periodo_ant['vencido']) return $resultado;
+    
+    // Dias LFT del periodo anterior
+    $dias_lft = dias_vacaciones_lft($periodo_ant['anio_periodo']);
+    $resultado['dias_lft'] = $dias_lft;
+    
+    // Dias tomados en el periodo anterior
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(SUM(dias_solicitados), 0)
+        FROM solicitudes_vacaciones
+        WHERE usuario_id = ?
+        AND estado NOT IN ('cancelada', 'rechazada_admin', 'rechazada_gth')
+        AND fecha_inicio >= ?
+        AND fecha_inicio <= ?
+    ");
+    $stmt->execute([$usuario_id, $periodo_ant['inicio'], $periodo_ant['fin']]);
+    $dias_tomados = (int)$stmt->fetchColumn();
+    $resultado['dias_tomados'] = $dias_tomados;
+    
+    // Dias pendientes = LFT - tomados (minimo 0)
+    $resultado['dias_pendientes'] = max(0, $dias_lft - $dias_tomados);
+    
+    return $resultado;
+}
+
+// =====================================================
 // RESUMEN COMPLETO DE VACACIONES
 // =====================================================
 
@@ -349,6 +453,9 @@ function obtener_resumen_vacaciones($pdo, $usuario_id) {
         $solicitudes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
+    // Periodo anterior: dias pendientes (no vencidos)
+    $periodo_anterior = obtener_dias_periodo_anterior($pdo, $usuario_id);
+    
     return [
         'tiene_fecha_ingreso'   => true,
         'fecha_ingreso'         => $fecha_ingreso,
@@ -362,7 +469,8 @@ function obtener_resumen_vacaciones($pdo, $usuario_id) {
         'dias_tomados'          => $dias_tomados,
         'dias_disponibles'      => max(0, $dias_correspondientes - $dias_tomados),
         'periodo'               => $periodo,
-        'solicitudes'           => $solicitudes
+        'solicitudes'           => $solicitudes,
+        'periodo_anterior'      => $periodo_anterior
     ];
 }
 

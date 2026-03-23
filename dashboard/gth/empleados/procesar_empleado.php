@@ -85,9 +85,6 @@ if ($accion === 'crear') {
         $stmt = $pdo->prepare("SELECT id FROM empleados_gth WHERE no_nomina = ?");
         $stmt->execute([$no_nomina]);
         if ($stmt->fetch()) $errores[] = 'Nomina ya existe en empleados.';
-        $stmt2 = $pdo->prepare("SELECT id FROM usuarios WHERE no_nomina = ?");
-        $stmt2->execute([$no_nomina]);
-        if ($stmt2->fetch()) $errores[] = 'Nomina ya existe en usuarios.';
     }
 
     if (!empty($errores)) {
@@ -97,15 +94,48 @@ if ($accion === 'crear') {
     }
 
     try {
-        $sql = "INSERT INTO empleados_gth (nombre_completo, no_nomina, puesto, departamento_id, fecha_ingreso, periodo_pago, empresa, jornada, observaciones, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $pdo->beginTransaction();
+
+        // Buscar si ya existe un usuario con esta nomina para auto-vincular
+        $vincular_usuario_id = null;
+        if (!empty($no_nomina)) {
+            $stmt_buscar = $pdo->prepare("SELECT id FROM usuarios WHERE no_nomina = ? AND id NOT IN (SELECT COALESCE(usuario_id, 0) FROM empleados_gth WHERE usuario_id IS NOT NULL)");
+            $stmt_buscar->execute([$no_nomina]);
+            $usuario_encontrado = $stmt_buscar->fetch(PDO::FETCH_ASSOC);
+            if ($usuario_encontrado) {
+                $vincular_usuario_id = $usuario_encontrado['id'];
+            }
+        }
+
+        $sql = "INSERT INTO empleados_gth (usuario_id, nombre_completo, no_nomina, puesto, departamento_id, fecha_ingreso, periodo_pago, empresa, jornada, observaciones, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $pdo->prepare($sql)->execute([
+            $vincular_usuario_id,
             $nombre_completo, $no_nomina ?: null, $puesto ?: null, $departamento_id,
             $fecha_ingreso ?: null, $periodo_pago ?: null, $empresa ?: null, $jornada,
             $observaciones ?: null, $usuario_actual_id
         ]);
-        $_SESSION['alerta'] = ['tipo' => 'success', 'mensaje' => 'Empleado <strong>' . htmlspecialchars($nombre_completo) . '</strong> creado.'];
+
+        // Si se vinculo, sincronizar datos del empleado hacia el usuario
+        if ($vincular_usuario_id) {
+            sincronizar_a_usuarios($pdo, $vincular_usuario_id, [
+                'nombre_completo' => $nombre_completo,
+                'no_nomina' => $no_nomina,
+                'puesto' => $puesto,
+                'departamento_id' => $departamento_id,
+                'fecha_ingreso' => $fecha_ingreso,
+                'periodo_pago' => $periodo_pago,
+                'empresa' => $empresa,
+                'jornada' => $jornada,
+            ], $usuario_actual_id);
+        }
+
+        $pdo->commit();
+
+        $msg_vinculado = $vincular_usuario_id ? ' y vinculado con su cuenta de plataforma' : '';
+        $_SESSION['alerta'] = ['tipo' => 'success', 'mensaje' => 'Empleado <strong>' . htmlspecialchars($nombre_completo) . '</strong> creado' . $msg_vinculado . '.'];
         header('Location: ' . URL_BASE . 'dashboard/gth/empleados/listar_empleados.php'); exit;
     } catch (Exception $e) {
+        $pdo->rollBack();
         error_log("Error crear empleado: " . $e->getMessage());
         $_SESSION['form_errors_emp'] = ['Error: ' . $e->getMessage()];
         $_SESSION['form_data_emp'] = $_POST;

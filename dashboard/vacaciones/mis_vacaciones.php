@@ -162,7 +162,10 @@ unset($_SESSION['alerta']);
                             </p>
                         </div>
                         
-                        <?php if ($resumen['tiene_fecha_ingreso'] && $resumen['dias_disponibles'] > 0): ?>
+                        <?php 
+                        $dias_periodo_ant = $resumen['periodo_anterior']['dias_pendientes'] ?? 0;
+                        if ($resumen['tiene_fecha_ingreso'] && ($resumen['dias_disponibles'] > 0 || $dias_periodo_ant > 0)): 
+                        ?>
                         <div>
                             <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/nueva_solicitud_vacaciones.php" 
                                class="btn btn-primary">
@@ -197,7 +200,7 @@ unset($_SESSION['alerta']);
                 <!-- Cards de resumen -->
                 <div class="row g-3 mb-4">
                     <!-- Card: Antigüedad -->
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl col-md-6">
                         <div class="card stat-card h-100">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-2">
@@ -225,7 +228,7 @@ unset($_SESSION['alerta']);
                     </div>
                     
                     <!-- Card: Días por periodo -->
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl col-md-6">
                         <div class="card stat-card h-100">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-2">
@@ -247,8 +250,42 @@ unset($_SESSION['alerta']);
                         </div>
                     </div>
                     
+                    <!-- Card: Días Pendientes Periodo Anterior -->
+                    <div class="col-xl col-md-6">
+                        <div class="card stat-card h-100 <?php echo $dias_periodo_ant > 0 ? 'border-start border-4 border-danger' : ''; ?>">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="stat-icon bg-danger bg-opacity-10 text-danger me-3">
+                                        <i class="bi bi-calendar-event"></i>
+                                    </div>
+                                    <div>
+                                        <div class="stat-label">Pendientes Per. Anterior</div>
+                                    </div>
+                                </div>
+                                <div class="stat-value <?php echo $dias_periodo_ant > 0 ? 'text-danger' : 'text-secondary'; ?>">
+                                    <?php echo $dias_periodo_ant; ?>
+                                    <span style="font-size: 0.9rem; font-weight: 400;">días</span>
+                                </div>
+                                <div class="stat-sub">
+                                    <?php 
+                                    $pa = $resumen['periodo_anterior'] ?? null;
+                                    if (!$pa || !$pa['periodo']) {
+                                        echo 'Sin periodo anterior';
+                                    } elseif ($pa['vencido']) {
+                                        echo '<span class="text-muted">Vencidos</span>';
+                                    } elseif ($dias_periodo_ant > 0) {
+                                        echo 'Vence: ' . fecha_corta_es($pa['periodo']['fecha_vencimiento']);
+                                    } else {
+                                        echo 'Sin pendientes';
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Card: Días tomados -->
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl col-md-6">
                         <div class="card stat-card h-100">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-2">
@@ -271,7 +308,7 @@ unset($_SESSION['alerta']);
                     </div>
                     
                     <!-- Card: Días disponibles -->
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl col-md-6">
                         <div class="card stat-card h-100">
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-2">

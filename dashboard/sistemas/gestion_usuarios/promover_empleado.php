@@ -73,7 +73,12 @@ unset($_SESSION['form_data_promover'], $_SESSION['form_errors_promover']);
                     </ol>
                 </nav>
 
-                <h3 class="mb-4"><i class="bi bi-person-up me-2"></i>Promover Empleado a Usuario</h3>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h3 class="mb-0"><i class="bi bi-person-up me-2"></i>Promover Empleado a Usuario</h3>
+                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Regresar
+                    </a>
+                </div>
                 <p class="text-muted">Selecciona un empleado registrado por GTH y asignale credenciales de acceso a la plataforma.</p>
 
                 <?php if ($alerta): ?>

@@ -315,7 +315,7 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jSignature/2.1.3/jSignature.min.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        let diasHabiles = 0, diasDisponibles = 0;
+        let diasHabiles = 0, diasDisponibles = 0, cumpleUnAnio = false;
 
         // Festivos desde API
         let diasFestivos = [];
@@ -359,7 +359,9 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
             return true;
         }
 
+        // =====================================================
         // Calcular info del empleado al cambiar fecha_ingreso
+        // =====================================================
         function calcularInfoEmpleado() {
             const fi = document.getElementById('fecha_ingreso_manual').value;
             const elAnt = document.getElementById('info_antiguedad');
@@ -375,6 +377,33 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
             let dias_diff = hoy.getDate() - ingreso.getDate();
             if (dias_diff < 0) { meses--; dias_diff += 30; }
             if (meses < 0) { anios--; meses += 12; }
+
+            // Si no ha cumplido 1 anio, no tiene derecho a vacaciones
+            if (anios < 1) {
+                elAnt.textContent = anios + ' a\u00f1o' + (anios !== 1 ? 's' : '') + ', ' + meses + ' mes' + (meses !== 1 ? 'es' : '');
+                elLFT.innerHTML = '<span class="text-danger">Sin derecho</span>';
+                elDisp.innerHTML = '<span class="text-danger">0 d\u00edas</span>';
+                diasDisponibles = 0;
+
+                let alertaAnio = document.getElementById('alertaNoAnio');
+                if (!alertaAnio) {
+                    alertaAnio = document.createElement('div');
+                    alertaAnio.id = 'alertaNoAnio';
+                    alertaAnio.className = 'alert alert-warning mt-3';
+                    alertaAnio.style.fontSize = '.85rem';
+                    alertaAnio.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>El empleado a\u00fan no cumple su primer a\u00f1o de trabajo.</strong> De acuerdo con la Ley Federal del Trabajo, no tiene derecho a vacaciones hasta cumplir 1 a\u00f1o.';
+                    document.getElementById('fecha_ingreso_manual').closest('.row').parentElement.appendChild(alertaAnio);
+                }
+                alertaAnio.style.display = 'block';
+                cumpleUnAnio = false;
+                validar();
+                return;
+            }
+
+            // Ocultar alerta si ya cumplio
+            const alertaAnio = document.getElementById('alertaNoAnio');
+            if (alertaAnio) alertaAnio.style.display = 'none';
+            cumpleUnAnio = true;
 
             elAnt.textContent = anios + ' a\u00f1o' + (anios !== 1 ? 's' : '') + ', ' + meses + ' mes' + (meses !== 1 ? 'es' : '');
 
@@ -560,7 +589,9 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
             const fechasOk = document.getElementById('fecha_inicio').value && document.getElementById('fecha_fin').value;
 
             let diasOk = false;
-            if (usandoPeriodoAnterior && diasPeriodoAnterior > 0) {
+            if (!cumpleUnAnio) {
+                diasOk = false;
+            } else if (usandoPeriodoAnterior && diasPeriodoAnterior > 0) {
                 diasOk = diasHabiles > 0 && diasHabiles <= diasPeriodoAnterior;
             } else {
                 diasOk = diasHabiles > 0 && (diasDisponibles <= 0 || diasHabiles <= diasDisponibles);

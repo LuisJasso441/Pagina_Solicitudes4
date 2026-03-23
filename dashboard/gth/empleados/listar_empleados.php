@@ -101,16 +101,11 @@ foreach ($empleados as $e) {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
-    
-    <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-    
-    <!-- Sistema de notificaciones -->
-    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
         .stat-card { border-radius:12px; padding:15px 20px; text-align:center; }
         .stat-card .stat-number { font-size:1.8rem; font-weight:700; }
@@ -239,6 +234,7 @@ foreach ($empleados as $e) {
                                         <td class="text-center"><span class="<?php echo $emp['dias_tomados'] > 0 ? 'dias-ok' : ''; ?>"><?php echo $emp['dias_tomados']; ?></span></td>
                                         <td class="text-center"><span class="<?php echo $emp['dias_pendientes'] > 0 ? 'dias-ok' : 'dias-cero'; ?>"><?php echo $emp['dias_pendientes']; ?></span></td>
                                         <td class="text-center">
+                                            <a href="<?php echo URL_BASE; ?>dashboard/gth/empleados/ver_empleado.php?id=<?php echo $emp['id']; ?>" class="btn btn-sm btn-outline-info me-1" title="Ver detalle"><i class="bi bi-eye"></i></a>
                                             <a href="<?php echo URL_BASE; ?>dashboard/gth/empleados/editar_empleado.php?id=<?php echo $emp['id']; ?>" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
                                         </td>
                                     </tr>

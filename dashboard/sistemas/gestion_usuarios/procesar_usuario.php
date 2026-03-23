@@ -4,23 +4,25 @@
  * Maneja: crear, editar, cambiar_estado
  * Solo accesible para usuarios del departamento de Sistemas
  * 
- * ⭐ ACTUALIZADO: Campos de Vacaciones (no_nomina, puesto, fecha_ingreso, es_admin_area)
+ * ACTUALIZADO: Auto-vinculacion con empleados_gth
+ * Editar solo maneja: nombre, usuario, password, departamento, admin_area, permisos
+ * Campos de GTH (nomina, puesto, ingreso, periodo, empresa) se gestionan desde GTH
  */
 
 session_start();
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/database.php';
 
-// Verificar sesión
+// Verificar sesion
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
 
-// Verificar que sea del departamento de Sistemas (validación backend crítica)
+// Verificar que sea del departamento de Sistemas
 $departamento_usuario = strtolower($_SESSION['departamento'] ?? '');
 if ($departamento_usuario !== 'sistemas') {
-    establecer_alerta('error', 'No tiene permisos para realizar esta acción.');
+    establecer_alerta('error', 'No tiene permisos para realizar esta accion.');
     header('Location: ' . URL_BASE . 'index.php');
     exit;
 }
@@ -31,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Conexión a BD
+// Conexion a BD
 $pdo = conectarDB();
 
 $accion = $_POST['accion'] ?? '';
@@ -39,53 +41,40 @@ $usuario_actual_id = $_SESSION['usuario_id'];
 
 /**
  * Validar nombre de usuario
- * - Único (case-insensitive)
- * - Sin espacios
- * - Solo letras, números, guión y guión bajo
  */
 function validarNombreUsuario($pdo, $usuario, $excluir_id = null) {
-    // Sin espacios
     if (preg_match('/\s/', $usuario)) {
         return 'El nombre de usuario no puede contener espacios.';
     }
-    
-    // Solo caracteres permitidos
     if (!preg_match('/^[a-zA-Z0-9_-]+$/', $usuario)) {
-        return 'El nombre de usuario solo puede contener letras, números, guión (-) y guión bajo (_).';
+        return 'El nombre de usuario solo puede contener letras, numeros, guion (-) y guion bajo (_).';
     }
-    
-    // Verificar unicidad (case-insensitive)
     $sql = "SELECT id FROM usuarios WHERE LOWER(usuario) = LOWER(?)";
     $params = [strtolower($usuario)];
-    
     if ($excluir_id) {
         $sql .= " AND id != ?";
         $params[] = $excluir_id;
     }
-    
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
-    
     if ($stmt->fetch()) {
         return 'El nombre de usuario ya existe en el sistema.';
     }
-    
     return true;
 }
 
 /**
- * Validar contraseña
- * - Mínimo 8 caracteres
+ * Validar contrasena
  */
 function validarPassword($password) {
     if (strlen($password) < 8) {
-        return 'La contraseña debe tener al menos 8 caracteres.';
+        return 'La contrasena debe tener al menos 8 caracteres.';
     }
     return true;
 }
 
 /**
- * Obtener código de departamento por ID
+ * Obtener codigo de departamento por ID
  */
 function getCodigoDepartamento($pdo, $departamento_id) {
     $stmt = $pdo->prepare("SELECT codigo FROM departamentos WHERE id = ?");
@@ -95,7 +84,7 @@ function getCodigoDepartamento($pdo, $departamento_id) {
 }
 
 // ============================================================
-// ACCIÓN: CREAR USUARIO
+// ACCION: CREAR USUARIO
 // ============================================================
 if ($accion === 'crear') {
     $errores = [];
@@ -107,29 +96,38 @@ if ($accion === 'crear') {
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
     $activo = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
-    
-    // ⭐ VACACIONES: Campos nuevos
-    $no_nomina = trim($_POST['no_nomina'] ?? '');
-    $puesto = trim($_POST['puesto'] ?? '');
-    $fecha_ingreso = trim($_POST['fecha_ingreso'] ?? '');
-    $periodo_pago = trim($_POST['periodo_pago'] ?? '');
-    $empresa = trim($_POST['empresa'] ?? '');
     $es_admin_area = isset($_POST['es_admin_area']) ? 1 : 0;
+    $empleado_gth_id = intval($_POST['empleado_gth_id'] ?? 0);
     
     // Permisos SSC
-    $ssc_lector = 1; // Siempre activo por defecto
+    $ssc_lector = 1;
     $ssc_creador = isset($_POST['ssc_creador']) ? 1 : 0;
     $ssc_editor = isset($_POST['ssc_editor']) ? 1 : 0;
     
     // Permisos OSM
-    $osm_lector = 1; // Siempre activo por defecto
+    $osm_lector = 1;
     $osm_creador = isset($_POST['osm_creador']) ? 1 : 0;
     $osm_editor = isset($_POST['osm_editor']) ? 1 : 0;
     
     // Permisos CQR
-    $cqr_lector = 1; // Siempre activo por defecto
+    $cqr_lector = 1;
     $cqr_creador = isset($_POST['cqr_creador']) ? 1 : 0;
     $cqr_editor = isset($_POST['cqr_editor']) ? 1 : 0;
+    
+    // Si se vincula con empleado, obtener datos del empleado
+    $empleado_datos = null;
+    if ($empleado_gth_id > 0) {
+        $stmt_emp = $pdo->prepare("SELECT * FROM empleados_gth WHERE id = ? AND usuario_id IS NULL AND activo = 1");
+        $stmt_emp->execute([$empleado_gth_id]);
+        $empleado_datos = $stmt_emp->fetch(PDO::FETCH_ASSOC);
+        if (!$empleado_datos) {
+            $errores[] = 'Empleado no encontrado o ya tiene cuenta vinculada.';
+        } else {
+            // Usar datos del empleado
+            $nombre_completo = $empleado_datos['nombre_completo'];
+            $departamento_id = (int)$empleado_datos['departamento_id'];
+        }
+    }
     
     // Validaciones
     if (empty($nombre_completo)) {
@@ -150,7 +148,7 @@ if ($accion === 'crear') {
     }
     
     if (empty($password)) {
-        $errores[] = 'La contraseña es obligatoria.';
+        $errores[] = 'La contrasena es obligatoria.';
     } else {
         $validacion_password = validarPassword($password);
         if ($validacion_password !== true) {
@@ -159,7 +157,7 @@ if ($accion === 'crear') {
     }
     
     if ($password !== $password_confirm) {
-        $errores[] = 'Las contraseñas no coinciden.';
+        $errores[] = 'Las contrasenas no coinciden.';
     }
     
     // Si hay errores, regresar al formulario
@@ -170,27 +168,36 @@ if ($accion === 'crear') {
         exit;
     }
     
-    // Obtener código de departamento
+    // Obtener codigo de departamento
     $departamento_codigo = getCodigoDepartamento($pdo, $departamento_id);
     
-    // Hash de la contraseña
+    // Hash de la contrasena
     $password_hash = password_hash($password, PASSWORD_DEFAULT);
     
-    // Iniciar transacción
+    // Datos del empleado para INSERT (si se vincula, usa datos del empleado)
+    $no_nomina = $empleado_datos['no_nomina'] ?? null;
+    $puesto = $empleado_datos['puesto'] ?? null;
+    $fecha_ingreso = $empleado_datos['fecha_ingreso'] ?? null;
+    $periodo_pago = $empleado_datos['periodo_pago'] ?? null;
+    $empresa = $empleado_datos['empresa'] ?? null;
+    $jornada = $empleado_datos['jornada'] ?? null;
+    
+    // Iniciar transaccion
     $pdo->beginTransaction();
     
     try {
-        // ⭐ Insertar usuario (con campos de Vacaciones)
-        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, periodo_pago, empresa, usuario, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        // Insertar usuario
+        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, periodo_pago, empresa, jornada, usuario, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $nombre_completo,
-            $no_nomina ?: null,
-            $puesto ?: null,
-            $fecha_ingreso ?: null,
-            $periodo_pago ?: null,
-            $empresa ?: null,
+            $no_nomina,
+            $puesto,
+            $fecha_ingreso,
+            $periodo_pago,
+            $empresa,
+            $jornada,
             strtoupper($usuario), 
             $password_hash, 
             $departamento_codigo, 
@@ -203,23 +210,27 @@ if ($accion === 'crear') {
         $nuevo_usuario_id = $pdo->lastInsertId();
         
         // Insertar permisos SSC
-        $sql_ssc = "INSERT INTO permisos_ssc (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)";
-        $stmt_ssc = $pdo->prepare($sql_ssc);
-        $stmt_ssc->execute([$nuevo_usuario_id, $ssc_lector, $ssc_creador, $ssc_editor]);
+        $pdo->prepare("INSERT INTO permisos_ssc (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
+            ->execute([$nuevo_usuario_id, $ssc_lector, $ssc_creador, $ssc_editor]);
         
         // Insertar permisos OSM
-        $sql_osm = "INSERT INTO permisos_osm (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)";
-        $stmt_osm = $pdo->prepare($sql_osm);
-        $stmt_osm->execute([$nuevo_usuario_id, $osm_lector, $osm_creador, $osm_editor]);
+        $pdo->prepare("INSERT INTO permisos_osm (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
+            ->execute([$nuevo_usuario_id, $osm_lector, $osm_creador, $osm_editor]);
         
         // Insertar permisos CQR
-        $sql_cqr = "INSERT INTO permisos_cqr (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)";
-        $stmt_cqr = $pdo->prepare($sql_cqr);
-        $stmt_cqr->execute([$nuevo_usuario_id, $cqr_lector, $cqr_creador, $cqr_editor]);
+        $pdo->prepare("INSERT INTO permisos_cqr (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
+            ->execute([$nuevo_usuario_id, $cqr_lector, $cqr_creador, $cqr_editor]);
+        
+        // Vincular con empleado_gth
+        if ($empleado_gth_id > 0 && $empleado_datos) {
+            $pdo->prepare("UPDATE empleados_gth SET usuario_id = ?, updated_at = NOW(), updated_by = ? WHERE id = ?")
+                ->execute([$nuevo_usuario_id, $usuario_actual_id, $empleado_gth_id]);
+        }
         
         $pdo->commit();
         
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php?msg=creado');
+        $msg = ($empleado_gth_id > 0) ? 'creado_vinculado' : 'creado';
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php?msg=' . $msg);
         exit;
         
     } catch (Exception $e) {
@@ -232,7 +243,9 @@ if ($accion === 'crear') {
 }
 
 // ============================================================
-// ACCIÓN: EDITAR USUARIO
+// ACCION: EDITAR USUARIO
+// Solo: nombre, usuario, password, departamento, admin_area, permisos
+// Campos de GTH (nomina, puesto, ingreso, periodo, empresa) se gestionan desde GTH
 // ============================================================
 elseif ($accion === 'editar') {
     $errores = [];
@@ -244,19 +257,12 @@ elseif ($accion === 'editar') {
         exit;
     }
     
-    // Recoger datos del formulario
+    // Recoger datos del formulario (solo campos de Sistemas)
     $nombre_completo = trim($_POST['nombre_completo'] ?? '');
     $usuario = trim($_POST['usuario'] ?? '');
     $departamento_id = (int)($_POST['departamento_id'] ?? 0);
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
-    
-    // ⭐ VACACIONES: Campos nuevos
-    $no_nomina = trim($_POST['no_nomina'] ?? '');
-    $puesto = trim($_POST['puesto'] ?? '');
-    $fecha_ingreso = trim($_POST['fecha_ingreso'] ?? '');
-    $periodo_pago = trim($_POST['periodo_pago'] ?? '');
-    $empresa = trim($_POST['empresa'] ?? '');
     $es_admin_area = isset($_POST['es_admin_area']) ? 1 : 0;
     
     // Permisos SSC
@@ -292,11 +298,11 @@ elseif ($accion === 'editar') {
         $errores[] = 'Debe seleccionar un departamento.';
     }
     
-    // Validar contraseña solo si se está cambiando
+    // Validar contrasena solo si se esta cambiando
     $cambiar_password = false;
     if (!empty($password) || !empty($password_confirm)) {
         if ($password !== $password_confirm) {
-            $errores[] = 'Las contraseñas no coinciden.';
+            $errores[] = 'Las contrasenas no coinciden.';
         } else {
             $validacion_password = validarPassword($password);
             if ($validacion_password !== true) {
@@ -315,22 +321,18 @@ elseif ($accion === 'editar') {
         exit;
     }
     
-    // Obtener código de departamento
+    // Obtener codigo de departamento
     $departamento_codigo = getCodigoDepartamento($pdo, $departamento_id);
     
-    // Iniciar transacción
+    // Iniciar transaccion
     $pdo->beginTransaction();
     
     try {
-        // ⭐ Actualizar usuario (con campos de Vacaciones)
+        // Actualizar usuario (sin campos de GTH)
         if ($cambiar_password) {
             $password_hash = password_hash($password, PASSWORD_DEFAULT);
             $sql = "UPDATE usuarios SET 
-                        nombre_completo = ?, 
-                        no_nomina = ?,
-                        puesto = ?,
-                        fecha_ingreso = ?,
-                        periodo_pago = ?,
+                        nombre_completo = ?,
                         usuario = ?, 
                         password = ?,
                         departamento = ?, 
@@ -342,10 +344,6 @@ elseif ($accion === 'editar') {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $nombre_completo,
-                $no_nomina ?: null,
-                $puesto ?: null,
-                $fecha_ingreso ?: null,
-                $periodo_pago ?: null,
                 strtoupper($usuario),
                 $password_hash,
                 $departamento_codigo,
@@ -357,9 +355,6 @@ elseif ($accion === 'editar') {
         } else {
             $sql = "UPDATE usuarios SET 
                         nombre_completo = ?, 
-                        no_nomina = ?,
-                        puesto = ?,
-                        fecha_ingreso = ?,
                         usuario = ?, 
                         departamento = ?, 
                         departamento_id = ?,
@@ -370,9 +365,6 @@ elseif ($accion === 'editar') {
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $nombre_completo,
-                $no_nomina ?: null,
-                $puesto ?: null,
-                $fecha_ingreso ?: null,
                 strtoupper($usuario),
                 $departamento_codigo,
                 $departamento_id,
@@ -383,25 +375,19 @@ elseif ($accion === 'editar') {
         }
         
         // Actualizar permisos SSC (UPSERT)
-        $sql_ssc = "INSERT INTO permisos_ssc (user_id, lector, creador, editor) 
-                    VALUES (?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)";
-        $stmt_ssc = $pdo->prepare($sql_ssc);
-        $stmt_ssc->execute([$id, $ssc_lector, $ssc_creador, $ssc_editor]);
+        $pdo->prepare("INSERT INTO permisos_ssc (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
+            ->execute([$id, $ssc_lector, $ssc_creador, $ssc_editor]);
         
         // Actualizar permisos OSM (UPSERT)
-        $sql_osm = "INSERT INTO permisos_osm (user_id, lector, creador, editor) 
-                    VALUES (?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)";
-        $stmt_osm = $pdo->prepare($sql_osm);
-        $stmt_osm->execute([$id, $osm_lector, $osm_creador, $osm_editor]);
+        $pdo->prepare("INSERT INTO permisos_osm (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
+            ->execute([$id, $osm_lector, $osm_creador, $osm_editor]);
         
         // Actualizar permisos CQR (UPSERT)
-        $sql_cqr = "INSERT INTO permisos_cqr (user_id, lector, creador, editor) 
-                    VALUES (?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)";
-        $stmt_cqr = $pdo->prepare($sql_cqr);
-        $stmt_cqr->execute([$id, $cqr_lector, $cqr_creador, $cqr_editor]);
+        $pdo->prepare("INSERT INTO permisos_cqr (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
+            ->execute([$id, $cqr_lector, $cqr_creador, $cqr_editor]);
         
         $pdo->commit();
         
@@ -418,7 +404,7 @@ elseif ($accion === 'editar') {
 }
 
 // ============================================================
-// ACCIÓN: CAMBIAR ESTADO (ACTIVAR/DESACTIVAR)
+// ACCION: CAMBIAR ESTADO (ACTIVAR/DESACTIVAR)
 // ============================================================
 elseif ($accion === 'cambiar_estado') {
     $id = (int)($_POST['id'] ?? 0);
@@ -429,7 +415,7 @@ elseif ($accion === 'cambiar_estado') {
         exit;
     }
     
-    // No permitir desactivarse a sí mismo
+    // No permitir desactivarse a si mismo
     if ($id == $usuario_actual_id && $nuevo_estado == 0) {
         header('Location: ' . URL_BASE . 'dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php?msg=no_autodesactivar');
         exit;
@@ -450,7 +436,7 @@ elseif ($accion === 'cambiar_estado') {
     }
 }
 
-// Acción no reconocida
+// Accion no reconocida
 else {
     header('Location: ' . URL_BASE . 'dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php');
     exit;

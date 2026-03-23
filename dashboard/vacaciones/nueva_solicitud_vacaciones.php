@@ -20,8 +20,15 @@ if (!$resumen['tiene_fecha_ingreso']) {
     $_SESSION['alerta'] = ['tipo' => 'warning', 'mensaje' => 'No tienes fecha de ingreso registrada. Contacta a Sistemas o GTH.'];
     header('Location: ' . URL_BASE . 'dashboard/vacaciones/mis_vacaciones.php'); exit;
 }
-if ($resumen['dias_disponibles'] <= 0) {
-    $_SESSION['alerta'] = ['tipo' => 'warning', 'mensaje' => 'No tienes d&iacute;as de vacaciones disponibles en este periodo.'];
+
+// Dias del periodo anterior (no vencidos)
+$periodo_anterior = $resumen['periodo_anterior'] ?? ['dias_pendientes' => 0];
+$dias_periodo_ant = $periodo_anterior['dias_pendientes'] ?? 0;
+$usa_periodo_anterior = ($dias_periodo_ant > 0);
+
+// Si no tiene dias del periodo actual NI del anterior, no puede crear
+if ($resumen['dias_disponibles'] <= 0 && $dias_periodo_ant <= 0) {
+    $_SESSION['alerta'] = ['tipo' => 'warning', 'mensaje' => 'No tienes d&iacute;as de vacaciones disponibles.'];
     header('Location: ' . URL_BASE . 'dashboard/vacaciones/mis_vacaciones.php'); exit;
 }
 
@@ -36,8 +43,11 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
 
 $periodo_texto = $resumen['periodo']['anio_periodo'] ?? 0;
 $dias_correspondientes = $resumen['dias_correspondientes'];
-$dias_pendientes = $resumen['dias_disponibles'];
-$periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
+// Si usa periodo anterior, los dias disponibles son los del periodo anterior
+$dias_pendientes = $usa_periodo_anterior ? $dias_periodo_ant : $resumen['dias_disponibles'];
+$periodo_vacacional = $usa_periodo_anterior 
+    ? (($periodo_anterior['periodo']['anio_periodo'] ?? 0) . "&deg; a&ntilde;o (anterior)")
+    : ($periodo_texto . "&deg; a&ntilde;o");
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -132,6 +142,19 @@ $periodo_vacacional = $periodo_texto . "&deg; a&ntilde;o";
                     <input type="hidden" name="dias_correspondientes" value="<?php echo $dias_correspondientes; ?>">
                     <input type="hidden" name="dias_pendientes" value="<?php echo $dias_pendientes; ?>">
                     <input type="hidden" name="periodo_vacacional" value="<?php echo $periodo_vacacional; ?>">
+                    <input type="hidden" name="usa_periodo_anterior" value="<?php echo $usa_periodo_anterior ? '1' : '0'; ?>">
+
+                    <?php if ($usa_periodo_anterior): ?>
+                    <div class="alert alert-warning mb-3" style="max-width:900px;margin:0 auto">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Tienes <?php echo $dias_periodo_ant; ?> d&iacute;a<?php echo $dias_periodo_ant != 1 ? 's' : ''; ?> pendiente<?php echo $dias_periodo_ant != 1 ? 's' : ''; ?> del periodo anterior.</strong>
+                        Esta solicitud cubrir&aacute; esos d&iacute;as. Solo podr&aacute;s solicitar hasta <?php echo $dias_periodo_ant; ?> d&iacute;a<?php echo $dias_periodo_ant != 1 ? 's' : ''; ?>.
+                        Para usar d&iacute;as del periodo actual, crea otra solicitud despu&eacute;s de cubrir los pendientes.
+                        <?php if (!empty($periodo_anterior['periodo']['fecha_vencimiento'])): ?>
+                        <br><small class="text-muted">Estos d&iacute;as vencen el <?php echo fecha_corta_es($periodo_anterior['periodo']['fecha_vencimiento']); ?>.</small>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
 
                     <div class="doc-container shadow-sm mb-4">
                         <table class="doc-header-table">

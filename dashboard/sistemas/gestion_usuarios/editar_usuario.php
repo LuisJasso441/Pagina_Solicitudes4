@@ -96,6 +96,8 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     
+    <!-- Sistema de notificaciones -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
         .form-section {
             background-color: #f8f9fa;
@@ -181,9 +183,14 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                     </ol>
                 </nav>
 
-                <h3 class="mb-4">
-                    <i class="bi bi-person-gear me-2"></i>Editar Usuario: <?php echo htmlspecialchars($usuario['nombre_completo']); ?>
-                </h3>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="mb-0">
+                        <i class="bi bi-person-gear me-2"></i>Editar Usuario: <?php echo htmlspecialchars($usuario['nombre_completo']); ?>
+                    </h3>
+                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Regresar
+                    </a>
+                </div>
 
                 <!-- Mostrar errores si existen -->
                 <?php if (!empty($errores)): ?>
@@ -236,41 +243,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                     <?php echo htmlspecialchars($depto['nombre']); ?>
                                                 </option>
                                             <?php endforeach; ?>
-                                        </select>
-                                    </div>
-
-                                    <!-- ⭐ VACACIONES: Campos nuevos -->
-                                    <div class="col-md-6">
-                                        <label class="form-label">No. Nómina</label>
-                                        <input type="text" name="no_nomina" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['no_nomina'] ?? ''); ?>"
-                                               maxlength="20" placeholder="Ej: 1234">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Puesto</label>
-                                        <input type="text" name="puesto" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>"
-                                               maxlength="100" placeholder="Ej: Analista de Sistemas">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Fecha de Ingreso</label>
-                                        <input type="date" name="fecha_ingreso" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['fecha_ingreso'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Periodo</label>
-                                        <select name="periodo_pago" class="form-select">
-                                            <option value="">Seleccionar...</option>
-                                            <option value="quincenal" <?php echo (($form_data['periodo_pago'] ?? '') === 'quincenal') ? 'selected' : ''; ?>>Quincenal</option>
-                                            <option value="semanal" <?php echo (($form_data['periodo_pago'] ?? '') === 'semanal') ? 'selected' : ''; ?>>Semanal</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Empresa</label>
-                                        <select name="empresa" class="form-select">
-                                            <option value="">Seleccionar...</option>
-                                            <option value="resimex" <?php echo (($form_data['empresa'] ?? '') === 'resimex') ? 'selected' : ''; ?>>Resimex</option>
-                                            <option value="carganova" <?php echo (($form_data['empresa'] ?? '') === 'carganova') ? 'selected' : ''; ?>>Carganova</option>
                                         </select>
                                     </div>
                                     <!-- FIN VACACIONES -->

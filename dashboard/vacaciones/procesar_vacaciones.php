@@ -105,7 +105,12 @@ if ($accion === 'crear') {
         exit;
     }
     
-    $dias_solicitados = contar_dias_habiles($fecha_inicio, $fecha_fin);
+    // Obtener jornada del usuario para conteo correcto
+    $stmt_jornada = $pdo->prepare("SELECT COALESCE(jornada, 'lunes_sabado') AS jornada FROM usuarios WHERE id = ?");
+    $stmt_jornada->execute([$_SESSION['usuario_id']]);
+    $jornada_usuario = $stmt_jornada->fetchColumn() ?: 'lunes_sabado';
+    
+    $dias_solicitados = contar_dias_habiles($fecha_inicio, $fecha_fin, $jornada_usuario, $pdo);
     
     if ($dias_solicitados <= 0) {
         $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'El rango seleccionado no contiene días hábiles (L-S).'];
@@ -121,10 +126,25 @@ if ($accion === 'crear') {
         exit;
     }
     
-    if ($dias_solicitados > $resumen['dias_disponibles']) {
-        $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => "Solicitas $dias_solicitados días pero solo tienes {$resumen['dias_disponibles']} disponibles."];
-        header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_vacaciones.php');
-        exit;
+    // Verificar periodo anterior vs actual
+    $usa_periodo_anterior = ($_POST['usa_periodo_anterior'] ?? '0') === '1';
+    $periodo_anterior = $resumen['periodo_anterior'] ?? ['dias_pendientes' => 0];
+    $dias_periodo_ant = $periodo_anterior['dias_pendientes'] ?? 0;
+    
+    if ($usa_periodo_anterior && $dias_periodo_ant > 0) {
+        // Validar contra dias del periodo anterior
+        if ($dias_solicitados > $dias_periodo_ant) {
+            $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => "Solicitas $dias_solicitados días pero solo tienes {$dias_periodo_ant} pendientes del periodo anterior."];
+            header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_vacaciones.php');
+            exit;
+        }
+    } else {
+        // Validar contra dias del periodo actual
+        if ($dias_solicitados > $resumen['dias_disponibles']) {
+            $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => "Solicitas $dias_solicitados días pero solo tienes {$resumen['dias_disponibles']} disponibles."];
+            header('Location: ' . URL_BASE . 'dashboard/vacaciones/nueva_solicitud_vacaciones.php');
+            exit;
+        }
     }
     
     if (empty($firma_empleado)) {
@@ -384,14 +404,9 @@ if ($accion === 'crear_manual') {
         exit;
     }
     
-    // Calcular dias solicitados (L-S)
-    $dias_solicitados = 0;
-    $d = new DateTime($fecha_inicio);
-    $fin_dt = new DateTime($fecha_fin);
-    while ($d <= $fin_dt) {
-        if ($d->format('N') <= 6) $dias_solicitados++;
-        $d->modify('+1 day');
-    }
+    // Calcular dias solicitados (con jornada + festivos)
+    $jornada_manual = trim($_POST['jornada_manual'] ?? 'lunes_sabado');
+    $dias_solicitados = contar_dias_habiles($fecha_inicio, $fecha_fin, $jornada_manual, $pdo);
     
     // Calcular dias LFT desde fecha_ingreso_manual
     $fi_dt = new DateTime($fecha_ingreso_manual);
@@ -646,7 +661,7 @@ elseif ($accion === 'rechazar_gth') {
         // Notificar al empleado (si tiene cuenta)
         if (!empty($solicitud['usuario_id'])) {
             notificar_vacaciones($pdo, $solicitud['usuario_id'],
-                "Tu solicitud ({$solicitud['folio']}) fue rechazada por GTH." . ($comentarios ? " Motivo: {$comentarios}" : ""), $solicitud_id);
+                "Tu solicitud ({$solicitud['folio']}) fue rechazada por GTH ({$nombre_gth})." . ($comentarios ? " Motivo: {$comentarios}" : ""), $solicitud_id);
         }
         
         // Notificar al Admin que aprobó

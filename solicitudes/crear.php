@@ -235,6 +235,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <option value="Asignación de Equipos (Teléfono Red, PC, Laptops, USB, etc.)">Asignación de Equipos (Teléfono Red, PC, Laptops, USB, etc.)</option>
                         <option value="Acceso a contenido web no visible">Acceso a contenido web no visible</option>
                         <option value="Acceso a carpetas compartidas en servidor">Acceso a carpetas compartidas en servidor</option>
+                        <option value="Ayuda en archivos de Excel">Ayuda en archivos de Excel</option>
+                        <option value="Conflictos con correo electrónico">Conflictos con correo electrónico</option>
                     </select>
                 </div>
 
