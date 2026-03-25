@@ -355,8 +355,8 @@ function formatear_tamanio_osm($bytes) {
             include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php';
         } elseif ($departamento === 'ti' || $departamento === 'sistemas' || $departamento === 'ti_sistemas') {
             include __DIR__ . '/../../includes/sidebar/sidebar_ti.php';
-        } elseif (es_usuario_epp()) {
-            include __DIR__ . '/../../includes/sidebar/sidebar_inventario.php';
+        } elseif (es_usuario_gth()) {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
         } else {
             // Para usuarios colaborativos
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';

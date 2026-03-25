@@ -237,6 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <option value="Acceso a carpetas compartidas en servidor">Acceso a carpetas compartidas en servidor</option>
                         <option value="Ayuda en archivos de Excel">Ayuda en archivos de Excel</option>
                         <option value="Conflictos con correo electrónico">Conflictos con correo electrónico</option>
+                        <option value="Revisión de grabaciones de cámaras de seguridad">Revisión de grabaciones de cámaras de seguridad</option>
                     </select>
                 </div>
 

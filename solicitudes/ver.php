@@ -3,6 +3,8 @@
  * Ver detalle de una solicitud
  * Muestra información completa de una solicitud específica
  * 
+ * ⭐ CORREGIDO: Sidebar ahora incluye verificación de GTH y Mantenimiento
+ * 
  * ACTUALIZADO:
  * - Historial completo de cambios de estado
  * - Botón "Editar Solicitud" para usuarios de Sistemas
@@ -212,14 +214,18 @@ function obtener_icono_tipo($tipo) {
     
     <div class="dashboard-container">
         
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR ⭐ CORREGIDO: Ahora incluye verificación de GTH y Mantenimiento -->
         <?php 
         if (es_usuario_ti()) {
             include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
+        } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_gth.php';
         } elseif (es_usuario_colaborativo()) {
             include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
-        } elseif (es_usuario_epp()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_inventario.php';
+        }elseif (es_usuario_gth()) {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
+        } elseif (es_mantenimiento()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_mantenimiento.php';
         } else {
             include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
         }
@@ -263,39 +269,35 @@ function obtener_icono_tipo($tipo) {
                 <?php echo mostrar_alerta(); ?>
 
                 <div class="row">
-                    
-                    <!-- Columna Izquierda: Información -->
+                    <!-- Columna Principal: Info de la Solicitud -->
                     <div class="col-lg-8 mb-4">
                         
-                        <!-- Estado y Prioridad -->
-                        <div class="card card-custom mb-4">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-md-6">
-                                        <span class="badge <?php echo obtener_badge_estado($solicitud['estado']); ?> fs-6 py-2 px-3">
-                                            <i class="bi bi-<?php echo $solicitud['estado'] == 'finalizada' ? 'check-circle' : 'hourglass-split'; ?>"></i>
-                                            <?php echo obtener_texto_estado($solicitud['estado']); ?>
-                                        </span>
-                                    </div>
-                                    <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                                        <span class="badge <?php echo obtener_badge_prioridad($solicitud['prioridad']); ?> fs-6 py-2 px-3">
-                                            Prioridad: <?php echo ucfirst($solicitud['prioridad']); ?>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Información Detallada -->
+                        <!-- Card Principal -->
                         <div class="card card-custom">
-                            <div class="card-header">
-                                <i class="bi <?php echo obtener_icono_tipo($solicitud['tipo_soporte']); ?>"></i>
-                                Detalles de la Solicitud
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="<?php echo obtener_icono_tipo($solicitud['tipo_soporte']); ?>"></i>
+                                    Información de la Solicitud
+                                </span>
+                                <span class="badge <?php echo obtener_badge_estado($solicitud['estado']); ?>">
+                                    <?php echo obtener_texto_estado($solicitud['estado']); ?>
+                                </span>
                             </div>
                             <div class="card-body">
                                 
-                                <!-- Tipo de Soporte -->
-                                <div class="row mb-3">
+                                <!-- Fila de badges -->
+                                <div class="mb-4 d-flex gap-2 flex-wrap">
+                                    <span class="badge <?php echo $solicitud['tipo_soporte'] == 'Apoyo' ? 'bg-info' : 'bg-warning'; ?> px-3 py-2">
+                                        <i class="<?php echo obtener_icono_tipo($solicitud['tipo_soporte']); ?>"></i>
+                                        <?php echo htmlspecialchars($solicitud['tipo_soporte']); ?>
+                                    </span>
+                                    <span class="badge <?php echo obtener_badge_prioridad($solicitud['prioridad']); ?> px-3 py-2">
+                                        Prioridad: <?php echo ucfirst($solicitud['prioridad']); ?>
+                                    </span>
+                                </div>
+
+                                <!-- Info en cards -->
+                                <div class="row">
                                     <div class="col-md-6">
                                         <div class="info-card">
                                             <div class="info-label">Tipo de Soporte</div>

@@ -2,6 +2,8 @@
 /**
  * Búsqueda avanzada de solicitudes
  * Permite buscar por múltiples criterios
+ * 
+ * ⭐ CORREGIDO: Sidebar ahora incluye verificación de GTH
  */
 
 session_start();
@@ -144,14 +146,16 @@ function obtener_badge_prioridad($prioridad) {
     
     <div class="dashboard-container">
         
-        <!-- SIDEBAR -->
+        <!-- SIDEBAR ⭐ CORREGIDO: Ahora incluye verificación de GTH -->
         <?php 
         if (es_usuario_ti()) {
             include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
+        } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_gth.php';
         } elseif (es_usuario_colaborativo()) {
             include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
-        } elseif (es_usuario_epp()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_inventario.php';
+        } elseif (es_usuario_gth()) {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
         } elseif (es_mantenimiento()) {
             include __DIR__ . '/../includes/sidebar/sidebar_mantenimiento.php';
         } else {
@@ -173,21 +177,18 @@ function obtener_badge_prioridad($prioridad) {
                     </div>
                     <div>
                         <?php if ($es_ti): ?>
-                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                        <a href="<?php echo URL_BASE; ?>ti_sistemas/gestion_solicitudes.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al panel
                         </a>
                         <?php else: ?>
-                        <a href="<?php echo URL_BASE; ?>dashboard/colaborativo/colaborativo.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                        <a href="<?php echo URL_BASE; ?>solicitudes/listar.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Mis solicitudes
                         </a>
                         <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- Alertas -->
-                <?php echo mostrar_alerta(); ?>
-
-                <!-- Filtros de Búsqueda -->
+                <!-- Formulario de búsqueda -->
                 <div class="card card-custom mb-4">
                     <div class="card-header">
                         <i class="bi bi-funnel"></i> Filtros de Búsqueda
@@ -200,7 +201,7 @@ function obtener_badge_prioridad($prioridad) {
                                 <div class="col-md-4">
                                     <label class="form-label">Buscar</label>
                                     <input type="text" name="buscar" class="form-control" 
-                                           placeholder="Folio, descripción, tipo..."
+                                           placeholder="Folio, descripción..." 
                                            value="<?php echo htmlspecialchars($buscar); ?>">
                                 </div>
 

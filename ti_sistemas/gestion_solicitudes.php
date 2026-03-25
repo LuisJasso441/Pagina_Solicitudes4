@@ -21,7 +21,9 @@ if (!es_usuario_ti()) {
 // Parámetros de filtrado
 $filtro_estado = isset($_GET['estado']) ? limpiar_dato($_GET['estado']) : '';
 $filtro_prioridad = isset($_GET['prioridad']) ? limpiar_dato($_GET['prioridad']) : '';
-$busqueda = isset($_GET['buscar']) ? limpiar_dato($_GET['buscar']) : '';
+$filtro_departamento = isset($_GET['departamento']) ? limpiar_dato($_GET['departamento']) : '';
+$filtro_fecha_desde = isset($_GET['fecha_desde']) ? limpiar_dato($_GET['fecha_desde']) : '';
+$filtro_fecha_hasta = isset($_GET['fecha_hasta']) ? limpiar_dato($_GET['fecha_hasta']) : '';
 
 // Obtener solicitudes
 try {
@@ -47,13 +49,19 @@ try {
         $params[] = $filtro_prioridad;
     }
     
-    if (!empty($busqueda)) {
-        // ACTUALIZADO: También busca en nombre_solicitante
-        $sql .= " AND (s.folio LIKE ? OR s.descripcion LIKE ? OR u.nombre_completo LIKE ? OR s.nombre_solicitante LIKE ?)";
-        $params[] = "%$busqueda%";
-        $params[] = "%$busqueda%";
-        $params[] = "%$busqueda%";
-        $params[] = "%$busqueda%";
+    if (!empty($filtro_departamento)) {
+        $sql .= " AND u.departamento = ?";
+        $params[] = $filtro_departamento;
+    }
+    
+    if (!empty($filtro_fecha_desde)) {
+        $sql .= " AND DATE(s.fecha_creacion) >= ?";
+        $params[] = $filtro_fecha_desde;
+    }
+    
+    if (!empty($filtro_fecha_hasta)) {
+        $sql .= " AND DATE(s.fecha_creacion) <= ?";
+        $params[] = $filtro_fecha_hasta;
     }
     
     $sql .= " ORDER BY 
@@ -85,10 +93,15 @@ try {
     ");
     $contadores = $stmt->fetch();
     
+    // Obtener lista de departamentos para el filtro
+    $stmt_deptos = $pdo->query("SELECT codigo, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre ASC");
+    $departamentos = $stmt_deptos->fetchAll();
+    
 } catch (Exception $e) {
     establecer_alerta('error', 'Error al cargar solicitudes: ' . $e->getMessage());
     $solicitudes = [];
     $contadores = ['pendientes' => 0, 'en_proceso' => 0, 'finalizadas' => 0, 'total' => 0];
+    $departamentos = [];
 }
 
 /**
@@ -214,37 +227,65 @@ function obtener_badge_prioridad($prioridad) {
                 <!-- Filtros -->
                 <div class="card card-custom mb-4">
                     <div class="card-body">
-                        <form method="GET" action="" class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">Estado</label>
-                                <select name="estado" class="form-select" onchange="this.form.submit()">
-                                    <option value="">Todos</option>
-                                    <option value="pendiente" <?php echo $filtro_estado == 'pendiente' ? 'selected' : ''; ?>>Pendiente</option>
-                                    <option value="en_proceso" <?php echo $filtro_estado == 'en_proceso' ? 'selected' : ''; ?>>En Proceso</option>
-                                    <option value="finalizada" <?php echo $filtro_estado == 'finalizada' ? 'selected' : ''; ?>>Finalizada</option>
-                                    <option value="cancelada" <?php echo $filtro_estado == 'cancelada' ? 'selected' : ''; ?>>Cancelada</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Prioridad</label>
-                                <select name="prioridad" class="form-select" onchange="this.form.submit()">
-                                    <option value="">Todas</option>
-                                    <option value="critica" <?php echo $filtro_prioridad == 'critica' ? 'selected' : ''; ?>>Crítica</option>
-                                    <option value="alta" <?php echo $filtro_prioridad == 'alta' ? 'selected' : ''; ?>>Alta</option>
-                                    <option value="media" <?php echo $filtro_prioridad == 'media' ? 'selected' : ''; ?>>Media</option>
-                                    <option value="baja" <?php echo $filtro_prioridad == 'baja' ? 'selected' : ''; ?>>Baja</option>
-                                </select>
-                            </div>
-                            <div class="col-md-5">
-                                <label class="form-label">Buscar</label>
-                                <input type="text" name="buscar" class="form-control" 
-                                       placeholder="Folio, descripción o solicitante..."
-                                       value="<?php echo htmlspecialchars($busqueda); ?>">
-                            </div>
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-gradient w-100">
-                                    <i class="bi bi-search"></i>
-                                </button>
+                        <form method="GET" action="" id="formFiltros">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-lg col-md-4 col-sm-6">
+                                    <label class="form-label">Estado</label>
+                                    <select name="estado" class="form-select" onchange="this.form.submit()">
+                                        <option value="">Todos</option>
+                                        <option value="pendiente" <?php echo $filtro_estado == 'pendiente' ? 'selected' : ''; ?>>Pendiente</option>
+                                        <option value="en_proceso" <?php echo $filtro_estado == 'en_proceso' ? 'selected' : ''; ?>>En Proceso</option>
+                                        <option value="finalizada" <?php echo $filtro_estado == 'finalizada' ? 'selected' : ''; ?>>Finalizada</option>
+                                        <option value="cancelada" <?php echo $filtro_estado == 'cancelada' ? 'selected' : ''; ?>>Cancelada</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg col-md-4 col-sm-6">
+                                    <label class="form-label">Prioridad</label>
+                                    <select name="prioridad" class="form-select" onchange="this.form.submit()">
+                                        <option value="">Todas</option>
+                                        <option value="critica" <?php echo $filtro_prioridad == 'critica' ? 'selected' : ''; ?>>Crítica</option>
+                                        <option value="alta" <?php echo $filtro_prioridad == 'alta' ? 'selected' : ''; ?>>Alta</option>
+                                        <option value="media" <?php echo $filtro_prioridad == 'media' ? 'selected' : ''; ?>>Media</option>
+                                        <option value="baja" <?php echo $filtro_prioridad == 'baja' ? 'selected' : ''; ?>>Baja</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg col-md-4 col-sm-6">
+                                    <label class="form-label">Departamento</label>
+                                    <select name="departamento" class="form-select" onchange="this.form.submit()">
+                                        <option value="">Todos</option>
+                                        <?php foreach ($departamentos as $depto): ?>
+                                        <option value="<?php echo htmlspecialchars($depto['codigo']); ?>" <?php echo $filtro_departamento == $depto['codigo'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($depto['nombre']); ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-lg col-md-4 col-sm-6">
+                                    <label class="form-label">Fecha Desde</label>
+                                    <input type="date" name="fecha_desde" class="form-control" 
+                                           value="<?php echo htmlspecialchars($filtro_fecha_desde); ?>"
+                                           onchange="this.form.submit()">
+                                </div>
+                                <div class="col-lg col-md-4 col-sm-6">
+                                    <label class="form-label">Fecha Hasta</label>
+                                    <input type="date" name="fecha_hasta" class="form-control" 
+                                           value="<?php echo htmlspecialchars($filtro_fecha_hasta); ?>"
+                                           onchange="this.form.submit()">
+                                </div>
+                                <div class="col-lg-auto col-md-4 col-sm-12">
+                                    <?php 
+                                    $hay_filtros = !empty($filtro_estado) || !empty($filtro_prioridad) || !empty($filtro_departamento) || !empty($filtro_fecha_desde) || !empty($filtro_fecha_hasta);
+                                    ?>
+                                    <?php if ($hay_filtros): ?>
+                                    <a href="<?php echo strtok($_SERVER['REQUEST_URI'], '?'); ?>" class="btn btn-outline-secondary w-100" title="Limpiar filtros">
+                                        <i class="bi bi-x-circle"></i> Limpiar
+                                    </a>
+                                    <?php else: ?>
+                                    <button type="submit" class="btn btn-gradient w-100">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </form>
                     </div>

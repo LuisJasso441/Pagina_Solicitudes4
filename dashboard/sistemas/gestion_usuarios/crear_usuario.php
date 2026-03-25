@@ -57,6 +57,8 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    <!-- Sistema de notificaciones en tiempo real -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     <style>
         .form-section { background-color:#f8f9fa; border:1px solid #dee2e6; border-radius:.375rem; padding:1rem; margin-bottom:1rem; }
         .form-section-title { font-weight:600; font-size:.95rem; margin-bottom:.75rem; color:#495057; border-bottom:1px solid #dee2e6; padding-bottom:.5rem; }

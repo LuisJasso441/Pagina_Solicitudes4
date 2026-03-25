@@ -125,6 +125,9 @@ function buildUrl($params_override = []) {
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+
+    <!-- Sistema de notificaciones en tiempo real -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     
     <style>
         .table th { 

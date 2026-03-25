@@ -46,7 +46,7 @@ $hora_pre = $_GET['hora'] ?? '';
         $depto = strtolower(trim($_SESSION['departamento'] ?? ''));
         if ($depto === 'sistemas') { include __DIR__ . '/../../includes/sidebar/sidebar_ti.php'; }
         elseif ($depto === 'mantenimiento') { include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php'; }
-        elseif (function_exists('es_usuario_epp') && es_usuario_epp()) { include __DIR__ . '/../../includes/sidebar/sidebar_inventario.php'; }
+        elseif (function_exists('es_usuario_gth') && es_usuario_gth()) { include __DIR__ . '/../../includes/sidebar/sidebar_gth.php'; }
         elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) { include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; }
         else { include __DIR__ . '/../../includes/sidebar/sidebar_normal.php'; }
         ?>
