@@ -191,7 +191,7 @@ try {
     $ultimaColLetra = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($ultimaCol);
 
     // FILA 1: TITULO
-    $sheet->setCellValue('A1', 'CONTROL DE VACACIONES ' . $anio . ' - GRUPOVERDEN');
+    $sheet->setCellValue('A1', 'CONTROL DE VACACIONES ' . $anio . ' - GRUPO VERDEN');
     $sheet->mergeCells('A1:' . $ultimaColLetra . '1');
     $sheet->getStyle('A1')->applyFromArray($estiloTitulo);
     $sheet->getRowDimension(1)->setRowHeight(30);
