@@ -1,10 +1,9 @@
 <?php
 /**
  * Procesar Equipo - Crear/Editar/Eliminar
- * Solo accesible para usuarios del departamento de Sistemas
  * dashboard/sistemas/ti_sistemas/procesar_equipo.php
  * 
- * ⚠️ CORREGIDO para coincidir con estructura real de tabla inventario_equipos
+ * v2.0 - Tipos ampliados, hostname, personal_asignado
  */
 
 session_start();
@@ -12,105 +11,111 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../../includes/functions.php';
 
-// Verificar sesión
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
 
-// Verificar que sea del departamento de Sistemas
 $departamento = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''));
 if ($departamento !== 'sistemas') {
-    establecer_alerta('error', 'No tiene permisos para realizar esta acción.');
+    establecer_alerta('error', 'No tiene permisos para realizar esta acci&oacute;n.');
     header('Location: ' . URL_BASE . 'index.php');
     exit;
 }
 
-// Verificar método POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
     exit;
 }
 
-// Conexión a BD
 $pdo = conectarDB();
-
-// Obtener acción
 $accion = $_POST['accion'] ?? '';
 
 switch ($accion) {
-    case 'crear':
-        crearEquipo($pdo);
-        break;
-    case 'editar':
-        editarEquipo($pdo);
-        break;
-    case 'eliminar':
-        eliminarEquipo($pdo);
-        break;
+    case 'crear':  crearEquipo($pdo); break;
+    case 'editar': editarEquipo($pdo); break;
+    case 'eliminar': eliminarEquipo($pdo); break;
     default:
-        establecer_alerta('error', 'Acción no válida.');
+        establecer_alerta('error', 'Acci&oacute;n no v&aacute;lida.');
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
         exit;
 }
 
 /**
- * Crear nuevo equipo
- * Campos de la tabla: tipo_equipo, codigo_interno, marca, modelo, numero_serie,
- *                     ubicacion, departamento_id, usuario_asignado_id, estado,
- *                     fecha_adquisicion, especificaciones, notas, registrado_por
+ * Tipos v&aacute;lidos de equipo (v2.0)
  */
-function crearEquipo($pdo) {
-    global $_SESSION;
-    
+function tiposValidos() {
+    return [
+        'all_in_one', 'pc', 'laptop', 'monitor', 'mouse', 'teclado',
+        'impresora', 'access_point', 'switch', 'camara', 'celular',
+        'computadora', 'telefono' // legacy - mantener por compatibilidad
+    ];
+}
+
+/**
+ * Validaciones comunes para crear/editar
+ */
+function validarDatosEquipo($pdo, $datos, $equipo_id = 0) {
     $errores = [];
     
-    // Obtener y sanitizar datos
-    $tipo_equipo = trim($_POST['tipo_equipo'] ?? '');
-    $codigo_interno = strtoupper(trim($_POST['codigo_interno'] ?? ''));
-    $numero_serie = trim($_POST['numero_serie'] ?? '');
-    $marca = trim($_POST['marca'] ?? '');
-    $modelo = trim($_POST['modelo'] ?? '');
-    $ubicacion = trim($_POST['ubicacion'] ?? '');
-    $departamento_id = !empty($_POST['departamento_id']) ? intval($_POST['departamento_id']) : null;
-    $usuario_asignado_id = !empty($_POST['usuario_asignado_id']) ? intval($_POST['usuario_asignado_id']) : null;
-    $correo_asignado = trim($_POST['correo_asignado'] ?? '');
-    $fecha_adquisicion = !empty($_POST['fecha_adquisicion']) ? $_POST['fecha_adquisicion'] : null;
-    $estado = $_POST['estado'] ?? 'activo';
-    $notas = trim($_POST['notas'] ?? '');
-    $agregar_otro = isset($_POST['agregar_otro']);
-    
-    // Validaciones
-    $tipos_validos = ['computadora', 'impresora', 'camara', 'telefono'];
-    if (empty($tipo_equipo) || !in_array($tipo_equipo, $tipos_validos)) {
-        $errores[] = 'Debe seleccionar un tipo de equipo válido.';
+    if (empty($datos['tipo_equipo']) || !in_array($datos['tipo_equipo'], tiposValidos())) {
+        $errores[] = 'Debe seleccionar un tipo de equipo v&aacute;lido.';
     }
     
-    if (empty($codigo_interno)) {
-        $errores[] = 'El código interno es obligatorio.';
-    } elseif (!preg_match('/^[A-Z0-9\-]+$/', $codigo_interno)) {
-        $errores[] = 'El código interno solo puede contener letras, números y guiones.';
+    if (empty($datos['hostname'])) {
+        $errores[] = 'El hostname es obligatorio.';
+    } elseif (!preg_match('/^[A-Z0-9\-_]+$/i', $datos['hostname'])) {
+        $errores[] = 'El hostname solo puede contener letras, n&uacute;meros, guiones y guiones bajos.';
     } else {
-        // Verificar que el código no exista
-        $stmt = $pdo->prepare("SELECT id FROM inventario_equipos WHERE codigo_interno = ?");
-        $stmt->execute([$codigo_interno]);
+        $stmt = $pdo->prepare("SELECT id FROM inventario_equipos WHERE hostname = ? AND id != ?");
+        $stmt->execute([strtoupper($datos['hostname']), $equipo_id]);
         if ($stmt->fetch()) {
-            $errores[] = 'El código interno ya existe. Por favor, use otro.';
+            $errores[] = 'El hostname ya existe en otro equipo.';
         }
     }
     
-    // Ubicación es obligatoria (NOT NULL en la BD)
-    if (empty($ubicacion)) {
-        $errores[] = 'La ubicación es obligatoria.';
+    if (empty($datos['ubicacion'])) {
+        $errores[] = 'La ubicaci&oacute;n es obligatoria.';
     }
     
-    // Estados válidos según el enum de la BD
     $estados_validos = ['activo', 'inactivo', 'en_reparacion', 'dado_de_baja'];
-    if (!in_array($estado, $estados_validos)) {
-        $errores[] = 'El estado seleccionado no es válido.';
+    if (!in_array($datos['estado'], $estados_validos)) {
+        $errores[] = 'El estado seleccionado no es v&aacute;lido.';
     }
     
-    // Si hay errores, regresar al formulario
+    return $errores;
+}
+
+/**
+ * Extraer y sanitizar datos del POST
+ */
+function extraerDatosPost() {
+    return [
+        'tipo_equipo'       => trim($_POST['tipo_equipo'] ?? ''),
+        'hostname'          => strtoupper(trim($_POST['hostname'] ?? '')),
+        'codigo_interno'    => strtoupper(trim($_POST['codigo_interno'] ?? '')),
+        'numero_serie'      => trim($_POST['numero_serie'] ?? ''),
+        'marca'             => trim($_POST['marca'] ?? ''),
+        'modelo'            => trim($_POST['modelo'] ?? ''),
+        'ubicacion'         => trim($_POST['ubicacion'] ?? ''),
+        'departamento_id'   => !empty($_POST['departamento_id']) ? intval($_POST['departamento_id']) : null,
+        'usuario_asignado_id' => !empty($_POST['usuario_asignado_id']) ? intval($_POST['usuario_asignado_id']) : null,
+        'personal_asignado' => strtoupper(trim($_POST['personal_asignado'] ?? '')),
+        'correo_asignado'   => trim($_POST['correo_asignado'] ?? ''),
+        'fecha_adquisicion' => !empty($_POST['fecha_adquisicion']) ? $_POST['fecha_adquisicion'] : null,
+        'estado'            => $_POST['estado'] ?? 'activo',
+        'notas'             => trim($_POST['notas'] ?? ''),
+    ];
+}
+
+/**
+ * Crear nuevo equipo
+ */
+function crearEquipo($pdo) {
+    $datos = extraerDatosPost();
+    $errores = validarDatosEquipo($pdo, $datos);
+    $agregar_otro = isset($_POST['agregar_otro']);
+    
     if (!empty($errores)) {
         $_SESSION['form_errors'] = $errores;
         $_SESSION['form_data'] = $_POST;
@@ -118,38 +123,42 @@ function crearEquipo($pdo) {
         exit;
     }
     
+    // Si no se proporcionó codigo_interno, usar hostname
+    if (empty($datos['codigo_interno'])) {
+        $datos['codigo_interno'] = $datos['hostname'];
+    }
+    
     try {
         $sql = "INSERT INTO inventario_equipos 
-                (tipo_equipo, codigo_interno, numero_serie, marca, modelo, 
-                 ubicacion, departamento_id, usuario_asignado_id, correo_asignado, estado,
-                 fecha_adquisicion, notas, registrado_por) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                (tipo_equipo, hostname, codigo_interno, numero_serie, marca, modelo, 
+                 ubicacion, departamento_id, usuario_asignado_id, personal_asignado,
+                 correo_asignado, estado, fecha_adquisicion, notas, registrado_por) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
-            $tipo_equipo,
-            $codigo_interno,
-            $numero_serie ?: null,
-            $marca ?: null,
-            $modelo ?: null,
-            $ubicacion,
-            $departamento_id,
-            $usuario_asignado_id,
-            $correo_asignado ?: null,
-            $estado,
-            $fecha_adquisicion,
-            $notas ?: null,
+            $datos['tipo_equipo'],
+            $datos['hostname'],
+            $datos['codigo_interno'],
+            $datos['numero_serie'] ?: null,
+            $datos['marca'] ?: null,
+            $datos['modelo'] ?: null,
+            $datos['ubicacion'],
+            $datos['departamento_id'],
+            $datos['usuario_asignado_id'],
+            $datos['personal_asignado'] ?: null,
+            $datos['correo_asignado'] ?: null,
+            $datos['estado'],
+            $datos['fecha_adquisicion'],
+            $datos['notas'] ?: null,
             $_SESSION['usuario_id']
         ]);
         
         $equipo_id = $pdo->lastInsertId();
+        crearNotificacionEquipo($pdo, $equipo_id, $datos['hostname'], $datos['tipo_equipo'], 'nuevo');
         
-        // Crear notificación para usuarios de Sistemas
-        crearNotificacionEquipo($pdo, $equipo_id, $codigo_interno, $tipo_equipo, 'nuevo');
+        establecer_alerta('success', "Equipo {$datos['hostname']} registrado exitosamente.");
         
-        establecer_alerta('success', "Equipo {$codigo_interno} registrado exitosamente.");
-        
-        // Si es "guardar y agregar otro", regresar al formulario
         if ($agregar_otro) {
             header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/crear_equipo.php');
         } else {
@@ -170,63 +179,16 @@ function crearEquipo($pdo) {
  * Editar equipo existente
  */
 function editarEquipo($pdo) {
-    global $_SESSION;
-    
     $equipo_id = intval($_POST['equipo_id'] ?? 0);
-    
     if (!$equipo_id) {
-        establecer_alerta('error', 'ID de equipo no válido.');
+        establecer_alerta('error', 'ID de equipo no v&aacute;lido.');
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
         exit;
     }
     
-    $errores = [];
+    $datos = extraerDatosPost();
+    $errores = validarDatosEquipo($pdo, $datos, $equipo_id);
     
-    // Obtener y sanitizar datos
-    $tipo_equipo = trim($_POST['tipo_equipo'] ?? '');
-    $codigo_interno = strtoupper(trim($_POST['codigo_interno'] ?? ''));
-    $numero_serie = trim($_POST['numero_serie'] ?? '');
-    $marca = trim($_POST['marca'] ?? '');
-    $modelo = trim($_POST['modelo'] ?? '');
-    $ubicacion = trim($_POST['ubicacion'] ?? '');
-    $departamento_id = !empty($_POST['departamento_id']) ? intval($_POST['departamento_id']) : null;
-    $usuario_asignado_id = !empty($_POST['usuario_asignado_id']) ? intval($_POST['usuario_asignado_id']) : null;
-    $correo_asignado = trim($_POST['correo_asignado'] ?? '');
-    $fecha_adquisicion = !empty($_POST['fecha_adquisicion']) ? $_POST['fecha_adquisicion'] : null;
-    $estado = $_POST['estado'] ?? 'activo';
-    $notas = trim($_POST['notas'] ?? '');
-    
-    // Validaciones
-    $tipos_validos = ['computadora', 'impresora', 'camara', 'telefono'];
-    if (empty($tipo_equipo) || !in_array($tipo_equipo, $tipos_validos)) {
-        $errores[] = 'Debe seleccionar un tipo de equipo válido.';
-    }
-    
-    if (empty($codigo_interno)) {
-        $errores[] = 'El código interno es obligatorio.';
-    } elseif (!preg_match('/^[A-Z0-9\-]+$/', $codigo_interno)) {
-        $errores[] = 'El código interno solo puede contener letras, números y guiones.';
-    } else {
-        // Verificar que el código no exista (excepto el mismo registro)
-        $stmt = $pdo->prepare("SELECT id FROM inventario_equipos WHERE codigo_interno = ? AND id != ?");
-        $stmt->execute([$codigo_interno, $equipo_id]);
-        if ($stmt->fetch()) {
-            $errores[] = 'El código interno ya existe en otro equipo.';
-        }
-    }
-    
-    // Ubicación es obligatoria
-    if (empty($ubicacion)) {
-        $errores[] = 'La ubicación es obligatoria.';
-    }
-    
-    // Estados válidos según el enum de la BD
-    $estados_validos = ['activo', 'inactivo', 'en_reparacion', 'dado_de_baja'];
-    if (!in_array($estado, $estados_validos)) {
-        $errores[] = 'El estado seleccionado no es válido.';
-    }
-    
-    // Si hay errores, regresar al formulario
     if (!empty($errores)) {
         $_SESSION['form_errors'] = $errores;
         $_SESSION['form_data'] = $_POST;
@@ -234,31 +196,38 @@ function editarEquipo($pdo) {
         exit;
     }
     
+    if (empty($datos['codigo_interno'])) {
+        $datos['codigo_interno'] = $datos['hostname'];
+    }
+    
     try {
         $sql = "UPDATE inventario_equipos SET 
-                tipo_equipo = ?, codigo_interno = ?, numero_serie = ?, marca = ?, modelo = ?,
-                ubicacion = ?, departamento_id = ?, usuario_asignado_id = ?, correo_asignado = ?,
+                tipo_equipo = ?, hostname = ?, codigo_interno = ?, numero_serie = ?, 
+                marca = ?, modelo = ?, ubicacion = ?, departamento_id = ?, 
+                usuario_asignado_id = ?, personal_asignado = ?, correo_asignado = ?,
                 fecha_adquisicion = ?, estado = ?, notas = ?
                 WHERE id = ?";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
-            $tipo_equipo,
-            $codigo_interno,
-            $numero_serie ?: null,
-            $marca ?: null,
-            $modelo ?: null,
-            $ubicacion,
-            $departamento_id,
-            $usuario_asignado_id,
-            $correo_asignado ?: null,
-            $fecha_adquisicion,
-            $estado,
-            $notas ?: null,
+            $datos['tipo_equipo'],
+            $datos['hostname'],
+            $datos['codigo_interno'],
+            $datos['numero_serie'] ?: null,
+            $datos['marca'] ?: null,
+            $datos['modelo'] ?: null,
+            $datos['ubicacion'],
+            $datos['departamento_id'],
+            $datos['usuario_asignado_id'],
+            $datos['personal_asignado'] ?: null,
+            $datos['correo_asignado'] ?: null,
+            $datos['fecha_adquisicion'],
+            $datos['estado'],
+            $datos['notas'] ?: null,
             $equipo_id
         ]);
         
-        establecer_alerta('success', "Equipo {$codigo_interno} actualizado exitosamente.");
+        establecer_alerta('success', "Equipo {$datos['hostname']} actualizado exitosamente.");
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
         exit;
         
@@ -276,16 +245,14 @@ function editarEquipo($pdo) {
  */
 function eliminarEquipo($pdo) {
     $equipo_id = intval($_POST['equipo_id'] ?? 0);
-    
     if (!$equipo_id) {
-        establecer_alerta('error', 'ID de equipo no válido.');
+        establecer_alerta('error', 'ID de equipo no v&aacute;lido.');
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
         exit;
     }
     
     try {
-        // Obtener información del equipo antes de eliminar
-        $stmt = $pdo->prepare("SELECT codigo_interno FROM inventario_equipos WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT hostname, codigo_interno FROM inventario_equipos WHERE id = ?");
         $stmt->execute([$equipo_id]);
         $equipo = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -295,11 +262,11 @@ function eliminarEquipo($pdo) {
             exit;
         }
         
-        // Eliminar equipo
         $stmt = $pdo->prepare("DELETE FROM inventario_equipos WHERE id = ?");
         $stmt->execute([$equipo_id]);
         
-        establecer_alerta('success', "Equipo {$equipo['codigo_interno']} eliminado exitosamente.");
+        $nombre_equipo = $equipo['hostname'] ?: $equipo['codigo_interno'];
+        establecer_alerta('success', "Equipo {$nombre_equipo} eliminado exitosamente.");
         
     } catch (PDOException $e) {
         error_log("Error al eliminar equipo: " . $e->getMessage());
@@ -311,60 +278,55 @@ function eliminarEquipo($pdo) {
 }
 
 /**
- * Crear notificación de equipo para usuarios de Sistemas
+ * Crear notificaci&oacute;n de equipo
  */
 function crearNotificacionEquipo($pdo, $equipo_id, $codigo, $tipo, $accion) {
-    global $_SESSION;
-    
     $tipos_nombres = [
-        'computadora' => 'Computadora',
-        'impresora' => 'Impresora',
-        'camara' => 'Cámara',
-        'telefono' => 'Teléfono'
+        'all_in_one'   => 'All In One',
+        'pc'           => 'PC',
+        'laptop'       => 'Laptop',
+        'monitor'      => 'Monitor',
+        'mouse'        => 'Mouse',
+        'teclado'      => 'Teclado',
+        'impresora'    => 'Impresora',
+        'access_point' => 'Access Point',
+        'switch'       => 'Switch',
+        'camara'       => 'C&aacute;mara',
+        'celular'      => 'Celular',
+        'computadora'  => 'Computadora',
+        'telefono'     => 'Tel&eacute;fono'
     ];
     
-    $tipo_nombre = $tipos_nombres[$tipo] ?? $tipo;
+    $tipo_nombre = $tipos_nombres[$tipo] ?? ucfirst($tipo);
+    $acciones_texto = [
+        'nuevo' => 'registrado',
+        'editar' => 'actualizado',
+        'eliminar' => 'eliminado'
+    ];
+    $accion_texto = $acciones_texto[$accion] ?? $accion;
     
-    if ($accion === 'nuevo') {
-        $titulo = '🖥️ Nuevo Equipo Registrado';
-        $mensaje = "{$_SESSION['nombre_completo']} ha registrado un nuevo equipo: {$codigo} ({$tipo_nombre})";
-    } else {
-        $titulo = '🖥️ Equipo Actualizado';
-        $mensaje = "{$_SESSION['nombre_completo']} ha actualizado el equipo: {$codigo}";
-    }
-    
-    // Obtener usuarios de Sistemas (excepto el actual)
-    $sql = "SELECT u.id FROM usuarios u 
-            INNER JOIN departamentos d ON u.departamento_id = d.id 
-            WHERE d.codigo = 'sistemas' AND u.activo = 1 AND u.id != ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$_SESSION['usuario_id']]);
-    $usuarios = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
-    // Crear notificación para cada usuario de Sistemas
-    $sql_notif = "INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion) 
-                  VALUES (?, ?, ?, ?, ?, NOW())";
-    $stmt_notif = $pdo->prepare($sql_notif);
-    
-    $datos = json_encode([
-        'equipo_id' => $equipo_id,
-        'codigo' => $codigo,
-        'tipo_equipo' => $tipo,
-        'url' => URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_equipo.php?id=' . $equipo_id
-    ]);
-    
-    foreach ($usuarios as $usuario_id) {
-        try {
-            $stmt_notif->execute([
-                'inventario_equipo',
-                $titulo,
-                $mensaje,
-                $usuario_id,
-                $datos
-            ]);
-        } catch (PDOException $e) {
-            // Si falla la notificación, solo registrar el error pero no interrumpir
-            error_log("Error al crear notificación de equipo: " . $e->getMessage());
+    try {
+        $mensaje = "{$tipo_nombre} {$codigo} ha sido {$accion_texto} en el inventario.";
+        
+        $stmt_usuarios = $pdo->prepare(
+            "SELECT u.id FROM usuarios u 
+             INNER JOIN departamentos d ON u.departamento_id = d.id 
+             WHERE LOWER(d.codigo) = 'sistemas' AND u.activo = 1 AND u.id != ?"
+        );
+        $stmt_usuarios->execute([$_SESSION['usuario_id']]);
+        $usuarios_sistemas = $stmt_usuarios->fetchAll(PDO::FETCH_COLUMN);
+        
+        if (!empty($usuarios_sistemas)) {
+            $sql_notif = "INSERT INTO notificaciones (usuario_id, tipo, titulo, mensaje, url_destino) 
+                          VALUES (?, 'inventario', ?, ?, ?)";
+            $stmt_notif = $pdo->prepare($sql_notif);
+            $url = "dashboard/sistemas/ti_sistemas/ver_equipo.php?id={$equipo_id}";
+            
+            foreach ($usuarios_sistemas as $uid) {
+                $stmt_notif->execute([$uid, "Equipo {$accion_texto}", $mensaje, $url]);
+            }
         }
+    } catch (PDOException $e) {
+        error_log("Error al crear notificaci&oacute;n de equipo: " . $e->getMessage());
     }
 }

@@ -1,10 +1,7 @@
 <?php
 /**
- * Editar Equipo del Inventario
- * Solo accesible para usuarios del departamento de Sistemas
+ * Editar Equipo del Inventario v2.0
  * dashboard/sistemas/ti_sistemas/editar_equipo.php
- * 
- * ⚠️ CORREGIDO para coincidir con estructura real de tabla inventario_equipos
  */
 
 session_start();
@@ -12,35 +9,28 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../../includes/functions.php';
 
-// Verificar sesión
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
 
-// Verificar que sea del departamento de Sistemas
 $departamento = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''));
 if ($departamento !== 'sistemas') {
-    establecer_alerta('error', 'No tiene permisos para acceder a esta sección.');
+    establecer_alerta('error', 'No tiene permisos para acceder a esta secci&oacute;n.');
     header('Location: ' . URL_BASE . 'index.php');
     exit;
 }
 
-// Obtener ID del equipo
 $equipo_id = intval($_GET['id'] ?? 0);
-
 if (!$equipo_id) {
-    establecer_alerta('error', 'ID de equipo no válido.');
+    establecer_alerta('error', 'ID de equipo no v&aacute;lido.');
     header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
     exit;
 }
 
-// Conexión a BD
 $pdo = conectarDB();
 
-// Obtener datos del equipo
-$sql = "SELECT * FROM inventario_equipos WHERE id = ?";
-$stmt = $pdo->prepare($sql);
+$stmt = $pdo->prepare("SELECT * FROM inventario_equipos WHERE id = ?");
 $stmt->execute([$equipo_id]);
 $equipo = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -50,344 +40,260 @@ if (!$equipo) {
     exit;
 }
 
-// Obtener lista de departamentos para el select
-$sql_deptos = "SELECT id, codigo, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre";
-$departamentos = $pdo->query($sql_deptos)->fetchAll(PDO::FETCH_ASSOC);
+$departamentos = $pdo->query("SELECT id, codigo, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+$usuarios = $pdo->query("SELECT id, nombre_completo FROM usuarios WHERE activo = 1 ORDER BY nombre_completo")->fetchAll(PDO::FETCH_ASSOC);
+$equipos_padre = $pdo->query("SELECT hostname FROM inventario_equipos WHERE tipo_equipo IN ('all_in_one','pc','laptop','computadora') AND hostname IS NOT NULL ORDER BY hostname")->fetchAll(PDO::FETCH_COLUMN);
 
-// Obtener lista de usuarios para asignar
-$sql_usuarios = "SELECT id, nombre_completo FROM usuarios WHERE activo = 1 ORDER BY nombre_completo";
-$usuarios = $pdo->query($sql_usuarios)->fetchAll(PDO::FETCH_ASSOC);
-
-// Recuperar datos del formulario si hay errores (prioridad sobre datos de BD)
 $form_data = $_SESSION['form_data'] ?? $equipo;
 $errores = $_SESSION['form_errors'] ?? [];
 unset($_SESSION['form_data'], $_SESSION['form_errors']);
+
+$current_page = basename(__FILE__);
+
+$tipos_equipo = [
+    'all_in_one'   => ['nombre' => 'All In One',    'icono' => 'bi-display'],
+    'pc'           => ['nombre' => 'PC',             'icono' => 'bi-pc-display'],
+    'laptop'       => ['nombre' => 'Laptop',         'icono' => 'bi-laptop'],
+    'monitor'      => ['nombre' => 'Monitor',        'icono' => 'bi-display'],
+    'mouse'        => ['nombre' => 'Mouse',          'icono' => 'bi-mouse'],
+    'teclado'      => ['nombre' => 'Teclado',        'icono' => 'bi-keyboard'],
+    'impresora'    => ['nombre' => 'Impresora',      'icono' => 'bi-printer'],
+    'access_point' => ['nombre' => 'Access Point',   'icono' => 'bi-wifi'],
+    'switch'       => ['nombre' => 'Switch',         'icono' => 'bi-diagram-3'],
+    'camara'       => ['nombre' => 'C&aacute;mara',  'icono' => 'bi-camera-video'],
+    'celular'      => ['nombre' => 'Celular',        'icono' => 'bi-phone'],
+];
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editar <?php echo htmlspecialchars($equipo['codigo_interno']); ?> - Inventario TI</title>
+    <title>Editar <?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?> - Inventario TI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
-    
-    <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-    
     <style>
-        .form-section {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
+        .form-section { margin-bottom: 1.5rem; }
         .form-section-title {
-            font-weight: 600;
-            font-size: 0.95rem;
-            margin-bottom: 0.75rem;
-            color: #495057;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 0.5rem;
+            font-weight: 600; font-size: 0.95rem; color: #2c3e50;
+            padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem;
         }
-        .form-label {
-            font-size: 0.875rem;
-            font-weight: 500;
+        .tipo-card {
+            text-align: center; padding: 0.8rem 0.5rem; border: 2px solid #e9ecef;
+            border-radius: 10px; cursor: pointer; transition: all 0.2s;
         }
-        .required::after {
-            content: " *";
-            color: #dc3545;
-        }
-        .tipo-equipo-card {
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 2px solid #dee2e6;
-        }
-        .tipo-equipo-card:hover {
-            border-color: #0d6efd;
-            background-color: #f8f9ff;
-        }
-        .tipo-equipo-card.selected {
-            border-color: #0d6efd;
-            background-color: #e7f1ff;
-        }
-        .tipo-equipo-card .icon-container {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-        .tipo-equipo-card.computadora .icon-container { color: #0d6efd; }
-        .tipo-equipo-card.impresora .icon-container { color: #6f42c1; }
-        .tipo-equipo-card.camara .icon-container { color: #198754; }
-        .tipo-equipo-card.telefono .icon-container { color: #fd7e14; }
-        
-        @media (max-width: 576px) {
-            .tipo-equipo-card {
-                padding: 0.75rem !important;
-            }
-            .tipo-equipo-card .icon-container {
-                font-size: 1.5rem;
-            }
-            .tipo-equipo-card span {
-                font-size: 0.8rem;
-            }
-        }
+        .tipo-card:hover { border-color: #0d6efd; background: rgba(13,110,253,0.03); }
+        .tipo-card.selected { border-color: #0d6efd; background: rgba(13,110,253,0.08); }
+        .tipo-card .icon-container { font-size: 1.3rem; margin-bottom: 0.3rem; color: #0d6efd; }
+        .tipo-card span { font-size: 0.75rem; }
+        label.required::after { content: ' *'; color: #dc3545; }
     </style>
 </head>
 <body>
     
     <div class="dashboard-container">
-        
-        <!-- SIDEBAR -->
         <?php include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php'; ?>
 
-        <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">
             <div class="content-wrapper">
                 
-                <!-- Encabezado -->
-                <div class="row mb-3">
-                    <div class="col">
-                        <div class="d-flex align-items-center flex-wrap gap-2">
-                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $equipo_id; ?>" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-arrow-left"></i>
-                            </a>
-                            <h4 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Editar Equipo: <?php echo htmlspecialchars($equipo['codigo_interno']); ?></h4>
-                        </div>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h4 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Editar Equipo</h4>
+                        <small class="text-muted"><?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?></small>
                     </div>
+                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Volver
+                    </a>
                 </div>
 
-                <!-- Mostrar errores -->
                 <?php if (!empty($errores)): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong>Por favor corrija los siguientes errores:</strong>
+                    <div class="alert alert-danger">
+                        <strong>Errores encontrados:</strong>
                         <ul class="mb-0 mt-2">
                             <?php foreach ($errores as $error): ?>
-                                <li><?php echo htmlspecialchars($error); ?></li>
+                                <li><?php echo $error; ?></li>
                             <?php endforeach; ?>
                         </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
-                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_equipo.php" method="POST" id="formEditarEquipo">
+                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_equipo.php" 
+                      method="POST" id="formEditarEquipo">
                     <input type="hidden" name="accion" value="editar">
                     <input type="hidden" name="equipo_id" value="<?php echo $equipo_id; ?>">
                     
                     <div class="row">
                         <div class="col-lg-8">
-                            
                             <!-- Tipo de Equipo -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-grid me-2"></i>Tipo de Equipo
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card computadora card text-center p-3 h-100 <?php echo ($form_data['tipo_equipo'] === 'computadora') ? 'selected' : ''; ?>" 
-                                             data-tipo="computadora" onclick="seleccionarTipo('computadora')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-pc-display"></i>
-                                            </div>
-                                            <span class="fw-medium">Computadora</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card impresora card text-center p-3 h-100 <?php echo ($form_data['tipo_equipo'] === 'impresora') ? 'selected' : ''; ?>"
-                                             data-tipo="impresora" onclick="seleccionarTipo('impresora')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-printer"></i>
-                                            </div>
-                                            <span class="fw-medium">Impresora</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card camara card text-center p-3 h-100 <?php echo ($form_data['tipo_equipo'] === 'camara') ? 'selected' : ''; ?>"
-                                             data-tipo="camara" onclick="seleccionarTipo('camara')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-camera-video"></i>
-                                            </div>
-                                            <span class="fw-medium">Cámara</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card telefono card text-center p-3 h-100 <?php echo ($form_data['tipo_equipo'] === 'telefono') ? 'selected' : ''; ?>"
-                                             data-tipo="telefono" onclick="seleccionarTipo('telefono')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-phone"></i>
-                                            </div>
-                                            <span class="fw-medium">Teléfono</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <input type="hidden" name="tipo_equipo" id="inputTipoEquipo" 
-                                       value="<?php echo htmlspecialchars($form_data['tipo_equipo'] ?? ''); ?>" required>
-                            </div>
-                            
-                            <!-- Identificación del Equipo -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-upc-scan me-2"></i>Identificación del Equipo
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label required">Código Interno</label>
-                                        <input type="text" name="codigo_interno" class="form-control" 
-                                               id="inputCodigoInterno"
-                                               value="<?php echo htmlspecialchars($form_data['codigo_interno'] ?? ''); ?>"
-                                               required maxlength="50" placeholder="Ej: PC-001"
-                                               pattern="[A-Z0-9\-]+" title="Solo letras, números y guiones">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Número de Serie</label>
-                                        <input type="text" name="numero_serie" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['numero_serie'] ?? ''); ?>"
-                                               maxlength="100" placeholder="Número de serie del fabricante">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Marca</label>
-                                        <input type="text" name="marca" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['marca'] ?? ''); ?>"
-                                               maxlength="100" placeholder="Ej: HP, Dell, Canon">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Modelo</label>
-                                        <input type="text" name="modelo" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['modelo'] ?? ''); ?>"
-                                               maxlength="100" placeholder="Ej: EliteDesk 800">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Asignación -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-person-badge me-2"></i>Asignación
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label required">Ubicación Física</label>
-                                        <input type="text" name="ubicacion" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['ubicacion'] ?? ''); ?>"
-                                               required maxlength="200" placeholder="Ej: Oficina 201, Recepción">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Departamento</label>
-                                        <select name="departamento_id" class="form-select" id="selectDepartamento">
-                                            <option value="">Sin asignar</option>
-                                            <?php foreach ($departamentos as $depto): ?>
-                                                <option value="<?php echo $depto['id']; ?>" 
-                                                        <?php echo (isset($form_data['departamento_id']) && $form_data['departamento_id'] == $depto['id']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($depto['nombre']); ?>
-                                                </option>
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-section">
+                                        <div class="form-section-title"><i class="bi bi-tag me-2"></i>Tipo de Equipo</div>
+                                        <div class="row g-2">
+                                            <?php foreach ($tipos_equipo as $key => $tipo): ?>
+                                                <div class="col-4 col-md-3 col-lg-2">
+                                                    <div class="tipo-card <?php echo ($form_data['tipo_equipo'] ?? '') === $key ? 'selected' : ''; ?>"
+                                                         onclick="seleccionarTipo('<?php echo $key; ?>')">
+                                                        <div class="icon-container"><i class="bi <?php echo $tipo['icono']; ?>"></i></div>
+                                                        <span class="fw-medium"><?php echo $tipo['nombre']; ?></span>
+                                                    </div>
+                                                </div>
                                             <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Usuario Responsable</label>
-                                        <select name="usuario_asignado_id" class="form-select">
-                                            <option value="">Sin asignar</option>
-                                            <?php foreach ($usuarios as $usr): ?>
-                                                <option value="<?php echo $usr['id']; ?>"
-                                                        <?php echo (isset($form_data['usuario_asignado_id']) && $form_data['usuario_asignado_id'] == $usr['id']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($usr['nombre_completo']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Correo Electrónico Asignado</label>
-                                        <input type="email" name="correo_asignado" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['correo_asignado'] ?? ''); ?>"
-                                               maxlength="150" placeholder="Ej: usuario@empresa.com">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Fecha de Adquisición</label>
-                                        <input type="date" name="fecha_adquisicion" class="form-control" 
-                                               value="<?php echo htmlspecialchars($form_data['fecha_adquisicion'] ?? ''); ?>">
+                                        </div>
+                                        <input type="hidden" name="tipo_equipo" id="inputTipoEquipo" 
+                                               value="<?php echo htmlspecialchars($form_data['tipo_equipo'] ?? ''); ?>" required>
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- Estado y Notas -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-toggles me-2"></i>Estado y Notas
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <label class="form-label required">Estado del Equipo</label>
-                                        <select name="estado" class="form-select" required>
-                                            <option value="activo" <?php echo ($form_data['estado'] === 'activo') ? 'selected' : ''; ?>>
-                                                Activo
-                                            </option>
-                                            <option value="inactivo" <?php echo ($form_data['estado'] === 'inactivo') ? 'selected' : ''; ?>>
-                                                Inactivo
-                                            </option>
-                                            <option value="en_reparacion" <?php echo ($form_data['estado'] === 'en_reparacion') ? 'selected' : ''; ?>>
-                                                En Reparación
-                                            </option>
-                                            <option value="dado_de_baja" <?php echo ($form_data['estado'] === 'dado_de_baja') ? 'selected' : ''; ?>>
-                                                Dado de Baja
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Notas</label>
-                                        <textarea name="notas" class="form-control" rows="3" 
-                                                  maxlength="1000" placeholder="Notas adicionales sobre el equipo..."><?php echo htmlspecialchars($form_data['notas'] ?? ''); ?></textarea>
-                                        <small class="text-muted">Máximo 1000 caracteres.</small>
+                            <!-- Identificaci&oacute;n -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-section">
+                                        <div class="form-section-title"><i class="bi bi-upc-scan me-2"></i>Identificaci&oacute;n</div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label required">Hostname</label>
+                                                <input type="text" name="hostname" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['hostname'] ?? ''); ?>"
+                                                       required maxlength="50" style="text-transform:uppercase; font-family:monospace;">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">C&oacute;digo Interno</label>
+                                                <input type="text" name="codigo_interno" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['codigo_interno'] ?? ''); ?>"
+                                                       maxlength="50" style="text-transform:uppercase;">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">N&uacute;mero de Serie</label>
+                                                <input type="text" name="numero_serie" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['numero_serie'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Marca</label>
+                                                <input type="text" name="marca" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['marca'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Modelo</label>
+                                                <input type="text" name="modelo" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['modelo'] ?? ''); ?>">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             
+                            <!-- Asignaci&oacute;n -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-section">
+                                        <div class="form-section-title"><i class="bi bi-person-badge me-2"></i>Asignaci&oacute;n y Ubicaci&oacute;n</div>
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label required">Ubicaci&oacute;n F&iacute;sica</label>
+                                                <input type="text" name="ubicacion" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['ubicacion'] ?? ''); ?>" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Departamento</label>
+                                                <select name="departamento_id" class="form-select">
+                                                    <option value="">Sin asignar</option>
+                                                    <?php foreach ($departamentos as $d): ?>
+                                                        <option value="<?php echo $d['id']; ?>" 
+                                                                <?php echo (($form_data['departamento_id'] ?? '') == $d['id']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($d['nombre']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Personal Asignado (Hostname padre)</label>
+                                                <input type="text" name="personal_asignado" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['personal_asignado'] ?? ''); ?>"
+                                                       maxlength="50" list="listaEquiposPadre"
+                                                       style="text-transform:uppercase; font-family:monospace;">
+                                                <datalist id="listaEquiposPadre">
+                                                    <?php foreach ($equipos_padre as $ep): ?>
+                                                        <option value="<?php echo htmlspecialchars($ep); ?>">
+                                                    <?php endforeach; ?>
+                                                </datalist>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Usuario Asignado</label>
+                                                <select name="usuario_asignado_id" class="form-select">
+                                                    <option value="">Sin asignar</option>
+                                                    <?php foreach ($usuarios as $u): ?>
+                                                        <option value="<?php echo $u['id']; ?>"
+                                                                <?php echo (($form_data['usuario_asignado_id'] ?? '') == $u['id']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($u['nombre_completo']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Detalles -->
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="form-section">
+                                        <div class="form-section-title"><i class="bi bi-gear me-2"></i>Detalles Adicionales</div>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label">Estado</label>
+                                                <select name="estado" class="form-select">
+                                                    <option value="activo" <?php echo ($form_data['estado'] ?? '') === 'activo' ? 'selected' : ''; ?>>Activo</option>
+                                                    <option value="inactivo" <?php echo ($form_data['estado'] ?? '') === 'inactivo' ? 'selected' : ''; ?>>Inactivo</option>
+                                                    <option value="en_reparacion" <?php echo ($form_data['estado'] ?? '') === 'en_reparacion' ? 'selected' : ''; ?>>En Reparaci&oacute;n</option>
+                                                    <option value="dado_de_baja" <?php echo ($form_data['estado'] ?? '') === 'dado_de_baja' ? 'selected' : ''; ?>>Dado de Baja</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Fecha Adquisici&oacute;n</label>
+                                                <input type="date" name="fecha_adquisicion" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['fecha_adquisicion'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">Correo Asignado</label>
+                                                <input type="email" name="correo_asignado" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['correo_asignado'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Notas</label>
+                                                <textarea name="notas" class="form-control" rows="3"><?php echo htmlspecialchars($form_data['notas'] ?? ''); ?></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-
-                        <!-- Panel lateral -->
+                        
                         <div class="col-lg-4">
-                            <div class="card border-info mb-3">
-                                <div class="card-header bg-info text-white py-2">
-                                    <i class="bi bi-clock-history me-2"></i>Información de Registro
+                            <div class="card position-sticky" style="top:1rem;">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-3">Acciones</h6>
+                                    <button type="submit" class="btn btn-primary w-100 mb-2">
+                                        <i class="bi bi-check-circle me-1"></i>Guardar Cambios
+                                    </button>
+                                    <hr>
+                                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $equipo_id; ?>" class="btn btn-outline-info w-100 mb-2">
+                                        <i class="bi bi-eye me-1"></i>Ver Detalle
+                                    </a>
+                                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php" class="btn btn-outline-secondary w-100">
+                                        Cancelar
+                                    </a>
                                 </div>
-                                <div class="card-body small">
-                                    <p class="mb-2">
-                                        <strong>Registrado:</strong><br>
-                                        <?php echo date('d/m/Y H:i', strtotime($equipo['fecha_registro'])); ?>
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            <div class="card border-warning">
-                                <div class="card-header bg-warning py-2">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>Importante
-                                </div>
-                                <div class="card-body small">
-                                    <p class="text-muted mb-0">
-                                        Los cambios realizados quedarán registrados.
-                                        El código interno debe ser único en todo el sistema.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Botones de acción -->
-                    <div class="row mt-3">
-                        <div class="col-lg-8">
-                            <div class="d-flex gap-2 flex-wrap">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg me-1"></i>Guardar Cambios
-                                </button>
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $equipo_id; ?>" class="btn btn-outline-secondary">
-                                    <i class="bi bi-x-lg me-1"></i>Cancelar
-                                </a>
                             </div>
                         </div>
                     </div>
@@ -395,29 +301,17 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                 
             </div>
         </main>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
-    
-    <script>
-        // Seleccionar tipo de equipo
-        function seleccionarTipo(tipo) {
-            document.querySelectorAll('.tipo-equipo-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            document.querySelector(`.tipo-equipo-card.${tipo}`).classList.add('selected');
-            document.getElementById('inputTipoEquipo').value = tipo;
-        }
-        
-        // Convertir código interno a mayúsculas
-        document.getElementById('inputCodigoInterno').addEventListener('input', function(e) {
-            this.value = this.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
-        });
-    </script>
-
-    <!-- Sistema de notificaciones en tiempo real -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+    <script>
+    function seleccionarTipo(tipo) {
+        document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('selected'));
+        event.currentTarget.closest('.tipo-card').classList.add('selected');
+        document.getElementById('inputTipoEquipo').value = tipo;
+    }
+    </script>
 </body>
 </html>

@@ -1,51 +1,32 @@
 <?php
 /**
  * Sidebar para usuarios de TI/Sistemas
- * Componente reutilizable
+ * includes/sidebar/sidebar_ti.php
+ * 
+ * v2.0 - Agregado: Acceso Equipos, Importar Excel, contador acceso
  */
 
-// ⭐ PROTECCIÓN DE SESIÓN - Redirigir si la sesión expiró
-if (!isset($_SESSION['usuario_id'])) {
-    if (function_exists('destruir_sesion')) {
-        destruir_sesion();
-    }
-    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
-    header('Location: ' . $url_login);
-    exit;
-}
-
-// Obtener página actual para marcar como activa
+// Obtener p&aacute;gina actual para marcar como activa
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Obtener filtro de estado actual (para marcar links activos)
 $filtro_estado_actual = $_GET['estado'] ?? '';
 
-// Determinar si está en sección de órdenes de servicio
+// Determinar si est&aacute; en secci&oacute;n de &oacute;rdenes de servicio
 $en_mis_ordenes = in_array($current_page, [
     'mis_ordenes_servicio.php',
     'mis_ordenes_servicio_finalizadas.php',
     'ver_orden_servicio.php'
 ]);
 
-// Determinar si está en sección de gestión de usuarios
+// Determinar si est&aacute; en secci&oacute;n de gesti&oacute;n de usuarios
 $en_gestion_usuarios = in_array($current_page, [
     'dashboard_usuarios.php',
     'crear_usuario.php',
     'editar_usuario.php'
 ]);
 
-// Determinar si está en sección de inventario TI
-$en_inventario_ti = in_array($current_page, [
-    'inventario.php',
-    'crear_equipo.php',
-    'editar_equipo.php',
-    'ver_equipo.php',
-    'mantenimientos.php',
-    'solicitar_mantenimiento.php',
-    'ver_mantenimiento.php'
-]);
-
-// Obtener estadísticas para badges (opcional)
+// Obtener estad&iacute;sticas para badges
 try {
     if (!isset($pdo)) {
         require_once __DIR__ . '/../../config/database.php';
@@ -60,7 +41,7 @@ try {
     ");
     $stats_sidebar = $stmt->fetch();
     
-    // Obtener órdenes pendientes de validación
+    // Obtener &oacute;rdenes pendientes de validaci&oacute;n
     $stmt_ordenes = $pdo->prepare("
         SELECT COUNT(*) as total 
         FROM ordenes_servicio_mantenimiento 
@@ -82,23 +63,28 @@ try {
     $stmt_mant = $pdo->query("SELECT COUNT(*) as total FROM solicitudes_mantenimiento_ti WHERE estado = 'pendiente'");
     $mant_pendientes = $stmt_mant->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
+    // Contar registros de acceso activos
+    $stmt_acceso = $pdo->query("SELECT COUNT(*) as total FROM acceso_equipos WHERE estado = 'activo'");
+    $total_acceso = $stmt_acceso->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
 } catch (Exception $e) {
     $stats_sidebar = ['pendientes' => 0, 'en_proceso' => 0];
     $ordenes_pendientes_validar = 0;
     $total_usuarios = 0;
     $total_equipos = 0;
     $mant_pendientes = 0;
+    $total_acceso = 0;
 }
 ?>
 
-<!-- Botón Hamburguesa para móvil -->
-<button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
+<!-- Bot&oacute;n Hamburguesa para m&oacute;vil -->
+<button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir men&uacute;">
     <span></span>
     <span></span>
     <span></span>
 </button>
 
-<!-- Overlay para cerrar sidebar en móvil -->
+<!-- Overlay para cerrar sidebar en m&oacute;vil -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <aside class="sidebar" id="sidebar">
@@ -119,7 +105,7 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">GESTIÓN DE SOLICITUDES</small>
+            <small class="text-white-50 px-3 fw-bold">GESTI&Oacute;N DE SOLICITUDES</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && empty($filtro_estado_actual)) ? 'active' : ''; ?>" 
@@ -153,12 +139,12 @@ try {
             </li>
 
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ADMINISTRACIÓN DE USUARIOS</small>
+            <small class="text-white-50 px-3 fw-bold">ADMINISTRACI&Oacute;N DE USUARIOS</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'dashboard_usuarios.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php">
-                    <i class="bi bi-people"></i> Gestión de Usuarios
+                    <i class="bi bi-people"></i> Gesti&oacute;n de Usuarios
                     <?php if ($total_usuarios > 0): ?>
                     <span class="badge bg-secondary ms-2"><?php echo $total_usuarios; ?></span>
                     <?php endif; ?>
@@ -190,6 +176,21 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'acceso_equipos.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/acceso_equipos.php">
+                    <i class="bi bi-key"></i> Acceso Equipos
+                    <?php if ($total_acceso > 0): ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $total_acceso; ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'importar_inventario.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/importar_inventario.php">
+                    <i class="bi bi-upload"></i> Importar Excel
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
@@ -200,47 +201,35 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
+            <small class="text-white-50 px-3 fw-bold">&Oacute;RDENES DE SERVICIO</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
-                    <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                    <i class="bi bi-clipboard-check"></i> &Oacute;rdenes de Mantenimiento
                 </a>
             </li>
-
+            
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">SALA DE JUNTAS</small>
-
+            <small class="text-white-50 px-3 fw-bold">HERRAMIENTAS</small>
+            
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'reservaciones_sala.php' ? 'active' : ''; ?>" 
-                href="<?php echo URL_BASE; ?>dashboard/reservaciones/reservaciones_sala.php">
-                    <i class="bi bi-calendar-event"></i> Reservar Sala de Juntas
+                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
+                    <i class="bi bi-search"></i> Buscar
                 </a>
             </li>
-
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">VACACIONES</small>
-
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'mis_vacaciones.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php">
-                    <i class="bi bi-calendar-check"></i> Mis Vacaciones
+                <a class="nav-link <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>ti_sistemas/reportes.php">
+                    <i class="bi bi-graph-up"></i> Reportes
                 </a>
             </li>
-            <?php if (function_exists('es_admin_area') && es_admin_area()): ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'vacaciones_admin.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_admin.php">
-                    <i class="bi bi-person-check"></i> Panel Admin Area
-                </a>
-            </li>
-            <?php endif; ?>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesi&oacute;n
                 </a>
             </li>
         </ul>
