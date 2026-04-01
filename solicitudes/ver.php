@@ -9,6 +9,7 @@
  * - Historial completo de cambios de estado
  * - Botón "Editar Solicitud" para usuarios de Sistemas
  * - Muestra nombre_solicitante editable de la tabla
+ * - Muestra archivos adjuntos (evidencia) con vista previa y descarga
  */
 
 session_start();
@@ -78,6 +79,18 @@ try {
     ");
     $stmt_historial->execute([$solicitud['id']]);
     $historial = $stmt_historial->fetchAll();
+
+    // ====================================
+    // OBTENER ARCHIVOS ADJUNTOS
+    // ====================================
+    $stmt_archivos = $pdo->prepare("
+        SELECT nombre_archivo, ruta_archivo, tipo_mime, tamanio, fecha_subida
+        FROM archivos_adjuntos
+        WHERE solicitud_id = ?
+        ORDER BY fecha_subida ASC
+    ");
+    $stmt_archivos->execute([$solicitud['id']]);
+    $archivos_adjuntos = $stmt_archivos->fetchAll();
     
 } catch (Exception $e) {
     establecer_alerta('error', 'Error al cargar la solicitud: ' . $e->getMessage());
@@ -198,6 +211,43 @@ function obtener_icono_tipo($tipo) {
             background: #6c757d;
             box-shadow: 0 0 0 2px #6c757d;
         }
+
+        /* === Estilos para archivos adjuntos === */
+        .archivo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .archivo-item:last-child {
+            border-bottom: none;
+        }
+        .archivo-preview {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .archivo-preview:hover {
+            transform: scale(1.1);
+        }
+        .archivo-icono {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            font-size: 1.25rem;
+        }
+
+        /* === Dark mode === */
         body[data-theme="dark"] .info-card {
             background: #2d2d2d;
             border-left-color: #667eea;
@@ -207,6 +257,16 @@ function obtener_icono_tipo($tipo) {
         }
         body[data-theme="dark"] .info-value {
             color: #e0e0e0;
+        }
+        body[data-theme="dark"] .archivo-item {
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+        }
+        body[data-theme="dark"] .archivo-preview {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+        body[data-theme="dark"] .archivo-icono {
+            background: rgba(102, 126, 234, 0.2);
+            color: #8da2fb;
         }
     </style>
 </head>
@@ -335,6 +395,82 @@ function obtener_icono_tipo($tipo) {
                                 <div class="alert alert-info">
                                     <strong><i class="bi bi-chat-left-text"></i> Comentarios de TI:</strong><br>
                                     <?php echo nl2br(htmlspecialchars($solicitud['comentarios_ti'])); ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- ====================================== -->
+                                <!-- ARCHIVOS ADJUNTOS (EVIDENCIA)          -->
+                                <!-- ====================================== -->
+                                <?php if (!empty($archivos_adjuntos)): ?>
+                                <div class="info-card">
+                                    <div class="info-label">
+                                        <i class="bi bi-paperclip"></i> Evidencia adjunta
+                                        <span class="badge bg-secondary ms-1"><?php echo count($archivos_adjuntos); ?></span>
+                                    </div>
+                                    <div class="info-value">
+                                        <?php foreach ($archivos_adjuntos as $archivo): ?>
+                                        <?php
+                                            // Determinar ícono según tipo MIME
+                                            $icono = 'bi-file-earmark';
+                                            if (str_starts_with($archivo['tipo_mime'], 'image/')) {
+                                                $icono = 'bi-file-earmark-image';
+                                            } elseif ($archivo['tipo_mime'] === 'application/pdf') {
+                                                $icono = 'bi-file-earmark-pdf';
+                                            } elseif (str_contains($archivo['tipo_mime'], 'word') || str_contains($archivo['tipo_mime'], 'document')) {
+                                                $icono = 'bi-file-earmark-word';
+                                            } elseif ($archivo['tipo_mime'] === 'text/plain') {
+                                                $icono = 'bi-file-earmark-text';
+                                            }
+                                            
+                                            // Formatear tamaño
+                                            $tamanio_kb = round($archivo['tamanio'] / 1024, 1);
+                                            $tamanio_texto = $tamanio_kb >= 1024 
+                                                ? round($tamanio_kb / 1024, 1) . ' MB' 
+                                                : $tamanio_kb . ' KB';
+                                            
+                                            // Verificar si es imagen para preview
+                                            $es_imagen = str_starts_with($archivo['tipo_mime'], 'image/');
+                                            $ruta_url = URL_BASE . $archivo['ruta_archivo'];
+                                        ?>
+                                        <div class="archivo-item">
+                                            <div class="d-flex align-items-center gap-3">
+                                                <?php if ($es_imagen): ?>
+                                                <img src="<?php echo $ruta_url; ?>" 
+                                                     alt="Preview" 
+                                                     class="archivo-preview"
+                                                     onclick="window.open('<?php echo $ruta_url; ?>', '_blank')">
+                                                <?php else: ?>
+                                                <div class="archivo-icono">
+                                                    <i class="<?php echo $icono; ?>"></i>
+                                                </div>
+                                                <?php endif; ?>
+                                                <div>
+                                                    <div class="fw-semibold" style="font-size: 0.9rem;">
+                                                        <?php echo htmlspecialchars($archivo['nombre_archivo']); ?>
+                                                    </div>
+                                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                                        <?php echo $tamanio_texto; ?> &middot; 
+                                                        <?php echo date('d/m/Y H:i', strtotime($archivo['fecha_subida'])); ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                <a href="<?php echo $ruta_url; ?>" 
+                                                   target="_blank" 
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   title="Ver archivo">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="<?php echo $ruta_url; ?>" 
+                                                   download="<?php echo htmlspecialchars($archivo['nombre_archivo']); ?>" 
+                                                   class="btn btn-sm btn-outline-success" 
+                                                   title="Descargar">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
                                 </div>
                                 <?php endif; ?>
 

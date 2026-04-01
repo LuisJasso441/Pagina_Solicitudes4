@@ -32,13 +32,13 @@
                 <!-- Formulario -->
                 <form id="formNuevaSolicitud" enctype="multipart/form-data">
                     
-                    <!-- Nombre del solicitante (AHORA EDITABLE) -->
+                    <!-- Nombre del solicitante (campo vacío, el usuario debe escribirlo) -->
                     <div class="mb-3">
                         <label class="form-label required">Nombre del solicitante</label>
                         <input type="text" class="form-control" name="nombre_completo" 
-                               value="<?php echo htmlspecialchars($_SESSION['nombre_completo']); ?>" 
-                               required>
-                        <small class="text-muted">Puedes modificar el nombre si es necesario</small>
+                            placeholder="Escribe el nombre del solicitante"
+                            required>
+                        <small class="text-muted">Escribe el nombre de quien realiza la solicitud</small>
                     </div>
 
                     <!-- Departamento (precargado y deshabilitado) -->

@@ -170,18 +170,18 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'crear_equipo.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/crear_equipo.php">
-                    <i class="bi bi-plus-circle"></i> Nuevo Equipo
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'acceso_equipos.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/acceso_equipos.php">
                     <i class="bi bi-key"></i> Acceso Equipos
                     <?php if ($total_acceso > 0): ?>
                     <span class="badge bg-secondary ms-2"><?php echo $total_acceso; ?></span>
                     <?php endif; ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'inventario_sistemas.php' ? 'active' : ''; ?>" 
+                href="<?php echo URL_BASE; ?>dashboard/sistemas/inventario/inventario_sistemas.php">
+                    <i class="bi bi-box-seam"></i> Inventario Sistemas
                 </a>
             </li>
             <li class="nav-item">
@@ -209,23 +209,7 @@ try {
                     <i class="bi bi-clipboard-check"></i> &Oacute;rdenes de Mantenimiento
                 </a>
             </li>
-            
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">HERRAMIENTAS</small>
-            
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                    <i class="bi bi-search"></i> Buscar
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'reportes.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>ti_sistemas/reportes.php">
-                    <i class="bi bi-graph-up"></i> Reportes
-                </a>
-            </li>
-            
+
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
