@@ -164,7 +164,8 @@ $datos = [
 error_log("Usuario {$usuario_id} ({$departamento}) actualizando Apartado 1 del documento {$documento_id}");
 
 // Actualizar documento (la función ya valida permisos internamente también)
-$resultado = actualizar_apartado1($documento_id, $datos, $usuario_id);
+$nombre_usuario = $_SESSION['nombre_completo'];
+$resultado = actualizar_apartado1($documento_id, $datos, $usuario_id, $nombre_usuario);
 
 // Liberar sesión para evitar bloqueo con SSE
 session_write_close();

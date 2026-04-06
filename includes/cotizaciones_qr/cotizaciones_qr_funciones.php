@@ -1,15 +1,15 @@
 <?php
 /**
- * Funciones para el módulo de Cotizaciones de Químicos y/o Residuos (CQR) v3.0
- * Ubicación: includes/cotizaciones_qr/cotizaciones_qr_funciones.php
+ * Funciones para el m?dulo de Cotizaciones de Qu?micos y/o Residuos (CQR) v3.0
+ * Ubicaci?n: includes/cotizaciones_qr/cotizaciones_qr_funciones.php
  * 
- * ACTUALIZACIÓN 23/01/2026:
+ * ACTUALIZACI?N 23/01/2026:
  * - Folio consecutivo global: CQR-DDMMYYYY-000x
  * - Campos renombrados: nombre_real_semarnat, nombre_ante_semarnat
  * - Nuevos campos: tipo_cliente, nombre_cliente
  * - Estados: enviada, en_revision, aceptada, rechazada
- * - Validación de archivos: ficha=PDF, formato=PDF/XLSX
- * - Acceso: Ventas (creador), Normatividad (editor), Laboratorio/Dirección (lectores)
+ * - Validaci?n de archivos: ficha=PDF, formato=PDF/XLSX
+ * - Acceso: Ventas (creador), Normatividad (editor), Laboratorio/Direcci?n (lectores)
  */
 
 // =====================================================
@@ -17,7 +17,7 @@
 // =====================================================
 
 /**
- * Verificar permisos del usuario para el módulo CQR
+ * Verificar permisos del usuario para el m?dulo CQR
  */
 function verificar_permisos_cqr($usuario_id) {
     $pdo = conectarDB();
@@ -40,7 +40,7 @@ function verificar_permisos_cqr($usuario_id) {
 }
 
 /**
- * Verificar si el usuario pertenece a un departamento específico del módulo CQR
+ * Verificar si el usuario pertenece a un departamento espec?fico del m?dulo CQR
  */
 function obtener_rol_cqr($departamento) {
     $depto = strtolower($departamento);
@@ -51,7 +51,7 @@ function obtener_rol_cqr($departamento) {
         return 'normatividad';
     } elseif (strpos($depto, 'laboratorio') !== false) {
         return 'laboratorio';
-    } elseif (strpos($depto, 'direccion') !== false || strpos($depto, 'dirección') !== false) {
+    } elseif (strpos($depto, 'direccion') !== false || strpos($depto, 'direcci?n') !== false) {
         return 'direccion';
     }
     
@@ -63,7 +63,7 @@ function obtener_rol_cqr($departamento) {
 // =====================================================
 
 /**
- * Obtener cotizaciones según ubicación y filtros
+ * Obtener cotizaciones seg?n ubicaci?n y filtros
  */
 function obtener_cotizaciones_qr($ubicacion = 'local', $usuario_id = null, $departamento = null, $filtros = []) {
     $pdo = conectarDB();
@@ -77,10 +77,14 @@ function obtener_cotizaciones_qr($ubicacion = 'local', $usuario_id = null, $depa
         $params[':estado'] = $filtros['estado'];
     }
     
-    // Filtro por búsqueda (actualizado con nuevos campos)
+    // Filtro por busqueda (actualizado con nuevos campos)
     if (!empty($filtros['busqueda'])) {
-        $where[] = "(c.folio LIKE :busqueda OR c.nombre_real_semarnat LIKE :busqueda OR c.nombre_ante_semarnat LIKE :busqueda OR c.nombre_cliente LIKE :busqueda)";
-        $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
+        $busqueda_valor = '%' . $filtros['busqueda'] . '%';
+        $where[] = "(c.folio LIKE :busqueda1 OR c.nombre_real_semarnat LIKE :busqueda2 OR c.nombre_ante_semarnat LIKE :busqueda3 OR c.nombre_cliente LIKE :busqueda4)";
+        $params[':busqueda1'] = $busqueda_valor;
+        $params[':busqueda2'] = $busqueda_valor;
+        $params[':busqueda3'] = $busqueda_valor;
+        $params[':busqueda4'] = $busqueda_valor;
     }
     
     // Filtro por fecha
@@ -128,7 +132,7 @@ function obtener_cotizaciones_qr($ubicacion = 'local', $usuario_id = null, $depa
 }
 
 /**
- * Obtener una cotización por ID
+ * Obtener una cotizaci?n por ID
  */
 function obtener_cotizacion_qr_por_id($id) {
     $pdo = conectarDB();
@@ -152,7 +156,7 @@ function obtener_cotizacion_qr_por_id($id) {
 }
 
 /**
- * Obtener una cotización por folio
+ * Obtener una cotizaci?n por folio
  */
 function obtener_cotizacion_qr_por_folio($folio) {
     $pdo = conectarDB();
@@ -173,7 +177,7 @@ function obtener_cotizacion_qr_por_folio($folio) {
 }
 
 /**
- * Obtener estadísticas del módulo CQR (actualizado con nuevos estados)
+ * Obtener estad?sticas del m?dulo CQR (actualizado con nuevos estados)
  */
 function obtener_estadisticas_cqr($usuario_id = null, $departamento = null) {
     $pdo = conectarDB();
@@ -195,11 +199,11 @@ function obtener_estadisticas_cqr($usuario_id = null, $departamento = null) {
 }
 
 // =====================================================
-// FUNCIONES DE CREACIÓN Y ACTUALIZACIÓN
+// FUNCIONES DE CREACI?N Y ACTUALIZACI?N
 // =====================================================
 
 /**
- * Crear nueva cotización (Ventas) - ACTUALIZADO v3.1
+ * Crear nueva cotizaci?n (Ventas) - ACTUALIZADO v3.1
  */
 function crear_cotizacion_qr($datos) {
     $pdo = conectarDB();
@@ -207,7 +211,7 @@ function crear_cotizacion_qr($datos) {
     try {
         $pdo->beginTransaction();
         
-        // Generar folio automático consecutivo
+        // Generar folio autom?tico consecutivo
         $folio_data = generar_folio_cqr();
         $folio = $folio_data['folio'];
         $numero_folio = $folio_data['numero'];
@@ -261,7 +265,7 @@ function crear_cotizacion_qr($datos) {
             'creada',
             null,
             'enviada',
-            'Cotización creada y enviada a Normatividad'
+            'Cotizacion creada y enviada a Normatividad'
         );
         
         // Notificar a Normatividad
@@ -271,7 +275,7 @@ function crear_cotizacion_qr($datos) {
                 $usuario['id'],
                 'cqr_nueva',
                 $cotizacion_id,
-                "Nueva solicitud de cotización {$folio} - Cliente: {$datos['nombre_cliente']}",
+                "Nueva solicitud de cotizacion {$folio} - Cliente: {$datos['nombre_cliente']}",
                 $folio
             );
         }
@@ -294,7 +298,7 @@ function crear_cotizacion_qr($datos) {
 }
 
 /**
- * Responder cotización (Normatividad) - ACTUALIZADO v3.0
+ * Responder cotizaci?n (Normatividad) - ACTUALIZADO v3.0
  */
 function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
     $pdo = conectarDB();
@@ -302,17 +306,17 @@ function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
     try {
         $pdo->beginTransaction();
         
-        // Obtener cotización actual
+        // Obtener cotizaci?n actual
         $cotizacion = obtener_cotizacion_qr_por_id($cotizacion_id);
         if (!$cotizacion) {
-            throw new Exception("Cotización no encontrada");
+            throw new Exception("Cotizacion no encontrada");
         }
         
-        // Determinar el nuevo estado basado en la decisión de Normatividad
+        // Determinar el nuevo estado basado en la decisi?n de Normatividad
         $estado_normatividad = $datos['decision']; // aceptada, rechazada, en_revision
-        $nuevo_estado = $datos['decision']; // El estado interno ahora refleja la decisión
+        $nuevo_estado = $datos['decision']; // El estado interno ahora refleja la decisi?n
         
-        // Determinar fecha según estado
+        // Determinar fecha seg?n estado
         $fecha_campo = '';
         switch ($datos['decision']) {
             case 'aceptada':
@@ -326,7 +330,7 @@ function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
                 break;
         }
         
-        // Construir SQL dinámico
+        // Construir SQL din?mico
         $sql = "
             UPDATE cotizaciones_quimicos_residuos SET
                 resultados = :resultados,
@@ -367,18 +371,18 @@ function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
             $datos['decision'],
             $cotizacion['estado'],
             $nuevo_estado,
-            "Cotización marcada como " . ucfirst($datos['decision']) . " por Normatividad"
+            "Cotizacion marcada como " . ucfirst($datos['decision']) . " por Normatividad"
         );
         
         // Notificar al creador
         $creador = obtener_creador_cotizacion_cqr($cotizacion_id);
         if ($creador) {
-            $mensaje_decision = $datos['decision'] === 'aceptada' ? '✅ Aceptada' : ($datos['decision'] === 'rechazada' ? '❌ Rechazada' : '🔄 En Revisión');
+            $mensaje_decision = $datos['decision'] === 'aceptada' ? 'Aceptada' : ($datos['decision'] === 'rechazada' ? 'Rechazada' : 'En Revision');
             crear_notificacion_cqr(
                 $creador['id'],
                 'cqr_respuesta',
                 $cotizacion_id,
-                "Tu cotización {$cotizacion['folio']} ha sido marcada como {$mensaje_decision}",
+                "Tu cotizacion {$cotizacion['folio']} ha sido marcada como {$mensaje_decision}",
                 $cotizacion['folio']
             );
         }
@@ -397,7 +401,7 @@ function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
 }
 
 /**
- * Marcar cotización como "en revisión" cuando Normatividad la abre
+ * Marcar cotizaci?n como "en revisi?n" cuando Normatividad la abre
  */
 function marcar_en_revision_cqr($cotizacion_id, $usuario_id) {
     $pdo = conectarDB();
@@ -431,19 +435,19 @@ function marcar_en_revision_cqr($cotizacion_id, $usuario_id) {
                 'en_revision',
                 'enviada',
                 'en_revision',
-                'Normatividad comenzó la revisión'
+                'Normatividad comenz? la revisi?n'
             );
         }
         
         return true;
     } catch (Exception $e) {
-        error_log("Error al marcar en revisión CQR: " . $e->getMessage());
+        error_log("Error al marcar en revisi?n CQR: " . $e->getMessage());
         return false;
     }
 }
 
 /**
- * Registrar evento en historial de cotización
+ * Registrar evento en historial de cotizaci?n
  */
 function registrar_historial_cqr($cotizacion_id, $folio, $usuario_id, $usuario_nombre, $departamento, $accion, $estado_anterior, $estado_nuevo, $detalles = null) {
     $pdo = conectarDB();
@@ -476,7 +480,7 @@ function registrar_historial_cqr($cotizacion_id, $folio, $usuario_id, $usuario_n
 }
 
 /**
- * Obtener historial de una cotización
+ * Obtener historial de una cotizaci?n
  */
 function obtener_historial_cqr($cotizacion_id) {
     $pdo = conectarDB();
@@ -496,8 +500,8 @@ function obtener_historial_cqr($cotizacion_id) {
 // =====================================================
 
 /**
- * Agregar comentario a cotización
- * Notifica a todos los usuarios de departamentos involucrados (Ventas, Normatividad, Laboratorio, Dirección)
+ * Agregar comentario a cotizaci?n
+ * Notifica a todos los usuarios de departamentos involucrados (Ventas, Normatividad, Laboratorio, Direcci?n)
  */
 function agregar_comentario_cqr($cotizacion_id, $usuario_id, $departamento, $comentario) {
     $pdo = conectarDB();
@@ -526,7 +530,7 @@ function agregar_comentario_cqr($cotizacion_id, $usuario_id, $departamento, $com
             ':comentario' => $comentario
         ]);
         
-        // Obtener datos de la cotización
+        // Obtener datos de la cotizaci?n
         $cotizacion = obtener_cotizacion_qr_por_id($cotizacion_id);
         
         // Obtener todos los usuarios de los departamentos involucrados con permisos CQR
@@ -548,7 +552,7 @@ function agregar_comentario_cqr($cotizacion_id, $usuario_id, $departamento, $com
                     $usuario_destino['id'],
                     'cqr_comentario',
                     $cotizacion_id,
-                    "Nuevo comentario en cotización {$cotizacion['folio']} por " . ($usuario['nombre_completo'] ?? 'Usuario') . " (" . ucfirst($departamento) . ")",
+                    "Nuevo comentario en cotizacion {$cotizacion['folio']} por " . ($usuario['nombre_completo'] ?? 'Usuario') . " (" . ucfirst($departamento) . ")",
                     $cotizacion['folio']
                 );
             }
@@ -578,7 +582,7 @@ function agregar_comentario_cqr($cotizacion_id, $usuario_id, $departamento, $com
 }
 
 /**
- * Obtener comentarios de una cotización
+ * Obtener comentarios de una cotizaci?n
  */
 function obtener_comentarios_cqr($cotizacion_id) {
     $pdo = conectarDB();
@@ -598,24 +602,37 @@ function obtener_comentarios_cqr($cotizacion_id) {
 // =====================================================
 
 /**
- * Obtener usuarios del departamento Normatividad
+ * Obtener usuarios del departamento Normatividad con permisos CQR
+ * MEJORADO: Busca por código o nombre del departamento y verifica permisos
  */
 function obtener_usuarios_normatividad() {
     $pdo = conectarDB();
     
+    // Buscar usuarios de Normatividad con permisos CQR activos
     $stmt = $pdo->query("
-        SELECT u.id, u.nombre_completo, u.departamento
+        SELECT DISTINCT u.id, u.nombre_completo, u.departamento
         FROM usuarios u
         INNER JOIN departamentos d ON u.departamento_id = d.id
-        WHERE LOWER(d.codigo) = 'normatividad'
+        INNER JOIN permisos_cqr p ON u.id = p.user_id
+        WHERE (LOWER(d.codigo) LIKE '%normatividad%' OR LOWER(d.nombre) LIKE '%normatividad%')
         AND u.activo = 1
+        AND (p.lector = 1 OR p.editor = 1)
     ");
     
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Log para diagnóstico
+    if (empty($usuarios)) {
+        error_log("[CQR] ADVERTENCIA: No se encontraron usuarios de Normatividad con permisos CQR");
+    } else {
+        error_log("[CQR] Usuarios Normatividad encontrados: " . count($usuarios));
+    }
+    
+    return $usuarios;
 }
 
 /**
- * Obtener el creador de una cotización para notificarle
+ * Obtener el creador de una cotizaci?n para notificarle
  */
 function obtener_creador_cotizacion_cqr($cotizacion_id) {
     $pdo = conectarDB();
@@ -632,12 +649,18 @@ function obtener_creador_cotizacion_cqr($cotizacion_id) {
 }
 
 /**
- * Crear notificación para el módulo CQR
+ * Crear notificacion para el modulo CQR
+ * CORREGIDO: Funciona correctamente con la BD
  */
 function crear_notificacion_cqr($usuario_destino_id, $tipo, $cotizacion_id, $mensaje, $folio = '') {
     $pdo = conectarDB();
     
     try {
+        if (empty($usuario_destino_id)) {
+            error_log("[CQR] Error: usuario_destino_id esta vacio");
+            return false;
+        }
+        
         $stmt = $pdo->prepare("
             INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
             VALUES (:tipo, :titulo, :mensaje, :usuario_destino, :datos_json, 0, NOW())
@@ -651,13 +674,12 @@ function crear_notificacion_cqr($usuario_destino_id, $tipo, $cotizacion_id, $men
             'url' => $url
         ]);
         
-        // Determinar título según tipo
         $titulos = [
-            'cqr_nueva' => '📋 Nueva Cotización QR',
-            'cqr_respuesta' => '✅ Respuesta a Cotización QR',
-            'cqr_comentario' => '💬 Nuevo Comentario en Cotización QR'
+            'cqr_nueva' => 'Nueva Cotizacion QR',
+            'cqr_respuesta' => 'Respuesta a Cotizacion QR',
+            'cqr_comentario' => 'Nuevo Comentario CQR'
         ];
-        $titulo = $titulos[$tipo] ?? '📋 Cotización QR';
+        $titulo = $titulos[$tipo] ?? 'Cotizacion QR';
         
         $stmt->execute([
             ':tipo' => $tipo,
@@ -667,9 +689,11 @@ function crear_notificacion_cqr($usuario_destino_id, $tipo, $cotizacion_id, $men
             ':datos_json' => $datos
         ]);
         
+        error_log("[CQR] Notificacion creada: tipo={$tipo}, usuario={$usuario_destino_id}, folio={$folio}");
+        
         return true;
     } catch (Exception $e) {
-        error_log("Error al crear notificación CQR: " . $e->getMessage());
+        error_log("[CQR] Error al crear notificacion: " . $e->getMessage());
         return false;
     }
 }
@@ -692,19 +716,19 @@ function procesar_archivo_cqr($archivo, $tipo) {
     
     $extension = strtolower(pathinfo($archivo['name'], PATHINFO_EXTENSION));
     
-    // Validación específica según tipo de archivo
+    // Validaci?n espec?fica seg?n tipo de archivo
     if ($tipo === 'ficha') {
-        // Ficha Técnica: SOLO PDF
+        // Ficha T?cnica: SOLO PDF
         $extensiones_permitidas = ['pdf'];
-        $mensaje_error = 'La Ficha Técnica solo permite archivos PDF';
+        $mensaje_error = 'La Ficha T?cnica solo permite archivos PDF';
         $subcarpeta = 'Documentos';
     } elseif ($tipo === 'formato') {
-        // Formato Descripción: SOLO PDF y Excel
+        // Formato Descripci?n: SOLO PDF y Excel
         $extensiones_permitidas = ['pdf', 'xlsx'];
-        $mensaje_error = 'El Formato Descripción solo permite archivos PDF y Excel (.xlsx)';
+        $mensaje_error = 'El Formato Descripci?n solo permite archivos PDF y Excel (.xlsx)';
         $subcarpeta = 'Documentos';
     } elseif ($tipo === 'imagen') {
-        // Imágenes del Residuo: cualquier formato de imagen
+        // Im?genes del Residuo: cualquier formato de imagen
         $extensiones_permitidas = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'tiff', 'tif'];
         $mensaje_error = 'Solo se permiten archivos de imagen';
         $subcarpeta = 'Imagenes';
@@ -721,7 +745,7 @@ function procesar_archivo_cqr($archivo, $tipo) {
     
     $max_size = 10 * 1024 * 1024; // 10MB
     if ($archivo['size'] > $max_size) {
-        return ['error' => 'El archivo excede el tamaño máximo permitido (10MB)'];
+        return ['error' => 'El archivo excede el tama?o m?ximo permitido (10MB)'];
     }
     
     // Directorio de destino con subcarpeta
@@ -736,7 +760,7 @@ function procesar_archivo_cqr($archivo, $tipo) {
         mkdir($directorio, 0755, true);
     }
     
-    // Nombre único
+    // Nombre ?nico
     $nombre_guardado = 'cqr_' . $tipo . '_' . uniqid() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
     $ruta_completa = $directorio . $nombre_guardado;
     
@@ -756,9 +780,9 @@ function procesar_archivo_cqr($archivo, $tipo) {
 }
 
 /**
- * Procesar múltiples imágenes del residuo
+ * Procesar m?ltiples im?genes del residuo
  * @param array $archivos Array de archivos $_FILES['imagenes_residuo']
- * @return string|null JSON con array de imágenes o null si no hay archivos
+ * @return string|null JSON con array de im?genes o null si no hay archivos
  */
 function procesar_imagenes_residuo_cqr($archivos) {
     if (!isset($archivos['name']) || !is_array($archivos['name'])) {
@@ -771,7 +795,7 @@ function procesar_imagenes_residuo_cqr($archivos) {
     $count = count($archivos['name']);
     
     for ($i = 0; $i < $count; $i++) {
-        // Saltar archivos vacíos
+        // Saltar archivos vac?os
         if (empty($archivos['name'][$i]) || $archivos['error'][$i] === UPLOAD_ERR_NO_FILE) {
             continue;
         }
@@ -807,7 +831,7 @@ function procesar_imagenes_residuo_cqr($archivos) {
 }
 
 /**
- * Procesar múltiples fichas técnicas (hasta 5 PDFs)
+ * Procesar m?ltiples fichas t?cnicas (hasta 5 PDFs)
  * @param array $archivos Array de archivos $_FILES['ficha_tecnica']
  * @return string|null JSON con array de fichas o null si no hay archivos
  */
@@ -822,7 +846,7 @@ function procesar_fichas_tecnicas_cqr($archivos) {
     $count = count($archivos['name']);
     
     for ($i = 0; $i < $count; $i++) {
-        // Saltar archivos vacíos
+        // Saltar archivos vac?os
         if (empty($archivos['name'][$i]) || $archivos['error'][$i] === UPLOAD_ERR_NO_FILE) {
             continue;
         }
@@ -862,16 +886,16 @@ function procesar_fichas_tecnicas_cqr($archivos) {
 // =====================================================
 
 /**
- * Generar folio automático consecutivo global - NUEVO v3.0
+ * Generar folio autom?tico consecutivo global - NUEVO v3.0
  * Formato: CQR-DDMMYYYY-000x
- * El número es consecutivo global (no reinicia por día)
+ * El n?mero es consecutivo global (no reinicia por d?a)
  */
 function generar_folio_cqr() {
     $pdo = conectarDB();
     
     $fecha = date('dmY');
     
-    // Obtener el último número de folio global
+    // Obtener el ?ltimo n?mero de folio global
     $stmt = $pdo->query("SELECT MAX(numero_folio) as ultimo FROM cotizaciones_quimicos_residuos");
     $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -892,7 +916,7 @@ function generar_folio_cqr() {
 function obtener_badge_estado_cqr($estado) {
     $badges = [
         'enviada' => '<span class="badge bg-primary">Enviada</span>',
-        'en_revision' => '<span class="badge bg-warning text-dark">En Revisión</span>',
+        'en_revision' => '<span class="badge bg-warning text-dark">En Revisi?n</span>',
         'aceptada' => '<span class="badge bg-success">Aceptada</span>',
         'rechazada' => '<span class="badge bg-danger">Rechazada</span>'
     ];
@@ -923,8 +947,8 @@ function obtener_color_departamento_cqr($departamento) {
     } elseif (strpos($depto, 'normatividad') !== false) {
         return '#198754'; // Verde
     } elseif (strpos($depto, 'laboratorio') !== false) {
-        return '#6f42c1'; // Púrpura
-    } elseif (strpos($depto, 'direccion') !== false || strpos($depto, 'dirección') !== false) {
+        return '#6f42c1'; // Purpura
+    } elseif (strpos($depto, 'direccion') !== false || strpos($depto, 'direcci?n') !== false) {
         return '#dc3545'; // Rojo
     }
     
@@ -932,8 +956,293 @@ function obtener_color_departamento_cqr($departamento) {
 }
 
 /**
- * Verificar si Normatividad ya respondió con decisión final
+ * Verificar si Normatividad ya respondio con decision final
  */
 function normatividad_respondio_cqr($cotizacion) {
     return in_array($cotizacion['estado'], ['aceptada', 'rechazada']);
+}
+
+// =====================================================
+// FUNCIONES DE EDICION DE ARCHIVOS
+// =====================================================
+
+/**
+ * Verificar si el usuario es el creador de la cotizacion
+ */
+function es_creador_cotizacion_cqr($cotizacion_id, $usuario_id) {
+    $pdo = conectarDB();
+    
+    $stmt = $pdo->prepare("SELECT usuario_creador_id FROM cotizaciones_quimicos_residuos WHERE id = :id");
+    $stmt->execute([':id' => $cotizacion_id]);
+    $cotizacion = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    return $cotizacion && $cotizacion['usuario_creador_id'] == $usuario_id;
+}
+
+/**
+ * Eliminar un archivo especifico de la cotizacion
+ * @param int $cotizacion_id ID de la cotizacion
+ * @param string $tipo_archivo 'ficha_tecnica', 'formato_descripcion', 'imagenes_residuo'
+ * @param int $indice Indice del archivo a eliminar (para arrays)
+ * @param int $usuario_id ID del usuario que realiza la accion
+ * @return array Resultado de la operacion
+ */
+function eliminar_archivo_cqr($cotizacion_id, $tipo_archivo, $indice, $usuario_id) {
+    $pdo = conectarDB();
+    
+    try {
+        // Verificar que el usuario es el creador
+        if (!es_creador_cotizacion_cqr($cotizacion_id, $usuario_id)) {
+            return ['success' => false, 'error' => 'No tienes permiso para editar esta cotizacion'];
+        }
+        
+        // Obtener cotizacion actual
+        $stmt = $pdo->prepare("SELECT ficha_tecnica, formato_descripcion, imagenes_residuo, folio FROM cotizaciones_quimicos_residuos WHERE id = :id");
+        $stmt->execute([':id' => $cotizacion_id]);
+        $cotizacion = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$cotizacion) {
+            return ['success' => false, 'error' => 'Cotizacion no encontrada'];
+        }
+        
+        $archivo_eliminar = null;
+        $nuevo_valor = null;
+        
+        if ($tipo_archivo === 'ficha_tecnica') {
+            $fichas = json_decode($cotizacion['ficha_tecnica'], true);
+            
+            // Verificar si es formato antiguo (objeto) o nuevo (array)
+            if (isset($fichas['nombre_original'])) {
+                // Formato antiguo - un solo archivo
+                $archivo_eliminar = $fichas;
+                $nuevo_valor = null;
+            } else if (is_array($fichas) && isset($fichas[$indice])) {
+                // Formato nuevo - array de archivos
+                $archivo_eliminar = $fichas[$indice];
+                unset($fichas[$indice]);
+                $fichas = array_values($fichas); // Reindexar
+                $nuevo_valor = !empty($fichas) ? json_encode($fichas) : null;
+            } else {
+                return ['success' => false, 'error' => 'Archivo no encontrado'];
+            }
+            
+            $stmt = $pdo->prepare("UPDATE cotizaciones_quimicos_residuos SET ficha_tecnica = :valor WHERE id = :id");
+            $stmt->execute([':valor' => $nuevo_valor, ':id' => $cotizacion_id]);
+            
+        } elseif ($tipo_archivo === 'formato_descripcion') {
+            $formato = json_decode($cotizacion['formato_descripcion'], true);
+            if ($formato) {
+                $archivo_eliminar = $formato;
+                $stmt = $pdo->prepare("UPDATE cotizaciones_quimicos_residuos SET formato_descripcion = NULL WHERE id = :id");
+                $stmt->execute([':id' => $cotizacion_id]);
+            }
+            
+        } elseif ($tipo_archivo === 'imagenes_residuo') {
+            $imagenes = json_decode($cotizacion['imagenes_residuo'], true);
+            
+            if (is_array($imagenes) && isset($imagenes[$indice])) {
+                $archivo_eliminar = $imagenes[$indice];
+                unset($imagenes[$indice]);
+                $imagenes = array_values($imagenes);
+                $nuevo_valor = !empty($imagenes) ? json_encode($imagenes) : null;
+                
+                $stmt = $pdo->prepare("UPDATE cotizaciones_quimicos_residuos SET imagenes_residuo = :valor WHERE id = :id");
+                $stmt->execute([':valor' => $nuevo_valor, ':id' => $cotizacion_id]);
+            } else {
+                return ['success' => false, 'error' => 'Imagen no encontrada'];
+            }
+        } else {
+            return ['success' => false, 'error' => 'Tipo de archivo no valido'];
+        }
+        
+        // Eliminar archivo fisico si existe
+        if ($archivo_eliminar && isset($archivo_eliminar['ruta'])) {
+            $ruta_fisica = __DIR__ . '/../../' . $archivo_eliminar['ruta'];
+            if (file_exists($ruta_fisica)) {
+                unlink($ruta_fisica);
+            }
+        }
+        
+        // Registrar en historial
+        $stmt = $pdo->prepare("SELECT nombre_completo, departamento FROM usuarios WHERE id = :id");
+        $stmt->execute([':id' => $usuario_id]);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        registrar_historial_cqr(
+            $cotizacion_id,
+            $cotizacion['folio'],
+            $usuario_id,
+            $usuario['nombre_completo'] ?? 'Usuario',
+            $usuario['departamento'] ?? 'Ventas',
+            'archivo_eliminado',
+            null,
+            null,
+            "Archivo eliminado: " . ($archivo_eliminar['nombre_original'] ?? 'archivo')
+        );
+        
+        return ['success' => true, 'mensaje' => 'Archivo eliminado correctamente'];
+        
+    } catch (Exception $e) {
+        error_log("[CQR] Error al eliminar archivo: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Error al eliminar el archivo'];
+    }
+}
+
+/**
+ * Agregar archivos adicionales a una cotizacion existente
+ * @param int $cotizacion_id ID de la cotizacion
+ * @param string $tipo_archivo 'ficha_tecnica', 'formato_descripcion', 'imagenes_residuo'
+ * @param array $archivos Array de archivos $_FILES
+ * @param int $usuario_id ID del usuario
+ * @return array Resultado de la operacion
+ */
+function agregar_archivos_cqr($cotizacion_id, $tipo_archivo, $archivos, $usuario_id) {
+    $pdo = conectarDB();
+    
+    try {
+        // Verificar que el usuario es el creador
+        if (!es_creador_cotizacion_cqr($cotizacion_id, $usuario_id)) {
+            return ['success' => false, 'error' => 'No tienes permiso para editar esta cotizacion'];
+        }
+        
+        // Obtener cotizacion actual
+        $stmt = $pdo->prepare("SELECT ficha_tecnica, formato_descripcion, imagenes_residuo, folio FROM cotizaciones_quimicos_residuos WHERE id = :id");
+        $stmt->execute([':id' => $cotizacion_id]);
+        $cotizacion = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$cotizacion) {
+            return ['success' => false, 'error' => 'Cotizacion no encontrada'];
+        }
+        
+        $archivos_agregados = 0;
+        $errores = [];
+        
+        if ($tipo_archivo === 'ficha_tecnica') {
+            // Obtener fichas existentes
+            $fichas_existentes = [];
+            if (!empty($cotizacion['ficha_tecnica'])) {
+                $fichas = json_decode($cotizacion['ficha_tecnica'], true);
+                if (isset($fichas['nombre_original'])) {
+                    // Formato antiguo - convertir a array
+                    $fichas_existentes = [$fichas];
+                } else {
+                    $fichas_existentes = $fichas;
+                }
+            }
+            
+            // Procesar nuevos archivos
+            foreach ($archivos['tmp_name'] as $key => $tmp_name) {
+                if ($archivos['error'][$key] === UPLOAD_ERR_OK) {
+                    $archivo_individual = [
+                        'name' => $archivos['name'][$key],
+                        'type' => $archivos['type'][$key],
+                        'tmp_name' => $tmp_name,
+                        'error' => $archivos['error'][$key],
+                        'size' => $archivos['size'][$key]
+                    ];
+                    
+                    $resultado = procesar_archivo_cqr($archivo_individual, 'ficha');
+                    if (is_string($resultado)) {
+                        $fichas_existentes[] = json_decode($resultado, true);
+                        $archivos_agregados++;
+                    } elseif (isset($resultado['error'])) {
+                        $errores[] = $archivos['name'][$key] . ': ' . $resultado['error'];
+                    }
+                }
+            }
+            
+            // Validar maximo 5 fichas
+            if (count($fichas_existentes) > 5) {
+                return ['success' => false, 'error' => 'Maximo 5 fichas tecnicas permitidas'];
+            }
+            
+            $stmt = $pdo->prepare("UPDATE cotizaciones_quimicos_residuos SET ficha_tecnica = :valor WHERE id = :id");
+            $stmt->execute([':valor' => json_encode($fichas_existentes), ':id' => $cotizacion_id]);
+            
+        } elseif ($tipo_archivo === 'formato_descripcion') {
+            // Solo un archivo de formato - tomar el primero del array
+            if (!empty($archivos['tmp_name'][0]) && $archivos['error'][0] === UPLOAD_ERR_OK) {
+                $archivo_individual = [
+                    'name' => $archivos['name'][0],
+                    'type' => $archivos['type'][0],
+                    'tmp_name' => $archivos['tmp_name'][0],
+                    'error' => $archivos['error'][0],
+                    'size' => $archivos['size'][0]
+                ];
+                
+                $resultado = procesar_archivo_cqr($archivo_individual, 'formato');
+                if (is_string($resultado)) {
+                    $stmt = $pdo->prepare("UPDATE cotizaciones_quimicos_residuos SET formato_descripcion = :valor WHERE id = :id");
+                    $stmt->execute([':valor' => $resultado, ':id' => $cotizacion_id]);
+                    $archivos_agregados = 1;
+                } elseif (isset($resultado['error'])) {
+                    $errores[] = $resultado['error'];
+                }
+            }
+            
+        } elseif ($tipo_archivo === 'imagenes_residuo') {
+            // Obtener imagenes existentes
+            $imagenes_existentes = [];
+            if (!empty($cotizacion['imagenes_residuo'])) {
+                $imagenes_existentes = json_decode($cotizacion['imagenes_residuo'], true) ?? [];
+            }
+            
+            // Procesar nuevas imagenes
+            foreach ($archivos['tmp_name'] as $key => $tmp_name) {
+                if ($archivos['error'][$key] === UPLOAD_ERR_OK) {
+                    $archivo_individual = [
+                        'name' => $archivos['name'][$key],
+                        'type' => $archivos['type'][$key],
+                        'tmp_name' => $tmp_name,
+                        'error' => $archivos['error'][$key],
+                        'size' => $archivos['size'][$key]
+                    ];
+                    
+                    $resultado = procesar_archivo_cqr($archivo_individual, 'imagen');
+                    if (is_string($resultado)) {
+                        $imagenes_existentes[] = json_decode($resultado, true);
+                        $archivos_agregados++;
+                    } elseif (isset($resultado['error'])) {
+                        $errores[] = $archivos['name'][$key] . ': ' . $resultado['error'];
+                    }
+                }
+            }
+            
+            $stmt = $pdo->prepare("UPDATE cotizaciones_quimicos_residuos SET imagenes_residuo = :valor WHERE id = :id");
+            $stmt->execute([':valor' => json_encode($imagenes_existentes), ':id' => $cotizacion_id]);
+        }
+        
+        // Registrar en historial si se agregaron archivos
+        if ($archivos_agregados > 0) {
+            $stmt = $pdo->prepare("SELECT nombre_completo, departamento FROM usuarios WHERE id = :id");
+            $stmt->execute([':id' => $usuario_id]);
+            $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            registrar_historial_cqr(
+                $cotizacion_id,
+                $cotizacion['folio'],
+                $usuario_id,
+                $usuario['nombre_completo'] ?? 'Usuario',
+                $usuario['departamento'] ?? 'Ventas',
+                'archivos_agregados',
+                null,
+                null,
+                "Se agregaron {$archivos_agregados} archivo(s) a " . str_replace('_', ' ', $tipo_archivo)
+            );
+        }
+        
+        if (!empty($errores)) {
+            return [
+                'success' => $archivos_agregados > 0,
+                'archivos_agregados' => $archivos_agregados,
+                'errores' => $errores
+            ];
+        }
+        
+        return ['success' => true, 'archivos_agregados' => $archivos_agregados];
+        
+    } catch (Exception $e) {
+        error_log("[CQR] Error al agregar archivos: " . $e->getMessage());
+        return ['success' => false, 'error' => 'Error al agregar archivos'];
+    }
 }

@@ -38,6 +38,45 @@ if (!$documento) {
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // ========================================
+// FUNCIÓN: Auto-ajuste de texto en celda
+// ========================================
+
+/**
+ * Imprime texto en una celda ajustando el tamaño de fuente automaticamente
+ * si el texto es demasiado largo para caber en el ancho disponible.
+ * 
+ * @param TCPDF  $pdf        Instancia de TCPDF
+ * @param float  $ancho      Ancho de la celda en mm
+ * @param float  $alto       Alto de la celda en mm
+ * @param string $texto      Texto a imprimir
+ * @param int    $borde      Borde de la celda (default 1)
+ * @param int    $ln         Salto de linea despues (default 0)
+ * @param string $align      Alineacion: L, C, R (default 'L')
+ * @param bool   $fill       Rellenar fondo (default true)
+ * @param string $fontFamily Familia de fuente (default 'helvetica')
+ * @param string $fontStyle  Estilo de fuente (default '')
+ * @param float  $maxSize    Tamaño maximo de fuente (default 9)
+ * @param float  $minSize    Tamaño minimo de fuente (default 6)
+ */
+function cellAutoFit($pdf, $ancho, $alto, $texto, $borde = 1, $ln = 0, $align = 'L', $fill = true, $fontFamily = 'helvetica', $fontStyle = '', $maxSize = 9, $minSize = 6) {
+    $pdf->SetFont($fontFamily, $fontStyle, $maxSize);
+    $textoAncho = $pdf->GetStringWidth($texto);
+    
+    // Reducir fuente si el texto no cabe (dejando 1mm de margen interno)
+    $fontSize = $maxSize;
+    while ($textoAncho > ($ancho - 1) && $fontSize > $minSize) {
+        $fontSize -= 0.5;
+        $pdf->SetFont($fontFamily, $fontStyle, $fontSize);
+        $textoAncho = $pdf->GetStringWidth($texto);
+    }
+    
+    $pdf->Cell($ancho, $alto, $texto, $borde, $ln, $align, $fill);
+    
+    // Restaurar tamaño original despues de imprimir
+    $pdf->SetFont($fontFamily, $fontStyle, $maxSize);
+}
+
+// ========================================
 // PREPARAR DATOS DEL DOCUMENTO
 // ========================================
 
@@ -131,7 +170,7 @@ $pdf->SetLineWidth(0.3);
 $pdf->Cell($anchoLogo, $alturaEncabezado, '', 1, 0, 'C', true);
 
 // Intentar insertar logo si existe
-$rutaLogo = __DIR__ . '/../assets/img/logo_resimex.png';
+$rutaLogo = __DIR__ . '/../assets/img/LOGO RESIMEX.jpg';
 if (file_exists($rutaLogo)) {
     $pdf->Image($rutaLogo, 12, $yInicio + 2, 41, 0, '', '', '', true, 150);
 } else {
@@ -201,13 +240,11 @@ $pdf->SetXY(10, $yDatos);
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->SetFillColor($colorBlanco[0], $colorBlanco[1], $colorBlanco[2]);
 $pdf->Cell($anchoEtiqueta1, $alturaFila, 'Nombre de solicitante:', 1, 0, 'L', true);
-$pdf->SetFont('helvetica', '', 9);
-$pdf->Cell($anchoValor1, $alturaFila, $documento['solicitado_por'] ?? '', 1, 0, 'L', true);
+cellAutoFit($pdf, $anchoValor1, $alturaFila, $documento['solicitado_por'] ?? '');
 
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->Cell($anchoEtiqueta2, $alturaFila, 'Nombre de quien recibe solicitud:', 1, 0, 'L', true);
-$pdf->SetFont('helvetica', '', 9);
-$pdf->Cell($anchoValor2, $alturaFila, $documento['recibe_solicitud'] ?? '', 1, 1, 'L', true);
+cellAutoFit($pdf, $anchoValor2, $alturaFila, $documento['recibe_solicitud'] ?? '', 1, 1);
 
 // Fila 2: Fecha de solicitud | Fecha y hora de recibido
 $yDatos += $alturaFila;
@@ -241,8 +278,7 @@ $yDatos += $alturaFila;
 $pdf->SetXY(10, $yDatos);
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->Cell($anchoEtiqueta1, $alturaFila, 'Generador/Cliente:', 1, 0, 'L', true);
-$pdf->SetFont('helvetica', '', 9);
-$pdf->Cell($anchoValor1, $alturaFila, $documento['nombre_cliente'] ?? '', 1, 0, 'L', true);
+cellAutoFit($pdf, $anchoValor1, $alturaFila, $documento['nombre_cliente'] ?? '');
 
 $pdf->SetFont('helvetica', 'B', 8);
 $pdf->Cell($anchoEtiqueta2, $alturaFila, 'Folio:', 1, 0, 'L', true);

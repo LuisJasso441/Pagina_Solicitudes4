@@ -63,6 +63,10 @@ $es_laboratorio = ($rol_usuario === 'laboratorio');
 $es_direccion = ($rol_usuario === 'direccion');
 $normatividad_respondio = normatividad_respondio_cqr($cotizacion);
 
+// Variables para edicion de archivos
+$es_creador = ($cotizacion['usuario_creador_id'] == $_SESSION['usuario_id']);
+$puede_editar_archivos = $es_creador && !$normatividad_respondio;
+
 // Si es Normatividad y aún no ha respondido, marcar como "en revisión"
 if ($es_normatividad && $cotizacion['estado'] === 'enviada') {
     marcar_en_revision_cqr($cotizacion_id, $_SESSION['usuario_id']);
@@ -375,6 +379,37 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
             color: #0f5132;
         }
         
+        /* Estilos para edicion de archivos */
+        .archivo-item-editable {
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        .archivo-item-editable:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .archivo-item-editable .archivo-link {
+            background: transparent;
+            padding: 4px 8px;
+        }
+        .archivo-item-editable .btn-eliminar-archivo {
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .archivo-item-editable:hover .btn-eliminar-archivo {
+            opacity: 1;
+        }
+        .imagen-residuo-container {
+            position: relative;
+            display: inline-block;
+        }
+        .imagen-residuo-container .btn-eliminar-imagen {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .imagen-residuo-container:hover .btn-eliminar-imagen {
+            opacity: 1;
+        }
+        
         @media (max-width: 991px) {
             .info-row {
                 flex-direction: column;
@@ -503,27 +538,42 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
                             <hr class="my-3">
                             
                             <!-- Archivos -->
-                            <h6 class="text-muted mb-3"><i class="bi bi-paperclip"></i> Archivos Adjuntos</h6>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-muted mb-0"><i class="bi bi-paperclip"></i> Archivos Adjuntos</h6>
+                                <?php if ($puede_editar_archivos): ?>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAgregarArchivos">
+                                    <i class="bi bi-plus-circle"></i> Agregar
+                                </button>
+                                <?php endif; ?>
+                            </div>
                             
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p class="mb-2"><strong>Ficha Técnica:</strong></p>
+                                    <p class="mb-2"><strong>Ficha Tecnica:</strong></p>
                                     <?php if (!empty($cotizacion['ficha_tecnica'])): ?>
                                         <?php 
                                         $fichas = json_decode($cotizacion['ficha_tecnica'], true);
-                                        // Verificar si es el formato antiguo (un solo archivo) o el nuevo (array)
                                         if (isset($fichas['nombre_original'])) {
-                                            // Formato antiguo: un solo archivo
                                             $fichas = [$fichas];
                                         }
                                         ?>
                                         <div class="fichas-lista-ver">
                                             <?php foreach ($fichas as $index => $ficha): ?>
-                                            <div class="ficha-item-ver mb-2">
-                                                <a href="<?php echo URL_BASE . $ficha['ruta']; ?>" target="_blank" class="archivo-link d-inline-flex align-items-center">
+                                            <div class="archivo-item-editable d-flex align-items-center justify-content-between mb-2 p-2 border rounded">
+                                                <a href="<?php echo URL_BASE . $ficha['ruta']; ?>" target="_blank" class="archivo-link d-inline-flex align-items-center flex-grow-1">
                                                     <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-                                                    <span><?php echo htmlspecialchars($ficha['nombre_original']); ?></span>
+                                                    <span class="text-truncate"><?php echo htmlspecialchars($ficha['nombre_original']); ?></span>
                                                 </a>
+                                                <?php if ($puede_editar_archivos): ?>
+                                                <button type="button" class="btn btn-sm btn-outline-danger ms-2 btn-eliminar-archivo" 
+                                                        data-cotizacion="<?php echo $cotizacion_id; ?>"
+                                                        data-tipo="ficha_tecnica" 
+                                                        data-indice="<?php echo $index; ?>"
+                                                        data-nombre="<?php echo htmlspecialchars($ficha['nombre_original']); ?>"
+                                                        title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                                <?php endif; ?>
                                             </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -532,48 +582,80 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
                                     <?php endif; ?>
                                 </div>
                                 <div class="col-md-6">
-                                    <p class="mb-2"><strong>Formato Descripción:</strong></p>
+                                    <p class="mb-2"><strong>Formato Descripcion:</strong></p>
                                     <?php if (!empty($cotizacion['formato_descripcion'])): ?>
                                         <?php $formato = json_decode($cotizacion['formato_descripcion'], true); ?>
                                         <?php 
                                         $icono_formato = 'bi-file-earmark';
                                         $color_icono = 'text-secondary';
-                                        if ($formato['extension'] === 'pdf') {
-                                            $icono_formato = 'bi-file-earmark-pdf';
-                                            $color_icono = 'text-danger';
-                                        } elseif ($formato['extension'] === 'xlsx') {
-                                            $icono_formato = 'bi-file-earmark-excel';
-                                            $color_icono = 'text-success';
+                                        if (isset($formato['extension'])) {
+                                            if ($formato['extension'] === 'pdf') {
+                                                $icono_formato = 'bi-file-earmark-pdf';
+                                                $color_icono = 'text-danger';
+                                            } elseif ($formato['extension'] === 'xlsx') {
+                                                $icono_formato = 'bi-file-earmark-excel';
+                                                $color_icono = 'text-success';
+                                            }
                                         }
                                         ?>
-                                        <a href="<?php echo URL_BASE . $formato['ruta']; ?>" target="_blank" class="archivo-link">
-                                            <i class="bi <?php echo $icono_formato . ' ' . $color_icono; ?> fs-5"></i>
-                                            <span><?php echo htmlspecialchars($formato['nombre_original']); ?></span>
-                                        </a>
+                                        <div class="archivo-item-editable d-flex align-items-center justify-content-between p-2 border rounded">
+                                            <a href="<?php echo URL_BASE . $formato['ruta']; ?>" target="_blank" class="archivo-link d-inline-flex align-items-center flex-grow-1">
+                                                <i class="bi <?php echo $icono_formato . ' ' . $color_icono; ?> me-2"></i>
+                                                <span class="text-truncate"><?php echo htmlspecialchars($formato['nombre_original']); ?></span>
+                                            </a>
+                                            <?php if ($puede_editar_archivos): ?>
+                                            <button type="button" class="btn btn-sm btn-outline-danger ms-2 btn-eliminar-archivo" 
+                                                    data-cotizacion="<?php echo $cotizacion_id; ?>"
+                                                    data-tipo="formato_descripcion" 
+                                                    data-indice="0"
+                                                    data-nombre="<?php echo htmlspecialchars($formato['nombre_original']); ?>"
+                                                    title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php else: ?>
                                         <span class="text-muted">No adjuntado</span>
                                     <?php endif; ?>
                                 </div>
                             </div>
                             
-                            <?php if (!empty($cotizacion['imagenes_residuo'])): ?>
-                            <?php $imagenes = json_decode($cotizacion['imagenes_residuo'], true); ?>
-                            <?php if (!empty($imagenes)): ?>
+                            <!-- Imagenes del Residuo -->
                             <div class="mt-4">
                                 <p class="mb-2"><strong><i class="bi bi-images text-info"></i> Imagen del Residuo:</strong></p>
+                                <?php if (!empty($cotizacion['imagenes_residuo'])): ?>
+                                <?php $imagenes = json_decode($cotizacion['imagenes_residuo'], true); ?>
+                                <?php if (!empty($imagenes)): ?>
                                 <div class="d-flex flex-wrap gap-3">
-                                    <?php foreach ($imagenes as $img): ?>
-                                    <a href="<?php echo URL_BASE . $img['ruta']; ?>" target="_blank" class="imagen-residuo-thumb" title="<?php echo htmlspecialchars($img['nombre_original']); ?>">
-                                        <img src="<?php echo URL_BASE . $img['ruta']; ?>" alt="<?php echo htmlspecialchars($img['nombre_original']); ?>">
-                                        <div class="imagen-overlay">
-                                            <i class="bi bi-zoom-in"></i>
-                                        </div>
-                                    </a>
+                                    <?php foreach ($imagenes as $index => $img): ?>
+                                    <div class="imagen-residuo-container position-relative">
+                                        <a href="<?php echo URL_BASE . $img['ruta']; ?>" target="_blank" class="imagen-residuo-thumb" title="<?php echo htmlspecialchars($img['nombre_original']); ?>">
+                                            <img src="<?php echo URL_BASE . $img['ruta']; ?>" alt="<?php echo htmlspecialchars($img['nombre_original']); ?>">
+                                            <div class="imagen-overlay">
+                                                <i class="bi bi-zoom-in"></i>
+                                            </div>
+                                        </a>
+                                        <?php if ($puede_editar_archivos): ?>
+                                        <button type="button" class="btn btn-sm btn-danger btn-eliminar-imagen position-absolute btn-eliminar-archivo" 
+                                                style="top: 5px; right: 5px; padding: 2px 6px;"
+                                                data-cotizacion="<?php echo $cotizacion_id; ?>"
+                                                data-tipo="imagenes_residuo" 
+                                                data-indice="<?php echo $index; ?>"
+                                                data-nombre="<?php echo htmlspecialchars($img['nombre_original']); ?>"
+                                                title="Eliminar imagen">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                        <?php endif; ?>
+                                    </div>
                                     <?php endforeach; ?>
                                 </div>
+                                <?php else: ?>
+                                <span class="text-muted">Sin imagenes</span>
+                                <?php endif; ?>
+                                <?php else: ?>
+                                <span class="text-muted">Sin imagenes</span>
+                                <?php endif; ?>
                             </div>
-                            <?php endif; ?>
-                            <?php endif; ?>
                             
                             <hr class="my-3">
                             
@@ -804,6 +886,48 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
         </main>
     </div>
 
+    <!-- Modal para Agregar Archivos -->
+    <?php if ($puede_editar_archivos): ?>
+    <div class="modal fade" id="modalAgregarArchivos" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Agregar Archivos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="formAgregarArchivos" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <input type="hidden" name="cotizacion_id" value="<?php echo $cotizacion_id; ?>">
+                        <input type="hidden" name="accion" value="agregar">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Archivo</label>
+                            <select name="tipo_archivo" id="tipoArchivoAgregar" class="form-select" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="ficha_tecnica">Ficha Tecnica (PDF)</option>
+                                <option value="formato_descripcion">Formato Descripcion (PDF/Excel)</option>
+                                <option value="imagenes_residuo">Imagenes del Residuo</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Archivos</label>
+                            <input type="file" name="archivos[]" id="inputArchivosAgregar" class="form-control" multiple required>
+                            <small class="text-muted" id="ayudaTipoArchivo">Selecciona el tipo de archivo primero</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btnSubirArchivos">
+                            <i class="bi bi-upload me-1"></i> Subir
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
@@ -835,6 +959,120 @@ $page_title = "Cotización " . htmlspecialchars($cotizacion['folio']);
                 }
             });
         });
+        
+        // ========================================
+        // GESTION DE ARCHIVOS
+        // ========================================
+        const urlBase = '<?php echo URL_BASE; ?>';
+        
+        // Cambiar accept segun tipo de archivo
+        const tipoSelect = document.getElementById('tipoArchivoAgregar');
+        const inputArchivos = document.getElementById('inputArchivosAgregar');
+        const ayuda = document.getElementById('ayudaTipoArchivo');
+        
+        if (tipoSelect) {
+            tipoSelect.addEventListener('change', function() {
+                switch(this.value) {
+                    case 'ficha_tecnica':
+                        inputArchivos.accept = '.pdf';
+                        inputArchivos.multiple = true;
+                        ayuda.textContent = 'Solo archivos PDF (maximo 5 en total)';
+                        break;
+                    case 'formato_descripcion':
+                        inputArchivos.accept = '.pdf,.xlsx';
+                        inputArchivos.multiple = false;
+                        ayuda.textContent = 'Solo PDF o Excel (.xlsx)';
+                        break;
+                    case 'imagenes_residuo':
+                        inputArchivos.accept = 'image/*';
+                        inputArchivos.multiple = true;
+                        ayuda.textContent = 'Archivos de imagen (JPG, PNG, etc.)';
+                        break;
+                    default:
+                        inputArchivos.accept = '';
+                        ayuda.textContent = 'Selecciona el tipo de archivo primero';
+                }
+            });
+        }
+        
+        // Eliminar archivo
+        document.querySelectorAll('.btn-eliminar-archivo').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const cotizacionId = this.dataset.cotizacion;
+                const tipo = this.dataset.tipo;
+                const indice = this.dataset.indice;
+                const nombre = this.dataset.nombre;
+                
+                if (confirm('¿Eliminar el archivo "' + nombre + '"?\n\nEsta accion no se puede deshacer.')) {
+                    const formData = new FormData();
+                    formData.append('accion', 'eliminar');
+                    formData.append('cotizacion_id', cotizacionId);
+                    formData.append('tipo_archivo', tipo);
+                    formData.append('indice', indice);
+                    
+                    // Deshabilitar boton
+                    this.disabled = true;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                    
+                    fetch(urlBase + 'dashboard/cotizaciones_qr/procesar_archivos_cqr.php', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || 'No se pudo eliminar el archivo'));
+                            this.disabled = false;
+                            this.innerHTML = '<i class="bi bi-trash"></i>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error de conexion');
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-trash"></i>';
+                    });
+                }
+            });
+        });
+        
+        // Agregar archivos
+        const formAgregar = document.getElementById('formAgregarArchivos');
+        if (formAgregar) {
+            formAgregar.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const btnSubmit = document.getElementById('btnSubirArchivos');
+                const textoOriginal = btnSubmit.innerHTML;
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Subiendo...';
+                
+                const formData = new FormData(this);
+                
+                fetch(urlBase + 'dashboard/cotizaciones_qr/procesar_archivos_cqr.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || data.errores?.join(', ') || 'No se pudieron subir los archivos'));
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = textoOriginal;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexion');
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = textoOriginal;
+                });
+            });
+        }
     </script>
 </body>
 </html>
