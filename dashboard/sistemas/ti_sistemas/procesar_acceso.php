@@ -51,8 +51,8 @@ switch ($accion) {
         try {
             $sql = "INSERT INTO acceso_equipos 
                     (hostname, departamento_id, direccion_ip, contrasena_equipo, 
-                     usuario_asignado_nombre, estado, whoami, comentarios, registrado_por)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    usuario_asignado_nombre, estado, whoami, usuario_servidor, comentarios, registrado_por)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $hostname,
@@ -62,6 +62,7 @@ switch ($accion) {
                 trim($_POST['usuario_asignado_nombre'] ?? '') ?: null,
                 $_POST['estado'] ?? 'activo',
                 trim($_POST['whoami'] ?? '') ?: null,
+                trim($_POST['usuario_servidor'] ?? '') ?: null,
                 trim($_POST['comentarios'] ?? '') ?: null,
                 $_SESSION['usuario_id']
             ]);
@@ -94,7 +95,7 @@ switch ($accion) {
         try {
             $sql = "UPDATE acceso_equipos SET 
                     hostname = ?, departamento_id = ?, direccion_ip = ?, contrasena_equipo = ?,
-                    usuario_asignado_nombre = ?, estado = ?, whoami = ?, comentarios = ?
+                    usuario_asignado_nombre = ?, estado = ?, whoami = ?, usuario_servidor = ?, comentarios = ?
                     WHERE id = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
@@ -105,6 +106,7 @@ switch ($accion) {
                 trim($_POST['usuario_asignado_nombre'] ?? '') ?: null,
                 $_POST['estado'] ?? 'activo',
                 trim($_POST['whoami'] ?? '') ?: null,
+                trim($_POST['usuario_servidor'] ?? '') ?: null,
                 trim($_POST['comentarios'] ?? '') ?: null,
                 $acceso_id
             ]);

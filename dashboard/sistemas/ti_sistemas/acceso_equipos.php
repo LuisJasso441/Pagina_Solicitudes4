@@ -41,9 +41,9 @@ if ($filtro_estado && in_array($filtro_estado, ['activo', 'inactivo'])) {
     $params[] = $filtro_estado;
 }
 if ($filtro_busqueda) {
-    $where[] = "(ae.hostname LIKE ? OR ae.direccion_ip LIKE ? OR ae.usuario_asignado_nombre LIKE ? OR ae.whoami LIKE ?)";
+    $where[] = "(ae.hostname LIKE ? OR ae.direccion_ip LIKE ? OR ae.usuario_asignado_nombre LIKE ? OR ae.whoami LIKE ? OR ae.usuario_servidor LIKE ?)";
     $b = "%{$filtro_busqueda}%";
-    $params = array_merge($params, [$b, $b, $b, $b]);
+    $params = array_merge($params, [$b, $b, $b, $b, $b]);
 }
 
 $where_clause = implode(" AND ", $where);
@@ -163,6 +163,7 @@ $current_page = basename(__FILE__);
                                         <th>Contrase&ntilde;a</th>
                                         <th>Usuario Asignado</th>
                                         <th>whoami</th>
+                                        <th>Usuario Servidor</th>
                                         <th class="text-center">Estado</th>
                                         <th>Comentarios</th>
                                         <th class="text-center">Acciones</th>
@@ -170,7 +171,7 @@ $current_page = basename(__FILE__);
                                 </thead>
                                 <tbody>
                                     <?php if (empty($accesos)): ?>
-                                        <tr><td colspan="10" class="text-center py-4 text-muted">
+                                        <tr><td colspan="11" class="text-center py-4 text-muted">
                                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>No hay registros de acceso.
                                         </td></tr>
                                     <?php else: ?>
@@ -189,6 +190,7 @@ $current_page = basename(__FILE__);
                                             </td>
                                             <td><small><?php echo htmlspecialchars($acc['usuario_asignado_nombre'] ?: '—'); ?></small></td>
                                             <td><small class="ip-mono"><?php echo htmlspecialchars($acc['whoami'] ?: '—'); ?></small></td>
+                                            <td><small><?php echo htmlspecialchars($acc['usuario_servidor'] ?? '—'); ?></small></td>
                                             <td class="text-center">
                                                 <span class="badge <?php echo $acc['estado'] === 'activo' ? 'bg-success' : 'bg-secondary'; ?>" style="font-size:0.7rem;">
                                                     <?php echo ucfirst($acc['estado']); ?>
@@ -264,6 +266,11 @@ $current_page = basename(__FILE__);
                             <div class="col-md-6">
                                 <label class="form-label">whoami</label>
                                 <input type="text" name="whoami" id="accWhoami" class="form-control" maxlength="100"
+                                       style="font-family:monospace;">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Usuario Servidor</label>
+                                <input type="text" name="usuario_servidor" id="accUsuarioServidor" class="form-control" maxlength="255"
                                        style="font-family:monospace;">
                             </div>
                             <div class="col-md-6">
@@ -345,6 +352,7 @@ $current_page = basename(__FILE__);
         document.getElementById('accPass').value = data.contrasena_equipo || '';
         document.getElementById('accUsuario').value = data.usuario_asignado_nombre || '';
         document.getElementById('accWhoami').value = data.whoami || '';
+        document.getElementById('accUsuarioServidor').value = data.usuario_servidor || '';
         document.getElementById('accEstado').value = data.estado || 'activo';
         document.getElementById('accComentarios').value = data.comentarios || '';
         document.getElementById('tituloModalAcceso').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Acceso - ' + data.hostname;

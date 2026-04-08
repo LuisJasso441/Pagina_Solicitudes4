@@ -1,7 +1,7 @@
 <?php
 /**
- * Inventario de Sistemas - Lista Principal
- * CRUD completo con modal de agregar/editar
+ * Inventario de Sistemas (Insumos) - Lista Principal
+ * CRUD simple con modal de agregar/editar + detección de duplicados
  * Ubicación: dashboard/sistemas/inventario/inventario_sistemas.php
  */
 
@@ -11,7 +11,6 @@ require_once __DIR__ . '/../../../auth/verificar_sesion.php';
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../../includes/sistemas/inventario/inventario_sistemas_funciones.php';
 
-// Verificar acceso: solo Sistemas
 if (!es_usuario_sistemas()) {
     establecer_alerta('error', 'No tienes acceso al Inventario de Sistemas.');
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -42,9 +41,6 @@ $page_title = "Inventario de Sistemas";
     <link href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css" rel="stylesheet">
     <link href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css" rel="stylesheet">
     <link href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css" rel="stylesheet">
-
-    <!-- Sistema de notificaciones -->
-    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
         .tabla-inventario-wrapper { overflow-x: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .tabla-inventario { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: #fff; }
@@ -66,6 +62,9 @@ $page_title = "Inventario de Sistemas";
         .badge-redes { background: #fce7f3; color: #9d174d; }
         .badge-almacenamiento { background: #e0e7ff; color: #3730a3; }
         .badge-componentes { background: #fed7aa; color: #9a3412; }
+        .badge-baterias_pilas { background: #fef9c3; color: #854d0e; }
+        .badge-impresion { background: #e0f2fe; color: #075985; }
+        .badge-herramientas { background: #f5f5dc; color: #6b4423; }
         .badge-otros { background: #f1f5f9; color: #475569; }
         
         .umbral-ok { color: #059669; font-weight: 600; }
@@ -77,7 +76,6 @@ $page_title = "Inventario de Sistemas";
         
         .btn-accion { padding: 2px 8px; font-size: 0.78rem; border-radius: 4px; }
         
-        /* Dark mode */
         body[data-theme="dark"] .tabla-inventario { background: var(--card-bg, #1e293b); }
         body[data-theme="dark"] .tabla-inventario tbody td { border-color: #334155; color: #e2e8f0; }
         body[data-theme="dark"] .tabla-inventario tbody tr:hover { background: #1e3a5f; }
@@ -92,7 +90,6 @@ $page_title = "Inventario de Sistemas";
         <main class="main-content">
             <div class="container-fluid py-4">
                 
-                <!-- Encabezado -->
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                     <div>
                         <h4 class="fw-bold mb-1"><i class="bi bi-box-seam me-2"></i><?php echo $page_title; ?></h4>
@@ -103,71 +100,48 @@ $page_title = "Inventario de Sistemas";
                     </button>
                 </div>
                 
-                <!-- Tarjetas de estadísticas -->
+                <!-- Tarjetas -->
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-lg-3">
                         <div class="card stat-card">
                             <div class="card-body d-flex align-items-center gap-3">
-                                <div class="stat-icon" style="background: #dbeafe; color: #2563eb;">
-                                    <i class="bi bi-box-seam"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-bold fs-5"><?php echo $stats['total_articulos']; ?></div>
-                                    <small class="text-muted">Art&iacute;culos</small>
-                                </div>
+                                <div class="stat-icon" style="background: #dbeafe; color: #2563eb;"><i class="bi bi-box-seam"></i></div>
+                                <div><div class="fw-bold fs-5"><?php echo $stats['total_articulos']; ?></div><small class="text-muted">Art&iacute;culos</small></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-3">
                         <div class="card stat-card">
                             <div class="card-body d-flex align-items-center gap-3">
-                                <div class="stat-icon" style="background: <?php echo $stats['sin_stock'] > 0 ? '#fee2e2' : '#f1f5f9'; ?>; color: <?php echo $stats['sin_stock'] > 0 ? '#dc2626' : '#64748b'; ?>;">
-                                    <i class="bi bi-x-circle"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-bold fs-5"><?php echo $stats['sin_stock']; ?></div>
-                                    <small class="text-muted">Sin Stock</small>
-                                </div>
+                                <div class="stat-icon" style="background: <?php echo $stats['sin_stock'] > 0 ? '#fee2e2' : '#f1f5f9'; ?>; color: <?php echo $stats['sin_stock'] > 0 ? '#dc2626' : '#64748b'; ?>;"><i class="bi bi-x-circle"></i></div>
+                                <div><div class="fw-bold fs-5"><?php echo $stats['sin_stock']; ?></div><small class="text-muted">Sin Stock</small></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-3">
                         <div class="card stat-card">
                             <div class="card-body d-flex align-items-center gap-3">
-                                <div class="stat-icon" style="background: <?php echo $stats['bajo_umbral'] > 0 ? '#fef3c7' : '#f1f5f9'; ?>; color: <?php echo $stats['bajo_umbral'] > 0 ? '#d97706' : '#64748b'; ?>;">
-                                    <i class="bi bi-exclamation-triangle"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-bold fs-5"><?php echo $stats['bajo_umbral']; ?></div>
-                                    <small class="text-muted">Bajo Umbral</small>
-                                </div>
+                                <div class="stat-icon" style="background: <?php echo $stats['bajo_umbral'] > 0 ? '#fef3c7' : '#f1f5f9'; ?>; color: <?php echo $stats['bajo_umbral'] > 0 ? '#d97706' : '#64748b'; ?>;"><i class="bi bi-exclamation-triangle"></i></div>
+                                <div><div class="fw-bold fs-5"><?php echo $stats['bajo_umbral']; ?></div><small class="text-muted">Bajo Umbral</small></div>
                             </div>
                         </div>
                     </div>
                     <div class="col-6 col-lg-3">
                         <div class="card stat-card">
                             <div class="card-body d-flex align-items-center gap-3">
-                                <div class="stat-icon" style="background: #e0e7ff; color: #4f46e5;">
-                                    <i class="bi bi-tags"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-bold fs-5"><?php echo $stats['categorias_activas']; ?></div>
-                                    <small class="text-muted">Categor&iacute;as Activas</small>
-                                </div>
+                                <div class="stat-icon" style="background: #e0e7ff; color: #4f46e5;"><i class="bi bi-tags"></i></div>
+                                <div><div class="fw-bold fs-5"><?php echo $stats['categorias_activas']; ?></div><small class="text-muted">Categor&iacute;as Activas</small></div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <!-- Equipos en Préstamo -->
+                
                 <?php if ($stats['en_prestamo'] > 0): ?>
                 <div class="row g-3 mb-4">
                     <div class="col-12">
                         <div class="card stat-card border-start border-4 border-warning">
                             <div class="card-body d-flex align-items-center gap-3 py-2">
-                                <div class="stat-icon" style="background: #fef3c7; color: #d97706;">
-                                    <i class="bi bi-arrow-left-right"></i>
-                                </div>
+                                <div class="stat-icon" style="background: #fef3c7; color: #d97706;"><i class="bi bi-arrow-left-right"></i></div>
                                 <div>
                                     <div class="fw-bold fs-5 d-inline"><?php echo $stats['en_prestamo']; ?></div>
                                     <small class="text-muted ms-1">unidad(es) en pr&eacute;stamo / asignadas</small>
@@ -192,8 +166,7 @@ $page_title = "Inventario de Sistemas";
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Buscar</label>
-                        <input type="text" name="busqueda" class="form-control form-control-sm" 
-                               placeholder="Nombre o ubicaci&oacute;n..." value="<?php echo htmlspecialchars($filtros['busqueda']); ?>">
+                        <input type="text" name="busqueda" class="form-control form-control-sm" placeholder="Nombre o ubicaci&oacute;n..." value="<?php echo htmlspecialchars($filtros['busqueda']); ?>">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">&nbsp;</label>
@@ -222,11 +195,7 @@ $page_title = "Inventario de Sistemas";
                         </thead>
                         <tbody>
                             <?php if (empty($datos_tabla)): ?>
-                            <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">
-                                    <i class="bi bi-inbox fs-3 d-block mb-2"></i> No se encontraron art&iacute;culos.
-                                </td>
-                            </tr>
+                            <tr><td colspan="9" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>No se encontraron art&iacute;culos.</td></tr>
                             <?php else: ?>
                             <?php foreach ($datos_tabla as $item): 
                                 $bajo_umbral = ($item['umbral_minimo'] > 0 && $item['cantidad_disponible'] <= $item['umbral_minimo']);
@@ -240,22 +209,14 @@ $page_title = "Inventario de Sistemas";
                                 <td class="text-center"><?php echo $item['cantidad_total']; ?></td>
                                 <td class="text-center fw-bold <?php echo $bajo_umbral ? '' : 'umbral-ok'; ?>">
                                     <?php echo $item['cantidad_disponible']; ?>
-                                    <?php if ($bajo_umbral): ?>
-                                    <i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Por debajo del umbral m&iacute;nimo"></i>
-                                    <?php endif; ?>
+                                    <?php if ($bajo_umbral): ?><i class="bi bi-exclamation-triangle-fill text-danger ms-1"></i><?php endif; ?>
                                 </td>
                                 <td><?php echo htmlspecialchars($item['ubicacion'] ?? '—'); ?></td>
                                 <td class="text-center"><?php echo $item['umbral_minimo']; ?></td>
                                 <td class="text-muted" style="font-size: 0.78rem;"><?php echo date('d/m/Y H:i', strtotime($item['updated_at'])); ?></td>
                                 <td class="text-center">
-                                    <button class="btn btn-outline-primary btn-accion" title="Editar" 
-                                            onclick="editarArticulo(<?php echo $item['id']; ?>)">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger btn-accion" title="Eliminar" 
-                                            onclick="eliminarArticulo(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    <button class="btn btn-outline-primary btn-accion" title="Editar" onclick="editarArticulo(<?php echo $item['id']; ?>)"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-outline-danger btn-accion" title="Eliminar" onclick="eliminarArticulo(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>')"><i class="bi bi-trash"></i></button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -263,9 +224,7 @@ $page_title = "Inventario de Sistemas";
                         </tbody>
                     </table>
                 </div>
-                <div class="text-muted mt-2" style="font-size: 0.75rem;">
-                    <i class="bi bi-info-circle"></i> <?php echo count($datos_tabla); ?> art&iacute;culo(s) en inventario.
-                </div>
+                <div class="text-muted mt-2" style="font-size: 0.75rem;"><i class="bi bi-info-circle"></i> <?php echo count($datos_tabla); ?> art&iacute;culo(s) en inventario.</div>
                 
             </div>
         </main>
@@ -281,12 +240,13 @@ $page_title = "Inventario de Sistemas";
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="articuloId" value="0">
-                    
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
                         <input type="text" id="artNombre" class="form-control" placeholder="Ej: Cable HDMI 2m" required>
+                        <div id="alertaDuplicado" class="alert alert-warning mt-2 py-2 px-3 d-none" style="font-size: 0.82rem;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i><span id="alertaDuplicadoTexto"></span>
+                        </div>
                     </div>
-                    
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Categor&iacute;a <span class="text-danger">*</span></label>
@@ -299,10 +259,9 @@ $page_title = "Inventario de Sistemas";
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-semibold">Ubicaci&oacute;n</label>
-                            <input type="text" id="artUbicacion" class="form-control" placeholder="Ej: Almac&eacute;n TI, Rack 3">
+                            <input type="text" id="artUbicacion" class="form-control" placeholder="Ej: Almac&eacute;n TI">
                         </div>
                     </div>
-                    
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
                             <label class="form-label fw-semibold">Cant. Total</label>
@@ -321,9 +280,7 @@ $page_title = "Inventario de Sistemas";
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="guardarArticulo()" id="btnGuardar">
-                        <i class="bi bi-check-lg me-1"></i> Guardar
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="guardarArticulo()" id="btnGuardar"><i class="bi bi-check-lg me-1"></i> Guardar</button>
                 </div>
             </div>
         </div>
@@ -334,117 +291,93 @@ $page_title = "Inventario de Sistemas";
     <script>
     const API_URL = '<?php echo URL_BASE; ?>dashboard/sistemas/inventario/api_inventario_sistemas.php';
     let modalInstance = null;
+    let timerDuplicado = null;
 
     document.addEventListener('DOMContentLoaded', function() {
         modalInstance = new bootstrap.Modal(document.getElementById('modalArticulo'));
+        document.getElementById('artNombre').addEventListener('input', verificarDuplicado);
+        document.getElementById('artCategoria').addEventListener('change', verificarDuplicado);
     });
+
+    function verificarDuplicado() {
+        clearTimeout(timerDuplicado);
+        const nombre = document.getElementById('artNombre').value.trim();
+        const categoria = document.getElementById('artCategoria').value;
+        const alerta = document.getElementById('alertaDuplicado');
+        if (!nombre || !categoria) { alerta.classList.add('d-none'); document.getElementById('artNombre').classList.remove('border-warning'); return; }
+        timerDuplicado = setTimeout(() => {
+            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accion: 'verificar_duplicado', nombre, categoria, excluir_id: parseInt(document.getElementById('articuloId').value) || 0 })
+            }).then(r => r.json()).then(res => {
+                if (res.duplicado) { document.getElementById('alertaDuplicadoTexto').textContent = res.mensaje; alerta.classList.remove('d-none'); document.getElementById('artNombre').classList.add('border-warning'); }
+                else { alerta.classList.add('d-none'); document.getElementById('artNombre').classList.remove('border-warning'); }
+            }).catch(() => {});
+        }, 500);
+    }
 
     function abrirModal() {
         document.getElementById('articuloId').value = 0;
-        document.getElementById('modalTitulo').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Nuevo Art&iacute;culo';
-        document.getElementById('artNombre').value = '';
+        document.getElementById('modalTitulo').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Nuevo Art\u00edculo';
+        ['artNombre','artUbicacion'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('artCategoria').value = '';
-        document.getElementById('artUbicacion').value = '';
-        document.getElementById('artCantTotal').value = 0;
-        document.getElementById('artCantDisponible').value = 0;
-        document.getElementById('artUmbral').value = 0;
+        ['artCantTotal','artCantDisponible','artUmbral'].forEach(id => document.getElementById(id).value = 0);
+        document.getElementById('alertaDuplicado').classList.add('d-none');
+        document.getElementById('artNombre').classList.remove('border-warning');
         modalInstance.show();
     }
 
     function editarArticulo(id) {
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accion: 'obtener', id: id })
-        })
-        .then(r => r.json())
-        .then(res => {
+        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'obtener', id }) })
+        .then(r => r.json()).then(res => {
             if (res.success) {
                 const d = res.data;
                 document.getElementById('articuloId').value = d.id;
-                document.getElementById('modalTitulo').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Art&iacute;culo #' + d.id;
+                document.getElementById('modalTitulo').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar #' + d.id;
                 document.getElementById('artNombre').value = d.nombre;
                 document.getElementById('artCategoria').value = d.categoria;
                 document.getElementById('artUbicacion').value = d.ubicacion || '';
                 document.getElementById('artCantTotal').value = d.cantidad_total;
                 document.getElementById('artCantDisponible').value = d.cantidad_disponible;
                 document.getElementById('artUmbral').value = d.umbral_minimo;
+                document.getElementById('alertaDuplicado').classList.add('d-none');
+                document.getElementById('artNombre').classList.remove('border-warning');
                 modalInstance.show();
-            } else {
-                alert(res.message);
-            }
-        })
-        .catch(err => alert('Error de conexi\u00f3n.'));
+            } else { alert(res.message); }
+        }).catch(() => alert('Error de conexi\u00f3n.'));
     }
 
     function guardarArticulo() {
         const id = parseInt(document.getElementById('articuloId').value);
         const nombre = document.getElementById('artNombre').value.trim();
         const categoria = document.getElementById('artCategoria').value;
-        
         if (!nombre) { alert('El nombre es obligatorio.'); return; }
         if (!categoria) { alert('Seleccione una categor\u00eda.'); return; }
 
-        const datos = {
-            accion: id > 0 ? 'actualizar' : 'crear',
-            id: id > 0 ? id : undefined,
-            nombre: nombre,
-            categoria: categoria,
-            cantidad_total: parseInt(document.getElementById('artCantTotal').value) || 0,
-            cantidad_disponible: parseInt(document.getElementById('artCantDisponible').value) || 0,
-            ubicacion: document.getElementById('artUbicacion').value.trim(),
-            umbral_minimo: parseInt(document.getElementById('artUmbral').value) || 0
-        };
-
         const btn = document.getElementById('btnGuardar');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Guardando...';
 
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(datos)
-        })
-        .then(r => r.json())
-        .then(res => {
-            if (res.success) {
-                modalInstance.hide();
-                location.reload();
-            } else {
-                alert(res.message);
-            }
-        })
-        .catch(err => alert('Error de conexi\u00f3n.'))
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Guardar';
-        });
+        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: id > 0 ? 'actualizar' : 'crear', id: id > 0 ? id : undefined, nombre, categoria,
+                cantidad_total: parseInt(document.getElementById('artCantTotal').value) || 0,
+                cantidad_disponible: parseInt(document.getElementById('artCantDisponible').value) || 0,
+                ubicacion: document.getElementById('artUbicacion').value.trim(),
+                umbral_minimo: parseInt(document.getElementById('artUmbral').value) || 0
+            })
+        }).then(r => r.json()).then(res => { if (res.success) { modalInstance.hide(); location.reload(); } else { alert(res.message); } })
+        .catch(() => alert('Error de conexi\u00f3n.'))
+        .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Guardar'; });
     }
 
     function eliminarArticulo(id, nombre) {
-        if (!confirm('\u00bfEliminar "' + nombre + '" del inventario?')) return;
-
-        fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accion: 'eliminar', id: id })
-        })
-        .then(r => r.json())
-        .then(res => {
+        if (!confirm('\u00bfEliminar "' + nombre + '"?')) return;
+        fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'eliminar', id }) })
+        .then(r => r.json()).then(res => {
             if (res.success) {
-                const fila = document.getElementById('fila-' + id);
-                if (fila) {
-                    fila.style.transition = 'opacity 0.3s';
-                    fila.style.opacity = '0';
-                    setTimeout(() => fila.remove(), 300);
-                } else {
-                    location.reload();
-                }
-            } else {
-                alert(res.message);
-            }
-        })
-        .catch(err => alert('Error de conexi\u00f3n.'));
+                const f = document.getElementById('fila-' + id);
+                if (f) { f.style.transition = 'opacity 0.3s'; f.style.opacity = '0'; setTimeout(() => f.remove(), 300); }
+                else location.reload();
+            } else alert(res.message);
+        }).catch(() => alert('Error de conexi\u00f3n.'));
     }
     </script>
     

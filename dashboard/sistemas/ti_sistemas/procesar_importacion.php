@@ -310,6 +310,8 @@ try {
                                 $col_map['usuario_asignado'] = $col_letter; break;
                             case $val_upper === 'ESTADO': $col_map['estado'] = $col_letter; break;
                             case $val_upper === 'WHOAMI': $col_map['whoami'] = $col_letter; break;
+                            case strpos($val_upper, 'USUARIO') !== false && strpos($val_upper, 'SERVIDOR') !== false: 
+                                $col_map['usuario_servidor'] = $col_letter; break;
                             case strpos($val_upper, 'COMENTARIO') !== false: $col_map['comentarios'] = $col_letter; break;
                         }
                     }
@@ -323,13 +325,13 @@ try {
                 
                 $sql_insert_acc = "INSERT INTO acceso_equipos 
                     (hostname, departamento_id, direccion_ip, contrasena_equipo, 
-                     usuario_asignado_nombre, estado, whoami, comentarios, registrado_por)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    usuario_asignado_nombre, estado, whoami, usuario_servidor, comentarios, registrado_por)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt_insert_acc = $pdo->prepare($sql_insert_acc);
                 
                 $sql_update_acc = "UPDATE acceso_equipos SET 
                     departamento_id = ?, direccion_ip = ?, contrasena_equipo = ?,
-                    usuario_asignado_nombre = ?, estado = ?, whoami = ?, comentarios = ?,
+                    usuario_asignado_nombre = ?, estado = ?, whoami = ?, usuario_servidor = ?, comentarios = ?,
                     fecha_actualizacion = NOW()
                     WHERE hostname = ?";
                 $stmt_update_acc = $pdo->prepare($sql_update_acc);
@@ -349,6 +351,7 @@ try {
                     $contrasena = trim($row[$col_map['contrasena'] ?? ''] ?? '');
                     $usuario_nombre = trim($row[$col_map['usuario_asignado'] ?? ''] ?? '');
                     $whoami = trim($row[$col_map['whoami'] ?? ''] ?? '');
+                    $usuario_servidor = trim($row[$col_map['usuario_servidor'] ?? ''] ?? '');
                     $comentarios = trim($row[$col_map['comentarios'] ?? ''] ?? '');
                     
                     $estado_raw = mb_strtoupper(trim($row[$col_map['estado'] ?? ''] ?? ''), 'UTF-8');
@@ -361,15 +364,15 @@ try {
                         if ($existe) {
                             $stmt_update_acc->execute([
                                 $departamento_id, $ip ?: null, $contrasena ?: null,
-                                $usuario_nombre ?: null, $estado, $whoami ?: null, 
-                                $comentarios ?: null, $hostname
+                                $usuario_nombre ?: null, $estado, $whoami ?: null,
+                                $usuario_servidor ?: null, $comentarios ?: null, $hostname
                             ]);
                             $resultados['acceso']['actualizados']++;
                         } else {
                             $stmt_insert_acc->execute([
                                 $hostname, $departamento_id, $ip ?: null, $contrasena ?: null,
-                                $usuario_nombre ?: null, $estado, $whoami ?: null, 
-                                $comentarios ?: null, $_SESSION['usuario_id']
+                                $usuario_nombre ?: null, $estado, $whoami ?: null,
+                                $usuario_servidor ?: null, $comentarios ?: null, $_SESSION['usuario_id']
                             ]);
                             $resultados['acceso']['insertados']++;
                         }

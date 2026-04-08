@@ -271,7 +271,8 @@ $current_page = basename(__FILE__);
                                         <tr><td><i class="bi bi-dash-circle text-muted"></i>USUARIO ASIGNADO</td><td>Nombre de la persona</td></tr>
                                         <tr><td><i class="bi bi-dash-circle text-muted"></i>ESTADO</td><td>ACTIVO / INACTIVO</td></tr>
                                         <tr><td><i class="bi bi-dash-circle text-muted"></i>whoami</td><td>Usuario Windows</td></tr>
-                                        <tr><td><i class="bi bi-dash-circle text-muted"></i>Comentarios</td><td>Notas adicionales</td></tr>
+                                        <tr><td><i class="bi bi-dash-circle text-muted"></i>USUARIO SERVIDOR</td><td>Usuario en el servidor</td></tr>
+                                        <tr><td><i class="bi bi-dash-circle text-muted"></i>COMENTARIOS</td><td>Notas adicionales</td></tr>
                                     </tbody>
                                 </table>
                             </div>

@@ -1,9 +1,10 @@
 <?php
 /**
- * Ver Detalles de Equipo v2.0
+ * Ver Detalles de Equipo v2.1
  * dashboard/sistemas/ti_sistemas/ver_equipo.php
  * 
- * Muestra info del inventario + datos de acceso si existen + perif&eacute;ricos vinculados
+ * Muestra info del inventario + datos de acceso + periféricos vinculados
+ * con gestión de vínculos (agregar/desvincular periféricos)
  */
 
 session_start();
@@ -58,7 +59,7 @@ if ($equipo['hostname']) {
     $acceso = $stmt_acc->fetch(PDO::FETCH_ASSOC);
 }
 
-// Obtener perif&eacute;ricos vinculados a este equipo (via personal_asignado)
+// Obtener periféricos vinculados a este equipo (via personal_asignado)
 $perifericos = [];
 if ($equipo['hostname']) {
     $stmt_per = $pdo->prepare("SELECT id, hostname, tipo_equipo, marca, modelo, estado FROM inventario_equipos WHERE personal_asignado = ? ORDER BY tipo_equipo");
@@ -66,10 +67,15 @@ if ($equipo['hostname']) {
     $perifericos = $stmt_per->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Obtener historial de mantenimientos
-$stmt_mant = $pdo->prepare("SELECT sm.*, u.nombre_completo as solicitante_nombre FROM solicitudes_mantenimiento_ti sm LEFT JOIN usuarios u ON sm.usuario_id = u.id WHERE sm.equipo_id = ? ORDER BY sm.fecha_solicitud DESC LIMIT 10");
-$stmt_mant->execute([$equipo_id]);
-$mantenimientos = $stmt_mant->fetchAll(PDO::FETCH_ASSOC);
+// Obtener historial de mantenimientos (tabla puede no existir aún)
+$mantenimientos = [];
+try {
+    $stmt_mant = $pdo->prepare("SELECT sm.*, u.nombre_completo as solicitante_nombre FROM solicitudes_mantenimiento_ti sm LEFT JOIN usuarios u ON sm.usuario_id = u.id WHERE sm.equipo_id = ? ORDER BY sm.fecha_solicitud DESC LIMIT 10");
+    $stmt_mant->execute([$equipo_id]);
+    $mantenimientos = $stmt_mant->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    // Tabla no existe aún, ignorar
+}
 
 $tipos_config = [
     'all_in_one'   => ['nombre' => 'All In One',    'icono' => 'bi-display',      'color' => 'primary'],
@@ -110,33 +116,28 @@ $current_page = basename(__FILE__);
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     <style>
-        .detail-label { font-size: 0.78rem; color: #6c757d; margin-bottom: 0.1rem; text-transform: uppercase; letter-spacing: 0.3px; }
-        .detail-value { font-weight: 500; margin-bottom: 0.8rem; }
-        .hostname-display { font-family: 'Courier New', monospace; font-size: 1.5rem; font-weight: 700; }
-        .text-purple { color: #6f42c1 !important; }
-        .text-orange { color: #fd7e14 !important; }
-        .section-title { font-weight: 600; font-size: 0.95rem; padding-bottom: 0.4rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem; }
-        .periferico-item { display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem; border-radius: 8px; background: #f8f9fa; margin-bottom: 0.5rem; }
-        .acceso-field { background: #f8f9fa; padding: 0.5rem 0.8rem; border-radius: 6px; font-family: monospace; font-size: 0.9rem; }
-        .password-field { cursor: pointer; }
+        .section-title { font-weight: 600; font-size: 1rem; color: #2c3e50; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef; margin-bottom: 1rem; }
+        .detail-label { font-size: 0.72rem; text-transform: uppercase; color: #6c757d; letter-spacing: 0.5px; margin-bottom: 2px; margin-top: 10px; }
+        .detail-value { font-size: 0.92rem; font-weight: 500; color: #2c3e50; }
+        .acceso-field { font-family: monospace; padding: 2px 6px; border-radius: 4px; background: #f8f9fa; }
+        .password-field { cursor: pointer; user-select: none; }
+        .periferico-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+        .periferico-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
-    
-    <div class="dashboard-container">
+    <div class="dashboard-wrapper">
         <?php include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php'; ?>
-
+        
         <main class="main-content">
-            <div class="content-wrapper">
+            <div class="container-fluid py-4">
                 
                 <!-- Encabezado -->
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3">
+                        <i class="bi <?php echo $tc['icono']; ?> text-<?php echo $tc['color']; ?>" style="font-size:2.5rem;"></i>
                         <div>
-                            <i class="bi <?php echo $tc['icono']; ?> text-<?php echo $tc['color']; ?>" style="font-size:2.5rem;"></i>
-                        </div>
-                        <div>
-                            <h4 class="mb-0 hostname-display text-<?php echo $tc['color']; ?>">
+                            <h4 class="mb-0" style="font-family:monospace;">
                                 <?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?>
                             </h4>
                             <span class="badge <?php echo $badges_estado[$equipo['estado']] ?? 'bg-secondary'; ?> me-1">
@@ -160,7 +161,7 @@ $current_page = basename(__FILE__);
                 <div class="row g-4">
                     <!-- Columna principal -->
                     <div class="col-lg-8">
-                        <!-- Informaci&oacute;n del equipo -->
+                        <!-- Información del equipo -->
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="section-title"><i class="bi bi-info-circle me-2"></i>Informaci&oacute;n del Equipo</div>
@@ -256,15 +257,22 @@ $current_page = basename(__FILE__);
                         </div>
                         <?php endif; ?>
                         
-                        <!-- Perif&eacute;ricos vinculados -->
-                        <?php if (!empty($perifericos)): ?>
+                        <!-- Periféricos vinculados -->
                         <div class="card mb-4">
                             <div class="card-body">
-                                <div class="section-title"><i class="bi bi-diagram-2 me-2 text-info"></i>Perif&eacute;ricos Vinculados (<?php echo count($perifericos); ?>)</div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="section-title mb-0"><i class="bi bi-diagram-2 me-2 text-info"></i>Perif&eacute;ricos Vinculados (<?php echo count($perifericos); ?>)</div>
+                                    <button class="btn btn-sm btn-outline-success" onclick="abrirModalAgregar()">
+                                        <i class="bi bi-plus-circle me-1"></i> Agregar
+                                    </button>
+                                </div>
+                                <?php if (empty($perifericos)): ?>
+                                <p class="text-muted text-center py-3 mb-0"><i class="bi bi-inbox d-block fs-4 mb-1"></i>No hay perif&eacute;ricos vinculados.</p>
+                                <?php else: ?>
                                 <?php foreach ($perifericos as $per): 
                                     $ptc = $tipos_config[$per['tipo_equipo']] ?? ['nombre' => $per['tipo_equipo'], 'icono' => 'bi-device-ssd', 'color' => 'secondary'];
                                 ?>
-                                    <div class="periferico-item">
+                                    <div class="periferico-item" id="per-<?php echo $per['id']; ?>">
                                         <i class="bi <?php echo $ptc['icono']; ?> text-<?php echo $ptc['color']; ?>" style="font-size:1.2rem;"></i>
                                         <div class="flex-grow-1">
                                             <strong style="font-family:monospace;"><?php echo htmlspecialchars($per['hostname']); ?></strong>
@@ -277,12 +285,18 @@ $current_page = basename(__FILE__);
                                             <?php echo $nombres_estado[$per['estado']] ?? $per['estado']; ?>
                                         </span>
                                         <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $per['id']; ?>" 
-                                           class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                                           class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
+                                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $per['id']; ?>" 
+                                           class="btn btn-sm btn-outline-secondary" title="Editar"><i class="bi bi-pencil"></i></a>
+                                        <button class="btn btn-sm btn-outline-danger" title="Desvincular" 
+                                                onclick="desvincular(<?php echo $per['id']; ?>, '<?php echo htmlspecialchars($per['hostname'], ENT_QUOTES); ?>')">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
                                     </div>
                                 <?php endforeach; ?>
+                                <?php endif; ?>
                             </div>
                         </div>
-                        <?php endif; ?>
                         
                         <!-- Historial de mantenimientos -->
                         <?php if (!empty($mantenimientos)): ?>
@@ -356,11 +370,38 @@ $current_page = basename(__FILE__);
             </div>
         </main>
     </div>
+    
+    <!-- Modal: Agregar Periférico -->
+    <div class="modal fade" id="modalAgregarPer" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Agregar Perif&eacute;rico a <?php echo htmlspecialchars($equipo['hostname']); ?></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Buscar perif&eacute;rico disponible</label>
+                        <input type="text" id="buscarPer" class="form-control" placeholder="Hostname, marca, modelo..." oninput="buscarPeriferico()">
+                    </div>
+                    <div id="listaPerDisponibles" style="max-height: 350px; overflow-y: auto;">
+                        <p class="text-muted text-center py-3">Escriba para buscar o deje vac&iacute;o para ver todos</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     <script>
+    // =====================================================
+    // Password toggle
+    // =====================================================
     function togglePassword(el) {
         if (el.dataset.showing === 'true') {
             el.textContent = '\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF\u25CF';
@@ -369,6 +410,95 @@ $current_page = basename(__FILE__);
             el.textContent = el.dataset.pass || '—';
             el.dataset.showing = 'true';
         }
+    }
+
+    // =====================================================
+    // Periféricos: Vincular / Desvincular
+    // =====================================================
+    const API_PER = '<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/api_perifericos.php';
+    const HOSTNAME_PADRE = '<?php echo htmlspecialchars($equipo['hostname']); ?>';
+    let modalAgregarPer = null;
+    let timerBuscar = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const el = document.getElementById('modalAgregarPer');
+        if (el) modalAgregarPer = new bootstrap.Modal(el);
+    });
+
+    function abrirModalAgregar() {
+        document.getElementById('buscarPer').value = '';
+        buscarPeriferico();
+        modalAgregarPer.show();
+    }
+
+    function buscarPeriferico() {
+        clearTimeout(timerBuscar);
+        timerBuscar = setTimeout(() => {
+            const busqueda = document.getElementById('buscarPer').value.trim();
+            fetch(API_PER, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accion: 'disponibles', hostname_padre: HOSTNAME_PADRE, busqueda })
+            })
+            .then(r => r.json())
+            .then(res => {
+                const cont = document.getElementById('listaPerDisponibles');
+                if (!res.success || res.data.length === 0) {
+                    cont.innerHTML = '<p class="text-muted text-center py-3">No hay perif\u00e9ricos disponibles.</p>';
+                    return;
+                }
+                const tipos = {
+                    'monitor':'bi-display','mouse':'bi-mouse','teclado':'bi-keyboard',
+                    'impresora':'bi-printer','camara':'bi-camera-video','celular':'bi-phone',
+                    'telefono':'bi-telephone','laptop':'bi-laptop','all_in_one':'bi-display',
+                    'pc':'bi-pc-display','switch':'bi-diagram-3','access_point':'bi-wifi'
+                };
+                let html = '';
+                res.data.forEach(p => {
+                    const ic = tipos[p.tipo_equipo] || 'bi-device-ssd';
+                    const desc = [p.marca, p.modelo].filter(Boolean).join(' ') || '';
+                    html += `<div class="d-flex align-items-center gap-3 p-2 border-bottom" style="cursor:pointer;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background=''">
+                        <i class="bi ${ic}" style="font-size:1.1rem;color:#64748b;"></i>
+                        <div class="flex-grow-1">
+                            <strong style="font-family:monospace;font-size:0.88rem;">${p.hostname}</strong>
+                            <small class="text-muted ms-1">${p.tipo_equipo}</small>
+                            ${desc ? '<small class="text-muted d-block">' + desc + '</small>' : ''}
+                        </div>
+                        <button class="btn btn-sm btn-success" onclick="vincular(${p.id}, '${p.hostname}')">
+                            <i class="bi bi-link-45deg me-1"></i>Vincular
+                        </button>
+                    </div>`;
+                });
+                cont.innerHTML = html;
+            });
+        }, 300);
+    }
+
+    function vincular(perIfericoId, hostname) {
+        fetch(API_PER, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: 'vincular', periferico_id: perIfericoId, hostname_padre: HOSTNAME_PADRE })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) { location.reload(); }
+            else { alert(res.message); }
+        });
+    }
+
+    function desvincular(perIfericoId, hostname) {
+        if (!confirm('\u00bfDesvincular "' + hostname + '" de este equipo?')) return;
+        fetch(API_PER, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: 'desvincular', periferico_id: perIfericoId })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                const el = document.getElementById('per-' + perIfericoId);
+                if (el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }
+                else { location.reload(); }
+            } else { alert(res.message); }
+        });
     }
     </script>
 </body>
