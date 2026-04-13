@@ -45,15 +45,29 @@ if (empty($departamento_id)) {
     $departamento_id = $stmt->fetchColumn();
 }
 
-// Obtener solicitudes del departamento
+// Construir lista de departamentos visibles (propio + sub-areas si es depto padre)
+$deptos_visibles = [$departamento_id];
+$stmt_sub = $pdo->prepare("SELECT id FROM departamentos WHERE departamento_padre_id = ? AND activo = 1");
+$stmt_sub->execute([$departamento_id]);
+$sub_ids = $stmt_sub->fetchAll(PDO::FETCH_COLUMN);
+if (!empty($sub_ids)) {
+    $deptos_visibles = array_merge($deptos_visibles, $sub_ids);
+}
+
+// Placeholders para IN
+$placeholders = implode(',', array_fill(0, count($deptos_visibles), '?'));
+
+// Obtener solicitudes del departamento + sub-areas
 $sql = "
     SELECT sv.*, 
-           u.nombre_completo, u.no_nomina, u.puesto, u.fecha_ingreso
+           u.nombre_completo, u.no_nomina, u.puesto, u.fecha_ingreso,
+           d.nombre AS departamento_solicitud
     FROM solicitudes_vacaciones sv
     LEFT JOIN usuarios u ON sv.usuario_id = u.id
-    WHERE sv.departamento_id = ?
+    LEFT JOIN departamentos d ON sv.departamento_id = d.id
+    WHERE sv.departamento_id IN ($placeholders)
 ";
-$params = [$departamento_id];
+$params = $deptos_visibles;
 
 if ($filtro_estado !== 'todos') {
     $sql .= " AND sv.estado = ?";
@@ -70,10 +84,10 @@ $solicitudes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt_contadores = $pdo->prepare("
     SELECT estado, COUNT(*) as total
     FROM solicitudes_vacaciones
-    WHERE departamento_id = ?
+    WHERE departamento_id IN ($placeholders)
     GROUP BY estado
 ");
-$stmt_contadores->execute([$departamento_id]);
+$stmt_contadores->execute($deptos_visibles);
 $contadores_raw = $stmt_contadores->fetchAll(PDO::FETCH_KEY_PAIR);
 
 $pendientes_admin = $contadores_raw['pendiente_admin'] ?? 0;
@@ -198,10 +212,7 @@ $es_mantenimiento = ($departamento_codigo === 'mantenimiento');
                                 Solicitudes del departamento: <strong><?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ''); ?></strong>
                             </p>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/nueva_solicitud_manual.php" class="btn btn-warning btn-sm">
-                                <i class="bi bi-pencil-square me-1"></i> Solicitud Manual
-                            </a>
+                        <div>
                             <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-arrow-left me-1"></i> Mis Vacaciones
                             </a>

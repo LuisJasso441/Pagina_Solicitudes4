@@ -158,17 +158,8 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">INVENTARIO TI</small>
+            <small class="text-white-50 px-3 fw-bold">INVENTARIO</small>
             
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'acceso_equipos.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/acceso_equipos.php">
-                    <i class="bi bi-key"></i> Acceso Equipos
-                    <?php if ($total_acceso > 0): ?>
-                    <span class="badge bg-secondary ms-2"><?php echo $total_acceso; ?></span>
-                    <?php endif; ?>
-                </a>
-            </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php">
@@ -179,15 +170,18 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'equipos_por_usuario.php' ? 'active' : ''; ?>" 
-                href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/equipos_por_usuario.php">
-                    <i class="bi bi-people"></i> Equipos por Usuario
+                <a class="nav-link <?php echo $current_page == 'acceso_equipos.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/acceso_equipos.php">
+                    <i class="bi bi-key"></i> Acceso Equipos
+                    <?php if ($total_acceso > 0): ?>
+                    <span class="badge bg-secondary ms-2"><?php echo $total_acceso; ?></span>
+                    <?php endif; ?>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'inventario_sistemas.php' ? 'active' : ''; ?>" 
                 href="<?php echo URL_BASE; ?>dashboard/sistemas/inventario/inventario_sistemas.php">
-                    <i class="bi bi-box-seam"></i> Inventario de Insumos
+                    <i class="bi bi-box-seam"></i> Inventario Sistemas
                 </a>
             </li>
             <li class="nav-item">
@@ -196,6 +190,11 @@ try {
                     <i class="bi bi-upload"></i> Importar Excel
                 </a>
             </li>
+            
+            
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">Mantenimientos TI</small>
+            
             <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
@@ -215,7 +214,7 @@ try {
                     <i class="bi bi-clipboard-check"></i> &Oacute;rdenes de Mantenimiento
                 </a>
             </li>
-
+            
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">

@@ -203,8 +203,8 @@ if ($accion === 'crear') {
         
         $solicitud_id = $pdo->lastInsertId();
         
-        // Notificar Admin(s) de Área
-        $admins = obtener_admins_area($pdo, $departamento_id);
+        // Notificar Admin(s) de Area (con jerarquia)
+        $admins = obtener_admins_area($pdo, $departamento_id, $_SESSION['usuario_id']);
         $nombre_empleado = $_SESSION['nombre_completo'];
         foreach ($admins as $admin) {
             notificar_vacaciones($pdo, $admin['id'], "{$nombre_empleado} ha solicitado vacaciones ({$folio})", $solicitud_id);
@@ -284,7 +284,7 @@ elseif ($accion === 'aprobar_admin') {
     
     $solicitud = obtener_solicitud_vacaciones($pdo, $solicitud_id);
     
-    if (!$solicitud || (int)$_SESSION['departamento_id'] !== (int)$solicitud['departamento_id']) {
+    if (!$solicitud || !admin_puede_ver_departamento($pdo, $_SESSION['departamento_id'], $solicitud['departamento_id'])) {
         $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Solicitud no encontrada o no pertenece a tu departamento.'];
         header('Location: ' . URL_BASE . 'dashboard/vacaciones/vacaciones_admin.php');
         exit;
@@ -499,7 +499,7 @@ elseif ($accion === 'rechazar_admin') {
     
     $solicitud = obtener_solicitud_vacaciones($pdo, $solicitud_id);
     
-    if (!$solicitud || (int)$_SESSION['departamento_id'] !== (int)$solicitud['departamento_id']) {
+    if (!$solicitud || !admin_puede_ver_departamento($pdo, $_SESSION['departamento_id'], $solicitud['departamento_id'])) {
         $_SESSION['alerta'] = ['tipo' => 'danger', 'mensaje' => 'Solicitud no encontrada o no pertenece a tu departamento.'];
         header('Location: ' . URL_BASE . 'dashboard/vacaciones/vacaciones_admin.php');
         exit;

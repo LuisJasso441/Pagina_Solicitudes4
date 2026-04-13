@@ -45,9 +45,13 @@ $periodo_texto = $resumen['periodo']['anio_periodo'] ?? 0;
 $dias_correspondientes = $resumen['dias_correspondientes'];
 // Si usa periodo anterior, los dias disponibles son los del periodo anterior
 $dias_pendientes = $usa_periodo_anterior ? $dias_periodo_ant : $resumen['dias_disponibles'];
-$periodo_vacacional = $usa_periodo_anterior 
-    ? (($periodo_anterior['periodo']['anio_periodo'] ?? 0) . "&deg; a&ntilde;o (anterior)")
-    : ($periodo_texto . "&deg; a&ntilde;o");
+if ($usa_periodo_anterior && !empty($periodo_anterior['periodo'])) {
+    $periodo_vacacional = substr($periodo_anterior['periodo']['inicio'], 0, 4) . '-' . substr($periodo_anterior['periodo']['fin'], 0, 4) . ' (anterior)';
+} else {
+    $periodo_vacacional = $resumen['periodo'] 
+        ? (substr($resumen['periodo']['inicio'], 0, 4) . '-' . substr($resumen['periodo']['fin'], 0, 4))
+        : '-';
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">

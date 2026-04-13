@@ -551,13 +551,140 @@ function obtener_solicitud_vacaciones($pdo, $solicitud_id) {
 }
 
 // =====================================================
-// OBTENER ADMINS DE AREA DEL DEPARTAMENTO
+// JERARQUIA DE DEPARTAMENTOS
 // =====================================================
 
-function obtener_admins_area($pdo, $departamento_id) {
-    $stmt = $pdo->prepare("SELECT id, nombre_completo FROM usuarios WHERE departamento_id = ? AND es_admin_area = 1 AND activo = 1");
+/**
+ * Verificar si un admin puede ver/aprobar solicitudes de un departamento
+ * Retorna true si: mismo depto, o el depto de la solicitud es sub-area del admin
+ */
+function admin_puede_ver_departamento($pdo, $admin_departamento_id, $solicitud_departamento_id) {
+    // Mismo departamento
+    if ((int)$admin_departamento_id === (int)$solicitud_departamento_id) return true;
+    
+    // Verificar si el depto de la solicitud es sub-area del depto del admin
+    $stmt = $pdo->prepare("SELECT departamento_padre_id FROM departamentos WHERE id = ?");
+    $stmt->execute([$solicitud_departamento_id]);
+    $padre_id = $stmt->fetchColumn();
+    
+    return ($padre_id && (int)$padre_id === (int)$admin_departamento_id);
+}
+
+/**
+ * Obtener el departamento padre de un departamento
+ * @return array|null ['id', 'codigo', 'nombre'] del padre, o null si es principal
+ */
+function obtener_departamento_padre($pdo, $departamento_id) {
+    $stmt = $pdo->prepare("
+        SELECT dp.id, dp.codigo, dp.nombre
+        FROM departamentos d
+        INNER JOIN departamentos dp ON d.departamento_padre_id = dp.id
+        WHERE d.id = ? AND d.departamento_padre_id IS NOT NULL
+    ");
     $stmt->execute([$departamento_id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+
+/**
+ * Verificar si un departamento es sub-area (tiene padre)
+ */
+function es_subarea($pdo, $departamento_id) {
+    $stmt = $pdo->prepare("SELECT departamento_padre_id FROM departamentos WHERE id = ?");
+    $stmt->execute([$departamento_id]);
+    $padre_id = $stmt->fetchColumn();
+    return !empty($padre_id);
+}
+
+/**
+ * Obtener sub-areas de un departamento padre
+ * @return array de ['id', 'codigo', 'nombre']
+ */
+function obtener_subareas($pdo, $departamento_padre_id) {
+    $stmt = $pdo->prepare("SELECT id, codigo, nombre FROM departamentos WHERE departamento_padre_id = ? AND activo = 1 ORDER BY nombre");
+    $stmt->execute([$departamento_padre_id]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// =====================================================
+// OBTENER ADMINS DE AREA (CON JERARQUIA)
+// =====================================================
+
+/**
+ * Obtener admins de area para aprobar una solicitud de vacaciones.
+ * 
+ * Logica jerarquica:
+ * - Empleado normal de sub-area -> le llega al Admin de su sub-area
+ * - Admin de sub-area solicita -> le llega al Admin del depto padre
+ * - Empleado de depto principal (sin sub-area) -> Admin de ese depto (como antes)
+ * 
+ * @param PDO $pdo
+ * @param int $departamento_id Departamento del solicitante
+ * @param int $usuario_id ID del solicitante (para verificar si es admin de sub-area)
+ * @return array Lista de admins [{id, nombre_completo}]
+ */
+function obtener_admins_area($pdo, $departamento_id, $usuario_id = 0) {
+    // Verificar si el solicitante es admin de area de su departamento
+    $es_admin_solicitante = false;
+    if ($usuario_id > 0) {
+        $stmt = $pdo->prepare("SELECT es_admin_area FROM usuarios WHERE id = ? AND activo = 1");
+        $stmt->execute([$usuario_id]);
+        $es_admin_solicitante = (bool)$stmt->fetchColumn();
+    }
+    
+    // Si el solicitante ES admin de area Y su depto es sub-area -> buscar admin del depto padre
+    if ($es_admin_solicitante) {
+        $padre = obtener_departamento_padre($pdo, $departamento_id);
+        if ($padre) {
+            // Buscar admins en el departamento padre
+            $stmt = $pdo->prepare("SELECT id, nombre_completo FROM usuarios WHERE departamento_id = ? AND es_admin_area = 1 AND activo = 1");
+            $stmt->execute([$padre['id']]);
+            $admins_padre = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if (!empty($admins_padre)) {
+                return $admins_padre;
+            }
+        }
+    }
+    
+    // Caso normal: buscar admins en el mismo departamento del solicitante
+    $stmt = $pdo->prepare("SELECT id, nombre_completo FROM usuarios WHERE departamento_id = ? AND es_admin_area = 1 AND activo = 1 AND id != ?");
+    $stmt->execute([$departamento_id, $usuario_id]);
+    $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Si no hay admins en su depto y es sub-area, buscar en el padre
+    if (empty($admins)) {
+        $padre = obtener_departamento_padre($pdo, $departamento_id);
+        if ($padre) {
+            $stmt = $pdo->prepare("SELECT id, nombre_completo FROM usuarios WHERE departamento_id = ? AND es_admin_area = 1 AND activo = 1");
+            $stmt->execute([$padre['id']]);
+            $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
+    
+    return $admins;
+}
+
+/**
+ * Obtener departamentos agrupados por jerarquia para dropdowns
+ * Retorna array con departamentos principales y sus sub-areas
+ * @return array [['id', 'nombre', 'es_padre', 'subareas' => [...]]]
+ */
+function obtener_departamentos_jerarquia($pdo) {
+    // Principales (sin padre)
+    $stmt = $pdo->query("SELECT id, codigo, nombre FROM departamentos WHERE activo = 1 AND departamento_padre_id IS NULL ORDER BY nombre");
+    $principales = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $resultado = [];
+    foreach ($principales as $p) {
+        $subareas = obtener_subareas($pdo, $p['id']);
+        $resultado[] = [
+            'id' => $p['id'],
+            'codigo' => $p['codigo'],
+            'nombre' => $p['nombre'],
+            'es_padre' => !empty($subareas),
+            'subareas' => $subareas
+        ];
+    }
+    return $resultado;
 }
 
 // =====================================================
