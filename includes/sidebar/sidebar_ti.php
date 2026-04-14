@@ -185,6 +185,12 @@ try {
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'equipos_por_usuario.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/equipos_por_usuario.php">
+                    <i class="bi bi-people"></i> Equipos por Usuario
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'importar_inventario.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/importar_inventario.php">
                     <i class="bi bi-upload"></i> Importar Excel

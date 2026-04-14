@@ -91,6 +91,8 @@ $tipos_config = [
     'celular'      => ['nombre' => 'Celular',        'icono' => 'bi-phone',        'color' => 'orange'],
     'computadora'  => ['nombre' => 'Computadora',    'icono' => 'bi-pc-display',   'color' => 'primary'],
     'telefono'     => ['nombre' => 'Tel&eacute;fono', 'icono' => 'bi-telephone',   'color' => 'orange'],
+    'pantalla_tv'  => ['nombre' => 'Pantalla TV',    'icono' => 'bi-tv',              'color' => 'info'],
+    'nobreak'      => ['nombre' => 'Nobreak',        'icono' => 'bi-battery-charging', 'color' => 'success'],
 ];
 
 $tc = $tipos_config[$equipo['tipo_equipo']] ?? ['nombre' => ucfirst($equipo['tipo_equipo']), 'icono' => 'bi-question-circle', 'color' => 'secondary'];

@@ -32,9 +32,15 @@ $filtro_estado = $_GET['estado'] ?? '';
 $where = ["1=1"];
 $params = [];
 
-if ($filtro_depto) {
-    $where[] = "ae.departamento_id = ?";
-    $params[] = intval($filtro_depto);
+if ($filtro_departamento) {
+    $depto_nombre = '';
+    foreach ($departamentos as $d) {
+        if ($d['id'] == intval($filtro_departamento)) { $depto_nombre = $d['nombre']; break; }
+    }
+    if ($depto_nombre) {
+        $where[] = "ie.departamento_id IN (SELECT id FROM departamentos WHERE nombre = ?)";
+        $params[] = $depto_nombre;
+    }
 }
 if ($filtro_estado && in_array($filtro_estado, ['activo', 'inactivo'])) {
     $where[] = "ae.estado = ?";
@@ -57,7 +63,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $accesos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$departamentos = $pdo->query("SELECT id, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+$departamentos = $pdo->query("SELECT MIN(id) as id, nombre FROM departamentos WHERE activo = 1 GROUP BY nombre ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
 
 $total_accesos = count($accesos);
 

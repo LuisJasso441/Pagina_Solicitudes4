@@ -75,12 +75,24 @@ try {
     $stmt_deptos = $pdo->query("SELECT id, nombre, codigo FROM departamentos WHERE activo = 1");
     $deptos_rows = $stmt_deptos->fetchAll(PDO::FETCH_ASSOC);
     $mapa_deptos = [];
-    foreach ($deptos_rows as $d) {
-        $mapa_deptos[mb_strtoupper(trim($d['nombre']), 'UTF-8')] = $d['id'];
-        if (!empty($d['codigo'])) {
-            $mapa_deptos[mb_strtoupper(trim($d['codigo']), 'UTF-8')] = $d['id'];
-        }
+
+    // Función para normalizar texto (quitar acentos)
+    function normalizar_texto($texto) {
+        $texto = mb_strtoupper(trim($texto), 'UTF-8');
+        $buscar =  ['Á','É','Í','Ó','Ú','Ñ','Ü','á','é','í','ó','ú','ñ','ü'];
+        $reempl =  ['A','E','I','O','U','N','U','A','E','I','O','U','N','U'];
+        return str_replace($buscar, $reempl, $texto);
     }
+
+    foreach ($deptos_rows as $d) {
+        $nombre_upper = mb_strtoupper(trim($d['nombre']), 'UTF-8');
+        $nombre_norm = normalizar_texto($d['nombre']);
+        $mapa_deptos[$nombre_upper] = $d['id'];
+        $mapa_deptos[$nombre_norm] = $d['id'];  // También sin acentos
+            if (!empty($d['codigo'])) {
+                $mapa_deptos[mb_strtoupper(trim($d['codigo']), 'UTF-8')] = $d['id'];
+            }
+        }
     
     // Mapeo de tipos del Excel a ENUM de la BD
     $mapa_tipos = [
@@ -101,6 +113,11 @@ try {
         'CELULAR'      => 'celular',
         'TELÉFONO'     => 'celular',
         'TELEFONO'     => 'celular',
+        'PANTALLA TV'  => 'pantalla_tv',
+        'PANTALLA'     => 'pantalla_tv',
+        'NOBREAK'      => 'nobreak',
+        'NO BREAK'     => 'nobreak',
+        'UPS'          => 'nobreak',
     ];
     
     $resultados = [
@@ -131,13 +148,15 @@ try {
             $col_map = [];
             foreach ($rows as $idx => $row) {
                 $first_cell = mb_strtoupper(trim($row['A'] ?? ''), 'UTF-8');
-                if ($first_cell === 'HOSTNAME' || stripos($first_cell, 'HOST') !== false) {
+                // Detectar HOSTNAME, ID_UNICO o variantes
+                if ($first_cell === 'HOSTNAME' || $first_cell === 'ID_UNICO' || $first_cell === 'ID UNICO' || stripos($first_cell, 'HOST') !== false) {
                     $header_row = $idx;
                     // Mapear columnas por nombre
                     foreach ($row as $col_letter => $val) {
                         $val_upper = mb_strtoupper(trim($val ?? ''), 'UTF-8');
                         switch (true) {
-                            case $val_upper === 'HOSTNAME':       $col_map['hostname'] = $col_letter; break;
+                            case $val_upper === 'HOSTNAME' || $val_upper === 'ID_UNICO' || $val_upper === 'ID UNICO':
+                                $col_map['hostname'] = $col_letter; break;
                             case $val_upper === 'TIPO':           $col_map['tipo'] = $col_letter; break;
                             case $val_upper === 'MARCA':          $col_map['marca'] = $col_letter; break;
                             case $val_upper === 'MODELO':         $col_map['modelo'] = $col_letter; break;
@@ -224,7 +243,7 @@ try {
                     $modelo = trim($row[$col_map['modelo'] ?? ''] ?? '');
                     $serie = trim($row[$col_map['serie'] ?? ''] ?? '');
                     $ubicacion = trim($row[$col_map['ubicacion'] ?? ''] ?? '') ?: 'Sin especificar';
-                    $personal = strtoupper(trim($row[$col_map['personal_asignado'] ?? ''] ?? ''));
+                    $personal = trim($row[$col_map['personal_asignado'] ?? ''] ?? '');
                     
                     // Estado
                     $estado_raw = mb_strtoupper(trim($row[$col_map['estado'] ?? ''] ?? ''), 'UTF-8');
@@ -235,7 +254,7 @@ try {
                     
                     // Departamento
                     $depto_raw = mb_strtoupper(trim($row[$col_map['departamento'] ?? ''] ?? ''), 'UTF-8');
-                    $departamento_id = $mapa_deptos[$depto_raw] ?? null;
+                    $departamento_id = $mapa_deptos[$depto_raw] ?? $mapa_deptos[normalizar_texto($depto_raw)] ?? null;
                     
                     try {
                         // Verificar si ya existe
@@ -289,10 +308,10 @@ try {
             $header_row = null;
             $col_map = [];
             foreach ($rows as $idx => $row) {
-                // Buscar fila que contenga "HOSTNAME" o "No" como primer encabezado
+                // Buscar fila que contenga "HOSTNAME" o "ID_UNICO"
                 foreach ($row as $col_letter => $val) {
                     $val_upper = mb_strtoupper(trim($val ?? ''), 'UTF-8');
-                    if ($val_upper === 'HOSTNAME') {
+                    if ($val_upper === 'HOSTNAME' || $val_upper === 'ID_UNICO' || $val_upper === 'ID UNICO') {
                         $col_map['hostname'] = $col_letter;
                     }
                 }
@@ -346,7 +365,7 @@ try {
                     }
                     
                     $depto_raw = mb_strtoupper(trim($row[$col_map['departamento'] ?? ''] ?? ''), 'UTF-8');
-                    $departamento_id = $mapa_deptos[$depto_raw] ?? null;
+                    $departamento_id = $mapa_deptos[$depto_raw] ?? $mapa_deptos[normalizar_texto($depto_raw)] ?? null;
                     $ip = trim($row[$col_map['ip'] ?? ''] ?? '');
                     $contrasena = trim($row[$col_map['contrasena'] ?? ''] ?? '');
                     $usuario_nombre = trim($row[$col_map['usuario_asignado'] ?? ''] ?? '');

@@ -62,6 +62,8 @@ $tipos_equipo = [
     'switch'       => ['nombre' => 'Switch',         'icono' => 'bi-diagram-3'],
     'camara'       => ['nombre' => 'C&aacute;mara',  'icono' => 'bi-camera-video'],
     'celular'      => ['nombre' => 'Celular',        'icono' => 'bi-phone'],
+    'pantalla_tv'  => ['nombre' => 'Pantalla TV',    'icono' => 'bi-tv'],
+    'nobreak'      => ['nombre' => 'Nobreak',        'icono' => 'bi-battery-charging'],
 ];
 ?>
 <!DOCTYPE html>

@@ -250,7 +250,7 @@ $current_page = basename(__FILE__);
                                         <tr><th colspan="2">Hoja: INVENTARIO_EQUIPOS_ELECTRONICOS</th></tr>
                                     </thead>
                                     <tbody>
-                                        <tr><td><i class="bi bi-check-circle text-success"></i>HOSTNAME</td><td>Identificador &uacute;nico (requerido)</td></tr>
+                                        <tr><td><i class="bi bi-check-circle text-success"></i>HOSTNAME / ID_UNICO</td><td>Identificador &uacute;nico (requerido)</td></tr>
                                         <tr><td><i class="bi bi-check-circle text-success"></i>TIPO</td><td>ALL IN ONE, PC, LAPTOP, etc.</td></tr>
                                         <tr><td><i class="bi bi-dash-circle text-muted"></i>MARCA</td><td>Fabricante</td></tr>
                                         <tr><td><i class="bi bi-dash-circle text-muted"></i>MODELO</td><td>Modelo del equipo</td></tr>

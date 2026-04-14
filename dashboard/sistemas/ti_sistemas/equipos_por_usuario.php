@@ -97,6 +97,8 @@ $tipos_config = [
     'celular'      => ['nombre' => 'Celular',        'icono' => 'bi-phone',         'color' => '#ea580c'],
     'computadora'  => ['nombre' => 'Computadora',    'icono' => 'bi-pc-display',    'color' => '#2563eb'],
     'telefono'     => ['nombre' => 'Tel&eacute;fono','icono' => 'bi-telephone',     'color' => '#ea580c'],
+    'pantalla_tv'  => ['nombre' => 'Pantalla TV',    'icono' => 'bi-tv',              'color' => '#0891b2'],
+    'nobreak'      => ['nombre' => 'Nobreak',        'icono' => 'bi-battery-charging', 'color' => '#059669'],
 ];
 
 $current_page = basename(__FILE__);

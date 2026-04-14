@@ -48,7 +48,7 @@ function tiposValidos() {
     return [
         'all_in_one', 'pc', 'laptop', 'monitor', 'mouse', 'teclado',
         'impresora', 'access_point', 'switch', 'camara', 'celular',
-        'computadora', 'telefono' // legacy - mantener por compatibilidad
+        'computadora', 'telefono', 'pantalla_tv', 'nobreak'
     ];
 }
 
@@ -100,7 +100,7 @@ function extraerDatosPost() {
         'ubicacion'         => trim($_POST['ubicacion'] ?? ''),
         'departamento_id'   => !empty($_POST['departamento_id']) ? intval($_POST['departamento_id']) : null,
         'usuario_asignado_id' => !empty($_POST['usuario_asignado_id']) ? intval($_POST['usuario_asignado_id']) : null,
-        'personal_asignado' => strtoupper(trim($_POST['personal_asignado'] ?? '')),
+        'personal_asignado' => trim($_POST['personal_asignado'] ?? ''),
         'correo_asignado'   => trim($_POST['correo_asignado'] ?? ''),
         'fecha_adquisicion' => !empty($_POST['fecha_adquisicion']) ? $_POST['fecha_adquisicion'] : null,
         'estado'            => $_POST['estado'] ?? 'activo',

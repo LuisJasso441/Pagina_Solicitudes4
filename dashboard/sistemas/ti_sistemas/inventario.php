@@ -37,7 +37,7 @@ $pagina_actual = max(1, intval($_GET['pagina'] ?? 1));
 $tipos_validos = [
     'all_in_one', 'pc', 'laptop', 'monitor', 'mouse', 'teclado',
     'impresora', 'access_point', 'switch', 'camara', 'celular',
-    'computadora', 'telefono'
+    'computadora', 'telefono', 'pantalla_tv', 'nobreak'
 ];
 
 // Mapeo de grupos a tipos
@@ -46,7 +46,7 @@ $grupos_tipos = [
     'perifericos' => ['monitor', 'mouse', 'teclado'],
     'impresoras'  => ['impresora'],
     'red'         => ['access_point', 'switch'],
-    'otros'       => ['camara', 'celular', 'telefono'],
+    'otros'       => ['camara', 'celular', 'telefono', 'pantalla_tv', 'nobreak'],
 ];
 
 $filtro_grupo = $_GET['grupo'] ?? '';
@@ -70,8 +70,14 @@ if ($filtro_estado && in_array($filtro_estado, ['activo', 'inactivo', 'en_repara
 }
 
 if ($filtro_departamento) {
-    $where[] = "ie.departamento_id = ?";
-    $params[] = intval($filtro_departamento);
+    $depto_nombre = '';
+    foreach ($departamentos as $d) {
+        if ($d['id'] == intval($filtro_departamento)) { $depto_nombre = $d['nombre']; break; }
+    }
+    if ($depto_nombre) {
+        $where[] = "ie.departamento_id IN (SELECT id FROM departamentos WHERE nombre = ?)";
+        $params[] = $depto_nombre;
+    }
 }
 
 if ($filtro_busqueda) {
@@ -103,7 +109,7 @@ $stmt->execute($params);
 $equipos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Departamentos para filtro
-$departamentos = $pdo->query("SELECT id, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+$departamentos = $pdo->query("SELECT MIN(id) as id, nombre FROM departamentos WHERE activo = 1 GROUP BY nombre ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
 
 // Contadores por tipo
 $contadores = $pdo->query("SELECT tipo_equipo, COUNT(*) as total FROM inventario_equipos GROUP BY tipo_equipo")->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -126,6 +132,8 @@ $tipos_config = [
     'celular'      => ['nombre' => 'Celular',        'icono' => 'bi-phone',             'color' => 'orange'],
     'computadora'  => ['nombre' => 'Computadora',    'icono' => 'bi-pc-display',        'color' => 'primary'],
     'telefono'     => ['nombre' => 'Tel&eacute;fono', 'icono' => 'bi-telephone',        'color' => 'orange'],
+    'pantalla_tv'  => ['nombre' => 'Pantalla TV',    'icono' => 'bi-tv',                'color' => 'info'],
+    'nobreak'      => ['nombre' => 'Nobreak',        'icono' => 'bi-battery-charging',  'color' => 'success'],
 ];
 
 // Agrupar contadores para cards de resumen
