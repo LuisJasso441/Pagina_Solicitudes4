@@ -1,7 +1,7 @@
 <?php
 /**
  * API: Obtener dias festivos y jornada del empleado
- * api/dias_festivos.php
+ * api/vacaciones/dias_festivos.php
  * 
  * GET ?anio=2026 -> festivos del anio
  * GET ?anio=2026&usuario_id=9 -> festivos + jornada del usuario
@@ -10,9 +10,9 @@
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/vacaciones/vacaciones_funciones.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/vacaciones/vacaciones_funciones.php';
 
 if (!isset($_SESSION['usuario_id'])) {
     echo json_encode(['error' => 'No autenticado']);

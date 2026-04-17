@@ -277,7 +277,7 @@ if ($usa_periodo_anterior && !empty($periodo_anterior['periodo'])) {
         let festivosDetalle = [];
         let jornadaEmpleado = 'lunes_sabado';
 
-        fetch('<?php echo URL_BASE; ?>api/dias_festivos.php?anio=' + new Date().getFullYear() + '&usuario_id=<?php echo $_SESSION["usuario_id"]; ?>')
+        fetch('<?php echo URL_BASE; ?>api/vacaciones/dias_festivos.php?anio=' + new Date().getFullYear() + '&usuario_id=<?php echo $_SESSION["usuario_id"]; ?>')
             .then(r => r.json())
             .then(data => {
                 diasFestivos = data.festivos_fechas || [];

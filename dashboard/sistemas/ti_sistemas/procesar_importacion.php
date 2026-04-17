@@ -186,7 +186,8 @@ try {
                 
                 $sql_update = "UPDATE inventario_equipos SET 
                     tipo_equipo = ?, marca = ?, modelo = ?, numero_serie = ?,
-                    departamento_id = ?, ubicacion = ?, estado = ?, personal_asignado = ?,
+                    departamento_id = ?, ubicacion = ?, estado = ?, 
+                    personal_asignado = CASE WHEN ? IS NOT NULL AND ? != '' THEN ? ELSE personal_asignado END,
                     fecha_actualizacion = NOW()
                     WHERE hostname = ?";
                 $stmt_update = $pdo->prepare($sql_update);
@@ -264,7 +265,8 @@ try {
                         if ($existe) {
                             $stmt_update->execute([
                                 $tipo_equipo, $marca ?: null, $modelo ?: null, $serie ?: null,
-                                $departamento_id, $ubicacion, $estado, $personal ?: null,
+                                $departamento_id, $ubicacion, $estado, 
+                                $personal ?: null, $personal ?: null, $personal ?: null,
                                 $hostname
                             ]);
                             $resultados['inventario']['actualizados']++;

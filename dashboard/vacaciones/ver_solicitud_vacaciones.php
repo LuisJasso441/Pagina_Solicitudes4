@@ -40,7 +40,10 @@ if (!$sol) {
 
 // Verificar permisos
 $es_dueno = ((int)$sol['usuario_id'] === (int)$_SESSION['usuario_id']);
-$es_admin_area = (!empty($_SESSION['es_admin_area']) && (int)$_SESSION['departamento_id'] === (int)$sol['departamento_id']);
+$es_admin_area = false;
+if (!empty($_SESSION['es_admin_area'])) {
+    $es_admin_area = admin_puede_ver_departamento($pdo, $_SESSION['departamento_id'], $sol['departamento_id']);
+}
 $depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
 $es_gth = in_array($depto_codigo, ['gth', 'gestion_talento', 'contabilidad']);
 $es_sistemas = in_array($depto_codigo, ['sistemas', 'ti']);

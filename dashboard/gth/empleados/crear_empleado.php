@@ -17,7 +17,25 @@ if (!in_array($depto_codigo, ['gth', 'gestion_talento', 'contabilidad'])) {
 }
 
 $pdo = conectarDB();
-$departamentos = $pdo->query("SELECT id, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+// Departamentos con jerarquia
+$stmt_deptos = $pdo->query("
+    SELECT d.id, d.codigo, d.nombre, d.departamento_padre_id, dp.nombre AS padre_nombre
+    FROM departamentos d
+    LEFT JOIN departamentos dp ON d.departamento_padre_id = dp.id
+    WHERE d.activo = 1
+    ORDER BY COALESCE(dp.nombre, d.nombre), d.departamento_padre_id IS NOT NULL, d.nombre
+");
+$departamentos_raw = $stmt_deptos->fetchAll(PDO::FETCH_ASSOC);
+
+$deptos_principales = [];
+$deptos_subareas = [];
+foreach ($departamentos_raw as $d) {
+    if (empty($d['departamento_padre_id'])) {
+        $deptos_principales[$d['id']] = $d;
+    } else {
+        $deptos_subareas[$d['departamento_padre_id']][] = $d;
+    }
+}
 $form_data = $_SESSION['form_data_emp'] ?? [];
 $errores = $_SESSION['form_errors_emp'] ?? [];
 unset($_SESSION['form_data_emp'], $_SESSION['form_errors_emp']);
@@ -90,16 +108,28 @@ unset($_SESSION['form_data_emp'], $_SESSION['form_errors_emp']);
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label required">Departamento</label>
-                                        <select name="departamento_id" class="form-select" required>
+                                        <select name="departamento_id" id="selectDepartamento" class="form-select" required>
                                             <option value="">Seleccionar...</option>
-                                            <?php foreach ($departamentos as $d): ?>
-                                            <option value="<?php echo $d['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $d['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($d['nombre']); ?></option>
+                                            <?php foreach ($deptos_principales as $pid => $p): ?>
+                                                <?php if (isset($deptos_subareas[$pid])): ?>
+                                                <optgroup label="<?php echo htmlspecialchars($p['nombre']); ?>">
+                                                    <option value="<?php echo $p['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $p['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p['nombre']); ?> (General)</option>
+                                                    <?php foreach ($deptos_subareas[$pid] as $sub): ?>
+                                                    <option value="<?php echo $sub['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $sub['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($sub['nombre']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </optgroup>
+                                                <?php else: ?>
+                                                <option value="<?php echo $p['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $p['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p['nombre']); ?></option>
+                                                <?php endif; ?>
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Puesto</label>
-                                        <input type="text" name="puesto" class="form-control" maxlength="100" value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>" placeholder="Ej: Operador de Planta">
+                                        <select name="puesto" id="selectPuesto" class="form-select">
+                                            <option value="">Seleccionar departamento primero...</option>
+                                        </select>
+                                        <input type="hidden" id="puestoActual" value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Fecha de Ingreso</label>
@@ -160,6 +190,34 @@ unset($_SESSION['form_data_emp'], $_SESSION['form_errors_emp']);
     const hb=document.querySelector('.hamburger-btn'),sb=document.querySelector('.sidebar'),ov=document.querySelector('.sidebar-overlay');
     if(hb&&sb){hb.addEventListener('click',function(){sb.classList.toggle('active');if(ov)ov.classList.toggle('active');});}
     if(ov){ov.addEventListener('click',function(){sb.classList.remove('active');this.classList.remove('active');});}
+
+    // Cascading puesto dropdown
+    let puestosData = {};
+    const selectDepto = document.getElementById('selectDepartamento');
+    const selectPuesto = document.getElementById('selectPuesto');
+    const puestoActual = document.getElementById('puestoActual')?.value || '';
+
+    fetch('<?php echo URL_BASE; ?>api/puestos_departamento.php?todos=1')
+        .then(r => r.json())
+        .then(data => {
+            puestosData = data;
+            if (selectDepto.value) cargarPuestos(selectDepto.value);
+        })
+        .catch(() => {});
+
+    function cargarPuestos(deptoId) {
+        selectPuesto.innerHTML = '<option value="">Seleccionar puesto...</option>';
+        if (!deptoId || !puestosData[deptoId]) return;
+        puestosData[deptoId].forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.nombre;
+            opt.textContent = p.nombre;
+            if (p.nombre === puestoActual) opt.selected = true;
+            selectPuesto.appendChild(opt);
+        });
+    }
+
+    selectDepto.addEventListener('change', function() { cargarPuestos(this.value); });
     </script>
 </body>
 </html>

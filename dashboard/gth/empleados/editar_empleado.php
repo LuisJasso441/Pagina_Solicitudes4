@@ -44,7 +44,28 @@ if (!$empleado) {
 }
 
 $tiene_cuenta = !empty($empleado['usuario_id']);
-$departamentos = $pdo->query("SELECT id, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+
+// Departamentos con jerarquia
+$stmt_deptos = $pdo->query("
+    SELECT d.id, d.codigo, d.nombre, d.departamento_padre_id, dp.nombre AS padre_nombre
+    FROM departamentos d
+    LEFT JOIN departamentos dp ON d.departamento_padre_id = dp.id
+    WHERE d.activo = 1
+    ORDER BY COALESCE(dp.nombre, d.nombre), d.departamento_padre_id IS NOT NULL, d.nombre
+");
+$departamentos_raw = $stmt_deptos->fetchAll(PDO::FETCH_ASSOC);
+
+// Agrupar: principales y sub-areas
+$deptos_principales = [];
+$deptos_subareas = [];
+foreach ($departamentos_raw as $d) {
+    if (empty($d['departamento_padre_id'])) {
+        $deptos_principales[$d['id']] = $d;
+    } else {
+        $deptos_subareas[$d['departamento_padre_id']][] = $d;
+    }
+}
+
 $form_data = $_SESSION['form_data_emp'] ?? $empleado;
 $errores = $_SESSION['form_errors_emp'] ?? [];
 unset($_SESSION['form_data_emp'], $_SESSION['form_errors_emp']);
@@ -62,14 +83,12 @@ unset($_SESSION['alerta']);
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
-    
-    <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-    
+
     <!-- Sistema de notificaciones -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
@@ -93,6 +112,9 @@ unset($_SESSION['alerta']);
 
                 <h3 class="mb-4">
                     <i class="bi bi-person-gear me-2"></i>Editar: <?php echo htmlspecialchars($empleado['nombre_completo']); ?>
+                    <?php if ($tiene_cuenta): ?>
+                        <span class="badge bg-success ms-2" style="font-size:0.65rem; vertical-align:middle;"><i class="bi bi-pc-display me-1"></i><?php echo htmlspecialchars($empleado['username']); ?></span>
+                    <?php endif; ?>
                 </h3>
 
                 <?php if ($alerta): ?>
@@ -124,16 +146,28 @@ unset($_SESSION['alerta']);
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label required">Departamento</label>
-                                        <select name="departamento_id" class="form-select" required>
+                                        <select name="departamento_id" id="selectDepartamento" class="form-select" required>
                                             <option value="">Seleccionar...</option>
-                                            <?php foreach ($departamentos as $d): ?>
-                                            <option value="<?php echo $d['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $d['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($d['nombre']); ?></option>
+                                            <?php foreach ($deptos_principales as $pid => $p): ?>
+                                                <?php if (isset($deptos_subareas[$pid])): ?>
+                                                <optgroup label="<?php echo htmlspecialchars($p['nombre']); ?>">
+                                                    <option value="<?php echo $p['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $p['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p['nombre']); ?> (General)</option>
+                                                    <?php foreach ($deptos_subareas[$pid] as $sub): ?>
+                                                    <option value="<?php echo $sub['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $sub['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($sub['nombre']); ?></option>
+                                                    <?php endforeach; ?>
+                                                </optgroup>
+                                                <?php else: ?>
+                                                <option value="<?php echo $p['id']; ?>" <?php echo (($form_data['departamento_id'] ?? '') == $p['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($p['nombre']); ?></option>
+                                                <?php endif; ?>
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label">Puesto</label>
-                                        <input type="text" name="puesto" class="form-control" maxlength="100" value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>">
+                                        <select name="puesto" id="selectPuesto" class="form-select">
+                                            <option value="">Seleccionar departamento primero...</option>
+                                        </select>
+                                        <input type="hidden" id="puestoActual" value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>">
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label">Fecha de Ingreso</label>
@@ -170,6 +204,22 @@ unset($_SESSION['alerta']);
                             </div>
                         </div>
                         <div class="col-lg-4">
+                            <?php if ($tiene_cuenta): ?>
+                            <div class="card border-0 shadow-sm mb-3 border-start border-success border-3">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-2"><i class="bi bi-pc-display me-2 text-success"></i>Usuario Plataforma</h6>
+                                    <p class="mb-1" style="font-size:.85rem"><strong>Usuario:</strong> <code><?php echo htmlspecialchars($empleado['username']); ?></code></p>
+                                    <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Credenciales (usuario/contrasena) solo se modifican desde Sistemas. Los datos que edites aqui se sincronizan automaticamente con su cuenta.</p>
+                                </div>
+                            </div>
+                            <?php else: ?>
+                            <div class="card border-0 shadow-sm mb-3 border-start border-warning border-3">
+                                <div class="card-body">
+                                    <h6 class="fw-bold mb-2"><i class="bi bi-person-badge me-2 text-warning"></i>Sin cuenta en plataforma</h6>
+                                    <p class="text-muted small mb-0">Este empleado no tiene acceso al sistema. Si necesita acceso, el departamento de Sistemas puede vincularlo desde la seccion de Gestion de Usuarios.</p>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                             <div class="card border-0 shadow-sm">
                                 <div class="card-body">
                                     <h6 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Registro</h6>
@@ -193,9 +243,43 @@ unset($_SESSION['alerta']);
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+    // Sidebar
     const hb=document.querySelector('.hamburger-btn'),sb=document.querySelector('.sidebar'),ov=document.querySelector('.sidebar-overlay');
     if(hb&&sb){hb.addEventListener('click',function(){sb.classList.toggle('active');if(ov)ov.classList.toggle('active');});}
     if(ov){ov.addEventListener('click',function(){sb.classList.remove('active');this.classList.remove('active');});}
+
+    // Cascading puesto dropdown
+    let puestosData = {};
+    const selectDepto = document.getElementById('selectDepartamento');
+    const selectPuesto = document.getElementById('selectPuesto');
+    const puestoActual = document.getElementById('puestoActual')?.value || '';
+
+    // Cargar todos los puestos una vez
+    fetch('<?php echo URL_BASE; ?>api/puestos_departamento.php?todos=1')
+        .then(r => r.json())
+        .then(data => {
+            puestosData = data;
+            // Si ya hay depto seleccionado, cargar puestos
+            if (selectDepto.value) cargarPuestos(selectDepto.value);
+        })
+        .catch(() => {});
+
+    function cargarPuestos(deptoId) {
+        selectPuesto.innerHTML = '<option value="">Seleccionar puesto...</option>';
+        if (!deptoId || !puestosData[deptoId]) return;
+        
+        puestosData[deptoId].forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.nombre;
+            opt.textContent = p.nombre;
+            if (p.nombre === puestoActual) opt.selected = true;
+            selectPuesto.appendChild(opt);
+        });
+    }
+
+    selectDepto.addEventListener('change', function() {
+        cargarPuestos(this.value);
+    });
     </script>
 </body>
 </html>

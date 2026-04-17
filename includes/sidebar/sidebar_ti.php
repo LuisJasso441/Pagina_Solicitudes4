@@ -221,6 +221,16 @@ try {
                 </a>
             </li>
             
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">SALA DE JUNTAS</small>
+
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'reservaciones_sala.php' ? 'active' : ''; ?>" 
+                href="<?php echo URL_BASE; ?>dashboard/reservaciones/reservaciones_sala.php">
+                    <i class="bi bi-calendar-event"></i> Reservar Sala de Juntas
+                </a>
+            </li>
+
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
