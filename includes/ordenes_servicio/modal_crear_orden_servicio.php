@@ -135,7 +135,7 @@ if ($puede_crear_osm_modal):
                                 <div class="col-md-6">
                                     <label for="unidad_equipo" class="form-label">Unidad/Equipo *</label>
                                     <input type="text" class="form-control" id="unidad_equipo" name="unidad_equipo" 
-                                           placeholder="Ej: Camión Torton T-123, Laptop HP ProBook 450" required>
+                                           placeholder="Ej: Tracto rojo, instalación de tuberías, etc." required>
                                     <div class="form-text">Indique el equipo o unidad a dar mantenimiento</div>
                                 </div>
                                 

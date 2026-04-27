@@ -257,7 +257,14 @@ if ($usa_periodo_anterior && !empty($periodo_anterior['periodo'])) {
 
                     <div class="d-flex justify-content-between mb-4" style="max-width:900px;margin:0 auto">
                         <a href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php" class="btn btn-secondary"><i class="bi bi-x-circle me-1"></i> Cancelar</a>
-                        <button type="submit" class="btn btn-success btn-lg" id="btnEnviar" disabled><i class="bi bi-send me-1"></i> Enviar Solicitud</button>
+                        <div class="d-flex gap-2">
+                            <?php if (!empty($_SESSION['es_admin_area'])): ?>
+                            <button type="button" class="btn btn-outline-primary btn-lg" id="btnGuardarPDF">
+                                <i class="bi bi-file-earmark-pdf me-1"></i> Guardar PDF
+                            </button>
+                            <?php endif; ?>
+                            <button type="submit" class="btn btn-success btn-lg" id="btnEnviar" disabled><i class="bi bi-send me-1"></i> Enviar Solicitud</button>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -407,6 +414,66 @@ if ($usa_periodo_anterior && !empty($periodo_anterior['periodo'])) {
         if(ov){ov.addEventListener('click',function(){sb.classList.remove('active');this.classList.remove('active');});}
 
         if(document.getElementById('fecha_inicio').value && document.getElementById('fecha_fin').value) calcular();
+
+        // =====================================================
+        // BOTÓN GUARDAR PDF (Solo Admin de Área)
+        // =====================================================
+        const btnPDF = document.getElementById('btnGuardarPDF');
+        if (btnPDF) {
+            btnPDF.addEventListener('click', function() {
+                const fechaInicio = document.getElementById('fecha_inicio').value;
+                const fechaFin = document.getElementById('fecha_fin').value;
+
+                if (!fechaInicio || !fechaFin) {
+                    alert('Debe seleccionar las fechas de inicio y fin antes de guardar el PDF.');
+                    return;
+                }
+
+                // Capturar firma si existe
+                let firmaData = '';
+                if (typeof $ !== 'undefined' && firmaOk) {
+                    const fd = $firma.jSignature('getData', 'image');
+                    if (fd && fd.length > 1) { firmaData = 'data:' + fd[0] + ',' + fd[1]; }
+                }
+
+                // Crear formulario dinámico fuera del form principal
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '<?php echo URL_BASE; ?>dashboard/vacaciones/generar_pdf_solicitud_vacaciones.php';
+                form.target = '_blank';
+                form.style.display = 'none';
+
+                const campos = {
+                    nombre: '<?php echo addslashes($_SESSION["nombre_completo"]); ?>',
+                    no_nomina: '<?php echo addslashes($_SESSION["no_nomina"] ?? ""); ?>',
+                    departamento: '<?php echo addslashes($resumen["departamento_nombre"] ?? $_SESSION["departamento_nombre"] ?? ""); ?>',
+                    puesto: '<?php echo addslashes($resumen["puesto"] ?? $_SESSION["puesto"] ?? ""); ?>',
+                    fecha_ingreso: '<?php echo $resumen["fecha_ingreso"] ?? ""; ?>',
+                    periodo_vacacional: '<?php echo addslashes($periodo_vacacional); ?>',
+                    dias_correspondientes: '<?php echo $dias_correspondientes; ?>',
+                    dias_pendientes: '<?php echo $dias_pendientes; ?>',
+                    empresa: '<?php echo addslashes($_SESSION["empresa"] ?? "resimex"); ?>',
+                    dias_solicitados: diasHabiles || 0,
+                    saldo_dias: (diasPendientes - diasHabiles) || 0,
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin,
+                    fecha_regreso: document.getElementById('fecha_regreso').value || '',
+                    firma_empleado: firmaData
+                };
+
+                for (const [key, val] of Object.entries(campos)) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = val;
+                    form.appendChild(input);
+                }
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+            });
+        }
     });
     </script>
 </body>

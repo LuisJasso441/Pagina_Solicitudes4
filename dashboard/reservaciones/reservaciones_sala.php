@@ -54,6 +54,9 @@ $departamento_usuario = $_SESSION['departamento'] ?? '';
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/reservaciones.css">
+
+    <!-- Sistema de notificaciones -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
 </head>
 <body>
     <div class="dashboard-container">

@@ -142,6 +142,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+
+    <!-- Sistema de notificaciones -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
 </head>
 <body>
     

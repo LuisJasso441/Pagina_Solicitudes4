@@ -210,7 +210,7 @@ $pdf->SetFillColor($colorGris[0], $colorGris[1], $colorGris[2]);
 $pdf->Cell($anchoEtiquetaCodigo, $alturaCelda, 'No. DE REVISIÓN:', 1, 0, 'L', true);
 $pdf->SetFont('helvetica', '', 8);
 $pdf->SetFillColor($colorBlanco[0], $colorBlanco[1], $colorBlanco[2]);
-$pdf->Cell($anchoValorCodigo, $alturaCelda, '01', 1, 1, 'C', true);
+$pdf->Cell($anchoValorCodigo, $alturaCelda, '02', 1, 1, 'C', true);
 
 // Fila 3: FECHA DE REVISIÓN
 $pdf->SetXY($xCodigo, $yInicio + ($alturaCelda * 2));
@@ -219,7 +219,7 @@ $pdf->SetFillColor($colorGris[0], $colorGris[1], $colorGris[2]);
 $pdf->Cell($anchoEtiquetaCodigo, $alturaCelda, 'FECHA DE REVISIÓN:', 1, 0, 'L', true);
 $pdf->SetFont('helvetica', '', 8);
 $pdf->SetFillColor($colorBlanco[0], $colorBlanco[1], $colorBlanco[2]);
-$pdf->Cell($anchoValorCodigo, $alturaCelda, '22/08/2025', 1, 1, 'C', true);
+$pdf->Cell($anchoValorCodigo, $alturaCelda, '26/01/2026', 1, 1, 'C', true);
 
 // ========================================
 // SECCIÓN: DATOS DEL SOLICITANTE

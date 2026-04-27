@@ -414,17 +414,7 @@ try {
     $sheet2->setCellValue('A' . $rowTabla3, 'TOTAL');
     $sheet2->setCellValue('B' . $rowTabla3, '=SUM(B' . $startDataT3 . ':B' . $lastRowT3 . ')');
     $sheet2->getStyle('A' . $rowTabla3 . ':B' . $rowTabla3)->applyFromArray($tableHeaderStyle);
-    
-    // ========== TABLA 4: SOLICITUDES ATENDIDAS POR TÉCNICO (VACÍA) ==========
-    $startRowT4 = $rowTabla3 + 3;
-    $sheet2->setCellValue('A' . $startRowT4, 'SOLICITUDES ATENDIDAS POR TÉCNICO');
-    $sheet2->mergeCells('A' . $startRowT4 . ':B' . $startRowT4);
-    $sheet2->getStyle('A' . $startRowT4 . ':B' . $startRowT4)->applyFromArray($titleStyle);
-    
-    $sheet2->setCellValue('A' . ($startRowT4 + 1), 'Técnico');
-    $sheet2->setCellValue('B' . ($startRowT4 + 1), 'Cantidad');
-    $sheet2->getStyle('A' . ($startRowT4 + 1) . ':B' . ($startRowT4 + 1))->applyFromArray($tableHeaderStyle);
-    
+ 
     // ========== GRÁFICAS ==========
     
     // GRÁFICA 1: Solicitudes por Estado (Pastel)
