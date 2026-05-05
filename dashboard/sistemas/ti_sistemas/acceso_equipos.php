@@ -32,7 +32,7 @@ $filtro_estado = $_GET['estado'] ?? '';
 $where = ["1=1"];
 $params = [];
 
-if ($filtro_departamento) {
+if ($filtro_depto) {
     $depto_nombre = '';
     foreach ($departamentos as $d) {
         if ($d['id'] == intval($filtro_departamento)) { $depto_nombre = $d['nombre']; break; }

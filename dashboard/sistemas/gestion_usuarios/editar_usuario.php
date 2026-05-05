@@ -230,7 +230,7 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <input type="text" name="usuario" class="form-control" 
                                                value="<?php echo htmlspecialchars($form_data['usuario'] ?? ''); ?>"
                                                required maxlength="50"
-                                               pattern="[A-Za-z0-9_-]+" title="Solo letras, números, guión y guión bajo">
+                                               pattern="[A-Za-z0-9_\-]+" title="Solo letras, números, guión y guión bajo">
                                         <small class="text-muted">Sin espacios. Se convertirá a mayúsculas.</small>
                                     </div>
                                     <div class="col-md-6">

@@ -1,8 +1,13 @@
 <?php
 /**
- * Solicitar Mantenimiento de Equipo
- * Accesible para todos los usuarios del sistema
+ * Solicitar Mantenimiento de Equipo (Nuevo Flujo - Solo Sistemas)
  * dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php
+ *
+ * Sistemas crea, selecciona usuario y equipo, y envia la solicitud al usuario
+ * en un solo paso (estado inicial: pendiente).
+ *
+ * NOTA: Las evidencias NO se suben aqui. Se gestionan en ver_mantenimiento.php
+ * cuando la solicitud entra en estado "en_proceso".
  */
 
 session_start();
@@ -10,99 +15,73 @@ require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../../includes/functions.php';
 
-// Verificar sesión
+// ------- Verificar sesion -------
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
 
-// Conexión a BD
+// ------- Restringir a Sistemas -------
+$departamento = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''));
+$es_sistemas = in_array($departamento, ['ti', 'sistemas', 'ti_sistemas']);
+
+if (!$es_sistemas) {
+    establecer_alerta('error', 'Solo el departamento de Sistemas puede crear solicitudes de mantenimiento.');
+    header('Location: ' . URL_BASE . 'index.php');
+    exit;
+}
+
 $pdo = conectarDB();
 
-// ⭐ DETECCIÓN DE DEPARTAMENTO - Igual que en ordenes_servicio_mantenimiento.php
-$departamento = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''));
-$es_mantenimiento = ($departamento === 'mantenimiento');
-$es_ti = ($departamento === 'ti' || $departamento === 'sistemas' || $departamento === 'ti_sistemas');
+// ------- Cargar departamentos -------
+$departamentos = $pdo->query("
+    SELECT id, codigo, nombre 
+    FROM departamentos 
+    WHERE activo = 1 
+    ORDER BY nombre
+")->fetchAll(PDO::FETCH_ASSOC);
 
-// ⭐ Obtener departamento_id del usuario en sesión
-$departamento_id_usuario = null;
-$sql_depto_usuario = "SELECT departamento_id FROM usuarios WHERE id = ?";
-$stmt_depto = $pdo->prepare($sql_depto_usuario);
-$stmt_depto->execute([$_SESSION['usuario_id']]);
-$departamento_id_usuario = $stmt_depto->fetchColumn();
-
-// ⭐ Obtener lista de equipos del inventario FILTRADOS por departamento
-// Si es usuario de Sistemas/TI, ve todos los equipos activos
-// Si es de otro departamento, solo ve los equipos de su departamento
-if ($es_ti) {
-    $sql_equipos = "SELECT id, tipo_equipo, codigo_interno, marca, modelo, ubicacion, departamento_id 
-                    FROM inventario_equipos 
-                    WHERE estado = 'activo' 
-                    ORDER BY codigo_interno";
-    $equipos = $pdo->query($sql_equipos)->fetchAll(PDO::FETCH_ASSOC);
-} else {
-    $sql_equipos = "SELECT id, tipo_equipo, codigo_interno, marca, modelo, ubicacion, departamento_id 
-                    FROM inventario_equipos 
-                    WHERE estado = 'activo' AND departamento_id = ?
-                    ORDER BY codigo_interno";
-    $stmt_equipos = $pdo->prepare($sql_equipos);
-    $stmt_equipos->execute([$departamento_id_usuario]);
-    $equipos = $stmt_equipos->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// ⭐ Recibir equipo_id de la URL (cuando viene desde ver_equipo.php)
-$equipo_id_preseleccionado = intval($_GET['equipo_id'] ?? 0);
-$equipo_preseleccionado = null;
-
-if ($equipo_id_preseleccionado > 0) {
-    // Buscar el equipo preseleccionado (verificar que sea del mismo departamento o sea usuario TI)
-    foreach ($equipos as $eq) {
-        if ($eq['id'] == $equipo_id_preseleccionado) {
-            $equipo_preseleccionado = $eq;
-            break;
-        }
-    }
-    
-    // Si el equipo no está en la lista (usuario no tiene acceso), cargar solo ese equipo si es de TI
-    if (!$equipo_preseleccionado && $es_ti) {
-        $sql_equipo_especifico = "SELECT id, tipo_equipo, codigo_interno, marca, modelo, ubicacion, departamento_id 
-                                  FROM inventario_equipos WHERE id = ?";
-        $stmt_esp = $pdo->prepare($sql_equipo_especifico);
-        $stmt_esp->execute([$equipo_id_preseleccionado]);
-        $equipo_preseleccionado = $stmt_esp->fetch(PDO::FETCH_ASSOC);
-    }
-}
-
-// Recuperar datos del formulario si hay errores
+// ------- Datos previos en caso de error -------
 $form_data = $_SESSION['form_data'] ?? [];
-$errores = $_SESSION['form_errors'] ?? [];
+$errores   = $_SESSION['form_errors'] ?? [];
 unset($_SESSION['form_data'], $_SESSION['form_errors']);
+
+// ------- Cards de grupos -------
+$grupos_cards = [
+    'computo'     => ['nombre' => 'Cómputo',     'icono' => 'bi-pc-display'],
+    'perifericos' => ['nombre' => 'Periféricos', 'icono' => 'bi-mouse'],
+    'impresoras'  => ['nombre' => 'Impresoras',  'icono' => 'bi-printer'],
+    'red'         => ['nombre' => 'Red',         'icono' => 'bi-wifi'],
+    'otros'       => ['nombre' => 'Otros',       'icono' => 'bi-three-dots'],
+];
+
+$current_page = basename(__FILE__);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solicitar Mantenimiento - TI</title>
+    <title>Solicitar Mantenimiento - TI / Sistemas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
-    
+
     <!-- CSS Modular Responsive -->
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-    
+
     <style>
         .form-section {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.375rem;
-            padding: 1rem;
+            background-color: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 0.5rem;
+            padding: 1rem 1.25rem;
             margin-bottom: 1rem;
         }
         .form-section-title {
@@ -110,413 +89,580 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
             font-size: 0.95rem;
             margin-bottom: 0.75rem;
             color: #495057;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
         }
-        .form-label {
-            font-size: 0.875rem;
-            font-weight: 500;
-        }
-        .required::after {
+        .form-label.required::after {
             content: " *";
             color: #dc3545;
+            font-weight: 700;
         }
-        .tipo-equipo-card {
+
+        /* Cards de grupo de equipo */
+        .grupo-card {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1.25rem 0.75rem;
+            text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            border: 2px solid #dee2e6;
+            background: #fff;
+            height: 100%;
+            user-select: none;
         }
-        .tipo-equipo-card:hover {
+        .grupo-card:hover {
             border-color: #0d6efd;
-            background-color: #f8f9ff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(13,110,253,.12);
         }
-        .tipo-equipo-card.selected {
+        .grupo-card.selected {
             border-color: #0d6efd;
-            background-color: #e7f1ff;
+            background: #e7f1ff;
+            box-shadow: 0 4px 10px rgba(13,110,253,.18);
         }
-        .tipo-equipo-card .icon-container {
+        .grupo-card .icono {
             font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-        .tipo-equipo-card.computadora .icon-container { color: #0d6efd; }
-        .tipo-equipo-card.impresora .icon-container { color: #6f42c1; }
-        .tipo-equipo-card.camara .icon-container { color: #198754; }
-        .tipo-equipo-card.telefono .icon-container { color: #fd7e14; }
-        
-        .char-counter {
-            font-size: 0.75rem;
+            line-height: 1;
+            margin-bottom: 0.4rem;
             color: #6c757d;
         }
-        .char-counter.warning { color: #ffc107; }
-        .char-counter.danger { color: #dc3545; }
-        
-        /* Estilos para tipo de mantenimiento */
+        .grupo-card.selected .icono { color: #0d6efd; }
+        .grupo-card .label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        /* Tarjetas de tipo de mantenimiento */
         .tipo-mant-card {
-            cursor: pointer;
-            transition: all 0.2s ease;
             border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+            height: 100%;
         }
-        .tipo-mant-card:hover {
-            border-color: #0d6efd;
-            background-color: #f8f9ff;
+        .tipo-mant-card:hover { border-color: #0d6efd; }
+        .tipo-mant-card.selected { border-color: #0d6efd; background: #e7f1ff; }
+
+        /* Prioridad pills */
+        .prioridad-option {
+            border: 2px solid #dee2e6;
+            border-radius: 50rem;
+            padding: 0.4rem 1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.15s;
+            background: #fff;
+            user-select: none;
         }
-        .tipo-mant-card.selected {
-            border-color: #0d6efd;
-            background-color: #e7f1ff;
+        .prioridad-option:hover { border-color: #0d6efd; }
+        .prioridad-option .dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
         }
-        
-        @media (max-width: 576px) {
-            .tipo-equipo-card {
-                padding: 0.75rem !important;
-            }
-            .tipo-equipo-card .icon-container {
-                font-size: 1.5rem;
-            }
-            .tipo-equipo-card span {
-                font-size: 0.8rem;
-            }
-        }
+        .prioridad-option.alta   .dot { background: #dc3545; }
+        .prioridad-option.media  .dot { background: #ffc107; }
+        .prioridad-option.baja   .dot { background: #198754; }
+        .prioridad-option.selected.alta   { background: #f8d7da; border-color: #dc3545; }
+        .prioridad-option.selected.media  { background: #fff3cd; border-color: #ffc107; }
+        .prioridad-option.selected.baja   { background: #d1e7dd; border-color: #198754; }
     </style>
 </head>
 <body>
-    
-    <div class="dashboard-container">
-        
-        <!-- SIDEBAR - Usando la lógica exacta del proyecto -->
-        <?php 
-        if ($es_mantenimiento) {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_mantenimiento.php';
-        } elseif ($es_ti) {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php';
-        } elseif (es_usuario_colaborativo()) {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_colaborativo.php';
-        } elseif (es_usuario_gth()) {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
-        } else {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_normal.php';
-        }
-        ?>
 
-        <!-- CONTENIDO PRINCIPAL -->
-        <main class="main-content">
-            <div class="content-wrapper">
-                
-                <!-- Encabezado -->
-                <div class="row mb-3">
-                    <div class="col">
-                        <div class="d-flex align-items-center flex-wrap gap-2">
-                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-arrow-left"></i>
-                            </a>
-                            <h4 class="mb-0"><i class="bi bi-tools me-2"></i>Solicitar Mantenimiento</h4>
-                        </div>
-                    </div>
+<div class="dashboard-container">
+
+    <!-- SIDEBAR -->
+    <?php include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php'; ?>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main-content">
+        <div class="content-wrapper">
+
+            <!-- Encabezado -->
+            <div class="d-flex align-items-center mb-3 flex-wrap gap-2">
+                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"
+                   class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <h4 class="mb-0">
+                    <i class="bi bi-tools me-2"></i>Solicitud de Mantenimiento a Equipos Electrónicos
+                </h4>
+            </div>
+
+            <!-- Errores -->
+            <?php if (!empty($errores)): ?>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Por favor corrige lo siguiente:</strong>
+                    <ul class="mb-0">
+                        <?php foreach ($errores as $err): ?>
+                            <li><?php echo htmlspecialchars($err); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
+            <?php endif; ?>
 
-                <!-- Mostrar errores -->
-                <?php if (!empty($errores)): ?>
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong>Por favor corrija los siguientes errores:</strong>
-                        <ul class="mb-0 mt-2">
-                            <?php foreach ($errores as $error): ?>
-                                <li><?php echo htmlspecialchars($error); ?></li>
-                            <?php endforeach; ?>
-                        </ul>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                <?php endif; ?>
+            <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_mantenimiento.php"
+                  method="POST" id="formMantenimiento" novalidate>
+                <input type="hidden" name="accion" value="crear">
+                <input type="hidden" name="grupo_equipo" id="grupo_equipo"
+                       value="<?php echo htmlspecialchars($form_data['grupo_equipo'] ?? ''); ?>">
 
-                <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_mantenimiento.php" method="POST" id="formSolicitarMantenimiento">
-                    <input type="hidden" name="accion" value="crear">
-                    
-                    <div class="row">
-                        <div class="col-lg-8">
-                            
-                            <!-- ⭐ Seleccionar Equipo del Inventario -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-pc-display me-2"></i>Seleccionar Equipo del Inventario
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Equipo registrado</label>
-                                    <select name="equipo_id" id="selectEquipo" class="form-select" onchange="equipoSeleccionado()">
-                                        <option value="">-- Seleccione un equipo (opcional) --</option>
-                                        <?php foreach ($equipos as $eq): ?>
-                                            <?php 
-                                            $seleccionado = ($equipo_preseleccionado && $equipo_preseleccionado['id'] == $eq['id']) 
-                                                         || (isset($form_data['equipo_id']) && $form_data['equipo_id'] == $eq['id']);
-                                            $texto_equipo = $eq['codigo_interno'];
-                                            if ($eq['marca'] || $eq['modelo']) {
-                                                $texto_equipo .= ' - ' . trim($eq['marca'] . ' ' . $eq['modelo']);
-                                            }
-                                            $texto_equipo .= ' (' . ucfirst($eq['tipo_equipo']) . ')';
-                                            if ($eq['ubicacion']) {
-                                                $texto_equipo .= ' - ' . $eq['ubicacion'];
-                                            }
-                                            ?>
-                                            <option value="<?php echo $eq['id']; ?>" 
-                                                    data-tipo="<?php echo $eq['tipo_equipo']; ?>"
-                                                    <?php echo $seleccionado ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($texto_equipo); ?>
+                <div class="row">
+                    <!-- Columna principal -->
+                    <div class="col-lg-8">
+
+                        <!-- 1) Cards: ¿Qué tipo de equipo? -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-grid me-2"></i>¿Qué tipo de equipo necesita mantenimiento?
+                            </div>
+                            <div class="row g-3">
+                                <?php foreach ($grupos_cards as $key => $info): ?>
+                                    <div class="col-6 col-md">
+                                        <div class="grupo-card <?php echo (($form_data['grupo_equipo'] ?? '') === $key) ? 'selected' : ''; ?>"
+                                             data-grupo="<?php echo $key; ?>"
+                                             onclick="seleccionarGrupo('<?php echo $key; ?>')">
+                                            <div class="icono"><i class="bi <?php echo $info['icono']; ?>"></i></div>
+                                            <div class="label"><?php echo $info['nombre']; ?></div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+
+                        <!-- 2) Departamento -> Usuario -> Equipo -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-building me-2"></i>Destinatario y equipo
+                            </div>
+
+                            <div class="row g-3">
+                                <!-- Departamento (PRIMERO) -->
+                                <div class="col-md-6">
+                                    <label class="form-label required">Departamento</label>
+                                    <select name="departamento_id" id="departamento_id"
+                                            class="form-select" required>
+                                        <option value="">-- Seleccionar Departamento --</option>
+                                        <?php foreach ($departamentos as $d): ?>
+                                            <option value="<?php echo $d['id']; ?>"
+                                                <?php echo (($form_data['departamento_id'] ?? '') == $d['id']) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($d['nombre']); ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <?php if ($es_ti): ?>
-                                        <small class="text-muted">Se muestran todos los equipos activos del inventario.</small>
-                                    <?php elseif (empty($equipos)): ?>
-                                        <small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No hay equipos registrados en su departamento. Seleccione solo el tipo de equipo abajo.</small>
-                                    <?php else: ?>
-                                        <small class="text-muted">Se muestran los equipos asignados a su departamento. Si no encuentra el equipo, seleccione solo el tipo abajo.</small>
-                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Usuario (depende del Departamento) -->
+                                <div class="col-md-6">
+                                    <label class="form-label required">Usuario</label>
+                                    <select name="usuario_id" id="usuario_id"
+                                            class="form-select" required disabled>
+                                        <option value="">-- Seleccione un departamento primero --</option>
+                                    </select>
+                                    <small class="text-muted" id="usuariosHint"></small>
+                                </div>
+
+                                <!-- Equipo Electrónico (depende de Departamento + Grupo) -->
+                                <div class="col-12">
+                                    <label class="form-label required">Equipo Electrónico</label>
+                                    <select name="equipo_id" id="equipo_id"
+                                            class="form-select" required disabled>
+                                        <option value="">-- Seleccione departamento y tipo de equipo --</option>
+                                    </select>
+                                    <small class="text-muted" id="equiposHint">
+                                        El listado se filtra por el departamento y el tipo de equipo seleccionado.
+                                    </small>
                                 </div>
                             </div>
-                            
-                            <!-- Tipo de Equipo -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-grid me-2"></i>¿Qué tipo de equipo necesita mantenimiento?
+                        </div>
+
+                        <!-- 3) Tipo de Mantenimiento -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-gear me-2"></i>Tipo de Mantenimiento
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="tipo-mant-card <?php echo (($form_data['tipo_mantenimiento'] ?? '') === 'logico') ? 'selected' : ''; ?>"
+                                         onclick="seleccionarTipoMant('logico')" id="cardLogico">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="radio" name="tipo_mantenimiento"
+                                                   id="tipoLogico" value="logico" required
+                                                   <?php echo (($form_data['tipo_mantenimiento'] ?? '') === 'logico') ? 'checked' : ''; ?>>
+                                            <label class="form-check-label fw-semibold" for="tipoLogico">
+                                                <i class="bi bi-cpu text-primary me-1"></i> Lógico
+                                            </label>
+                                            <small class="d-block text-muted mt-1">
+                                                Respaldar información, eliminación de archivos, limpieza de software,
+                                                actualizaciones del equipo.
+                                            </small>
+                                        </div>
+                                    </div>
                                 </div>
-                                
-                                <?php 
-                                // Determinar tipo preseleccionado
-                                $tipo_preseleccionado = $form_data['tipo_equipo'] ?? '';
-                                if ($equipo_preseleccionado) {
-                                    $tipo_preseleccionado = $equipo_preseleccionado['tipo_equipo'];
-                                }
+                                <div class="col-md-6">
+                                    <div class="tipo-mant-card <?php echo (($form_data['tipo_mantenimiento'] ?? '') === 'fisico') ? 'selected' : ''; ?>"
+                                         onclick="seleccionarTipoMant('fisico')" id="cardFisico">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="radio" name="tipo_mantenimiento"
+                                                   id="tipoFisico" value="fisico" required
+                                                   <?php echo (($form_data['tipo_mantenimiento'] ?? '') === 'fisico') ? 'checked' : ''; ?>>
+                                            <label class="form-check-label fw-semibold" for="tipoFisico">
+                                                <i class="bi bi-tools text-success me-1"></i> Físico
+                                            </label>
+                                            <small class="d-block text-muted mt-1">
+                                                Limpiar, reparar y optimizar los componentes tangibles del equipo.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4) Prioridad -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-flag me-2"></i>Prioridad
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <?php
+                                $prioridades = ['alta' => 'Alta', 'media' => 'Media', 'baja' => 'Baja'];
+                                $prioridad_sel = $form_data['prioridad'] ?? 'media';
+                                foreach ($prioridades as $key => $label):
                                 ?>
-                                
-                                <div class="row g-3">
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card computadora card text-center p-3 h-100 <?php echo ($tipo_preseleccionado === 'computadora') ? 'selected' : ''; ?>" 
-                                             data-tipo="computadora" onclick="seleccionarTipo('computadora')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-pc-display"></i>
-                                            </div>
-                                            <span class="fw-medium">Computadora</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card impresora card text-center p-3 h-100 <?php echo ($tipo_preseleccionado === 'impresora') ? 'selected' : ''; ?>"
-                                             data-tipo="impresora" onclick="seleccionarTipo('impresora')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-printer"></i>
-                                            </div>
-                                            <span class="fw-medium">Impresora</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card camara card text-center p-3 h-100 <?php echo ($tipo_preseleccionado === 'camara') ? 'selected' : ''; ?>"
-                                             data-tipo="camara" onclick="seleccionarTipo('camara')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-camera-video"></i>
-                                            </div>
-                                            <span class="fw-medium">Cámara</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 col-md-3">
-                                        <div class="tipo-equipo-card telefono card text-center p-3 h-100 <?php echo ($tipo_preseleccionado === 'telefono') ? 'selected' : ''; ?>"
-                                             data-tipo="telefono" onclick="seleccionarTipo('telefono')">
-                                            <div class="icon-container">
-                                                <i class="bi bi-phone"></i>
-                                            </div>
-                                            <span class="fw-medium">Teléfono</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <input type="hidden" name="tipo_equipo" id="inputTipoEquipo" 
-                                       value="<?php echo htmlspecialchars($tipo_preseleccionado); ?>" required>
-                                <div class="invalid-feedback">Debe seleccionar un tipo de equipo.</div>
+                                    <label class="prioridad-option <?php echo $key; ?> <?php echo $prioridad_sel === $key ? 'selected' : ''; ?>"
+                                           onclick="seleccionarPrioridad('<?php echo $key; ?>')">
+                                        <span class="dot"></span>
+                                        <input type="radio" name="prioridad" value="<?php echo $key; ?>"
+                                               class="d-none" <?php echo $prioridad_sel === $key ? 'checked' : ''; ?>>
+                                        <span><?php echo $label; ?></span>
+                                    </label>
+                                <?php endforeach; ?>
                             </div>
-                            
-                            <!-- Tipo de Mantenimiento -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-wrench-adjustable me-2"></i>Tipo de Mantenimiento
-                                </div>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <div class="form-check form-check-inline w-100">
-                                            <div class="card p-3 w-100 tipo-mant-card <?php echo (!isset($form_data['tipo_mantenimiento']) || $form_data['tipo_mantenimiento'] === 'correctivo') ? 'selected' : ''; ?>" 
-                                                 onclick="seleccionarTipoMant('correctivo')">
-                                                <div class="form-check mb-0">
-                                                    <input class="form-check-input" type="radio" name="tipo_mantenimiento" 
-                                                           id="tipoCorrectivo" value="correctivo"
-                                                           <?php echo (!isset($form_data['tipo_mantenimiento']) || $form_data['tipo_mantenimiento'] === 'correctivo') ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label fw-medium" for="tipoCorrectivo">
-                                                        <i class="bi bi-tools text-danger me-1"></i>Correctivo
-                                                    </label>
-                                                    <small class="d-block text-muted mt-1">Reparar una falla o problema existente</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check form-check-inline w-100">
-                                            <div class="card p-3 w-100 tipo-mant-card <?php echo (isset($form_data['tipo_mantenimiento']) && $form_data['tipo_mantenimiento'] === 'preventivo') ? 'selected' : ''; ?>"
-                                                 onclick="seleccionarTipoMant('preventivo')">
-                                                <div class="form-check mb-0">
-                                                    <input class="form-check-input" type="radio" name="tipo_mantenimiento" 
-                                                           id="tipoPreventivo" value="preventivo"
-                                                           <?php echo (isset($form_data['tipo_mantenimiento']) && $form_data['tipo_mantenimiento'] === 'preventivo') ? 'checked' : ''; ?>>
-                                                    <label class="form-check-label fw-medium" for="tipoPreventivo">
-                                                        <i class="bi bi-shield-check text-success me-1"></i>Preventivo
-                                                    </label>
-                                                    <small class="d-block text-muted mt-1">Mantenimiento programado o revisión</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Descripción del Problema -->
-                            <div class="form-section">
-                                <div class="form-section-title">
-                                    <i class="bi bi-chat-left-text me-2"></i>Descripción del Problema
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label required">Describa el problema o falla del equipo</label>
-                                    <textarea name="descripcion_problema" class="form-control" rows="5" 
-                                              id="txtDescripcion" required
-                                              minlength="20" maxlength="2000"
-                                              placeholder="Por favor describa detalladamente el problema que presenta el equipo. Incluya información como: qué estaba haciendo cuando ocurrió, mensajes de error que aparecen, con qué frecuencia sucede, etc."><?php echo htmlspecialchars($form_data['descripcion_problema'] ?? ''); ?></textarea>
-                                    <div class="d-flex justify-content-between mt-1">
-                                        <small class="text-muted">Mínimo 20 caracteres.</small>
-                                        <small class="char-counter"><span id="charCount">0</span>/2000</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
                         </div>
 
-                        <!-- Panel lateral -->
-                        <div class="col-lg-4">
-                            <div class="card border-info mb-3">
-                                <div class="card-header bg-info text-white py-2">
-                                    <i class="bi bi-person me-2"></i>Información del Solicitante
+                        <!-- 5) Fecha y Hora programada -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-calendar-event me-2"></i>
+                                Fecha y Hora programada para realizar el mantenimiento
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label required">Fecha</label>
+                                    <input type="date" name="fecha_deseada" id="fecha_deseada"
+                                           class="form-control" required
+                                           value="<?php echo htmlspecialchars($form_data['fecha_deseada'] ?? ''); ?>">
                                 </div>
-                                <div class="card-body small">
-                                    <p class="mb-2">
-                                        <strong>Nombre:</strong><br>
-                                        <?php echo htmlspecialchars($_SESSION['nombre_completo']); ?>
-                                    </p>
-                                    <p class="mb-0">
-                                        <strong>Departamento:</strong><br>
-                                        <?php echo htmlspecialchars($_SESSION['departamento_nombre'] ?? ucfirst($_SESSION['departamento'])); ?>
-                                    </p>
+                                <div class="col-md-6">
+                                    <label class="form-label required">Hora</label>
+                                    <input type="time" name="hora_deseada" id="hora_deseada"
+                                           class="form-control" required
+                                           value="<?php echo htmlspecialchars($form_data['hora_deseada'] ?? ''); ?>">
                                 </div>
                             </div>
-                            
-                            <div class="card border-warning">
-                                <div class="card-header bg-warning py-2">
-                                    <i class="bi bi-lightbulb me-2"></i>Consejos
-                                </div>
-                                <div class="card-body small">
-                                    <ul class="mb-0 ps-3">
-                                        <li>Sea lo más específico posible</li>
-                                        <li>Incluya mensajes de error si los hay</li>
-                                        <li>Indique desde cuándo ocurre el problema</li>
-                                        <li>Mencione si el problema es intermitente o constante</li>
-                                    </ul>
-                                </div>
+                        </div>
+
+                        <!-- 6) Descripción -->
+                        <div class="form-section">
+                            <div class="form-section-title">
+                                <i class="bi bi-chat-left-text me-2"></i>Descripción del problema
+                            </div>
+                            <label class="form-label required">Describa el problema o motivo del mantenimiento</label>
+                            <textarea name="descripcion_problema" id="descripcion_problema"
+                                      class="form-control" rows="5" required
+                                      minlength="10" maxlength="2000"
+                                      placeholder="Describa el motivo del mantenimiento, síntomas observados, mensajes de error, etc."><?php echo htmlspecialchars($form_data['descripcion_problema'] ?? ''); ?></textarea>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small class="text-muted">Mínimo 10 caracteres.</small>
+                                <small class="text-muted"><span id="charCount">0</span>/2000</small>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex gap-2 mb-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send me-1"></i> Enviar Solicitud
+                            </button>
+                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"
+                               class="btn btn-outline-secondary">
+                                <i class="bi bi-x-circle me-1"></i> Cancelar
+                            </a>
+                        </div>
+
+                    </div>
+
+                    <!-- Columna lateral -->
+                    <div class="col-lg-4">
+                        <div class="card border-info mb-3">
+                            <div class="card-header bg-info text-white py-2">
+                                <i class="bi bi-info-circle me-2"></i>Información
+                            </div>
+                            <div class="card-body small">
+                                <p class="mb-2">
+                                    <strong>Creada por:</strong><br>
+                                    <?php echo htmlspecialchars($_SESSION['nombre_completo']); ?>
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Departamento creador:</strong><br>
+                                    Sistemas / TI
+                                </p>
+                                <hr class="my-2">
+                                <p class="mb-0 text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    La solicitud se enviará al usuario seleccionado con estado <strong>"Pendiente"</strong>
+                                    y se le notificará automáticamente. Las evidencias se podrán adjuntar al iniciar el mantenimiento.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="card border-warning">
+                            <div class="card-header bg-warning text-dark py-2">
+                                <i class="bi bi-lightbulb me-2"></i>Flujo
+                            </div>
+                            <div class="card-body small">
+                                <ol class="ps-3 mb-0">
+                                    <li>Sistemas crea y envía (Pendiente)</li>
+                                    <li>Sistemas inicia mantenimiento (En Proceso)</li>
+                                    <li>Sistemas finaliza (1er cierre - Finalizada)</li>
+                                    <li>Usuario firma (2do cierre - Cerrada)</li>
+                                </ol>
                             </div>
                         </div>
                     </div>
+                </div>
+            </form>
 
-                    <!-- Botones de acción -->
-                    <div class="row mt-3">
-                        <div class="col-lg-8">
-                            <div class="d-flex gap-2 flex-wrap">
-                                <button type="submit" class="btn btn-primary" id="btnEnviar">
-                                    <i class="bi bi-send me-1"></i>Enviar Solicitud
-                                </button>
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php" class="btn btn-outline-secondary">
-                                    <i class="bi bi-x-lg me-1"></i>Cancelar
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-                
-            </div>
-        </main>
+        </div>
+    </main>
+</div>
 
-    </div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+<script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
-    
-    <script>
-        // ⭐ Cuando se selecciona un equipo del inventario
-        function equipoSeleccionado() {
-            const select = document.getElementById('selectEquipo');
-            const option = select.options[select.selectedIndex];
-            
-            if (option && option.dataset.tipo) {
-                // Auto-seleccionar el tipo de equipo
-                seleccionarTipo(option.dataset.tipo);
-            }
+<script>
+const URL_API = '<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/api_mantenimiento.php';
+
+const PRESELECCION = {
+    departamento_id: '<?php echo intval($form_data['departamento_id'] ?? 0); ?>',
+    usuario_id:      '<?php echo intval($form_data['usuario_id'] ?? 0); ?>',
+    equipo_id:       '<?php echo intval($form_data['equipo_id'] ?? 0); ?>',
+    grupo_equipo:    '<?php echo htmlspecialchars($form_data['grupo_equipo'] ?? ''); ?>'
+};
+
+// =====================================================================
+// CASCADA DEPARTAMENTO -> USUARIO -> EQUIPO
+// =====================================================================
+const selDepto   = document.getElementById('departamento_id');
+const selUsuario = document.getElementById('usuario_id');
+const selEquipo  = document.getElementById('equipo_id');
+const inpGrupo   = document.getElementById('grupo_equipo');
+
+selDepto.addEventListener('change', async function() {
+    const deptoId = this.value;
+    resetUsuario();
+    resetEquipo();
+    if (deptoId) {
+        await cargarUsuarios(deptoId);
+        if (inpGrupo.value) {
+            await cargarEquipos(deptoId, inpGrupo.value, '');
         }
-        
-        // Seleccionar tipo de equipo
-        function seleccionarTipo(tipo) {
-            document.querySelectorAll('.tipo-equipo-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            document.querySelector(`.tipo-equipo-card.${tipo}`).classList.add('selected');
-            document.getElementById('inputTipoEquipo').value = tipo;
+    }
+});
+
+selUsuario.addEventListener('change', async function() {
+    const deptoId = selDepto.value;
+    const userId  = this.value;
+    if (deptoId && inpGrupo.value) {
+        await cargarEquipos(deptoId, inpGrupo.value, userId);
+    }
+});
+
+function resetUsuario() {
+    selUsuario.innerHTML = '<option value="">-- Seleccione un departamento primero --</option>';
+    selUsuario.disabled = true;
+    document.getElementById('usuariosHint').textContent = '';
+}
+
+function resetEquipo() {
+    selEquipo.innerHTML = '<option value="">-- Seleccione departamento y tipo de equipo --</option>';
+    selEquipo.disabled = true;
+}
+
+async function cargarUsuarios(deptoId) {
+    selUsuario.innerHTML = '<option value="">Cargando...</option>';
+    selUsuario.disabled = true;
+    try {
+        const r = await fetch(URL_API + '?accion=usuarios&departamento_id=' + encodeURIComponent(deptoId));
+        const j = await r.json();
+        if (!j.success) throw new Error(j.message || 'Error al cargar usuarios');
+
+        if (!j.data.length) {
+            selUsuario.innerHTML = '<option value="">-- Sin usuarios activos en este departamento --</option>';
+            document.getElementById('usuariosHint').textContent = 'No hay usuarios activos asignados a este departamento.';
+            return;
         }
-        
-        // ⭐ Seleccionar tipo de mantenimiento
-        function seleccionarTipoMant(tipo) {
-            document.querySelectorAll('.tipo-mant-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            event.currentTarget.classList.add('selected');
-            document.getElementById('tipo' + tipo.charAt(0).toUpperCase() + tipo.slice(1)).checked = true;
-        }
-        
-        // Contador de caracteres
-        const txtDescripcion = document.getElementById('txtDescripcion');
-        const charCount = document.getElementById('charCount');
-        
-        txtDescripcion.addEventListener('input', function() {
-            const count = this.value.length;
-            charCount.textContent = count;
-            
-            const counter = charCount.parentElement;
-            counter.classList.remove('warning', 'danger');
-            
-            if (count > 1800) {
-                counter.classList.add('danger');
-            } else if (count > 1500) {
-                counter.classList.add('warning');
-            }
+        let html = '<option value="">-- Seleccionar Usuario --</option>';
+        j.data.forEach(u => {
+            const sel = (String(u.id) === String(PRESELECCION.usuario_id)) ? 'selected' : '';
+            html += `<option value="${u.id}" ${sel}>${escapeHtml(u.nombre_completo)}</option>`;
         });
-        
-        // Validación antes de enviar
-        document.getElementById('formSolicitarMantenimiento').addEventListener('submit', function(e) {
-            const tipoEquipo = document.getElementById('inputTipoEquipo').value;
-            const descripcion = txtDescripcion.value.trim();
-            
-            if (!tipoEquipo) {
-                e.preventDefault();
-                alert('Por favor seleccione un tipo de equipo.');
-                return false;
-            }
-            
-            if (descripcion.length < 20) {
-                e.preventDefault();
-                alert('La descripción debe tener al menos 20 caracteres.');
-                return false;
-            }
-        });
-        
-        // Inicializar contador
-        charCount.textContent = txtDescripcion.value.length;
-    </script>
+        selUsuario.innerHTML = html;
+        selUsuario.disabled = false;
+        document.getElementById('usuariosHint').textContent = `${j.data.length} usuario(s) disponibles.`;
+    } catch (err) {
+        console.error(err);
+        selUsuario.innerHTML = '<option value="">-- Error al cargar usuarios --</option>';
+    }
+}
 
-    <!-- Sistema de notificaciones en tiempo real -->
-    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+async function cargarEquipos(deptoId, grupo, usuarioId) {
+    selEquipo.innerHTML = '<option value="">Cargando...</option>';
+    selEquipo.disabled = true;
+    try {
+        let url = URL_API + '?accion=equipos&departamento_id=' + encodeURIComponent(deptoId)
+                          + '&grupo=' + encodeURIComponent(grupo);
+        if (usuarioId) url += '&usuario_id=' + encodeURIComponent(usuarioId);
+
+        const r = await fetch(url);
+        const j = await r.json();
+        if (!j.success) throw new Error(j.message || 'Error al cargar equipos');
+
+        if (!j.data.length) {
+            selEquipo.innerHTML = '<option value="">-- Sin equipos en este departamento para el tipo seleccionado --</option>';
+            document.getElementById('equiposHint').innerHTML =
+                '<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No hay equipos activos del tipo seleccionado en este departamento.</span>';
+            return;
+        }
+
+        let html = '<option value="">-- Seleccionar Equipo --</option>';
+        j.data.forEach(e => {
+            const partes = [];
+            if (e.hostname)       partes.push(e.hostname);
+            if (e.codigo_interno) partes.push(e.codigo_interno);
+            const ref = partes.join(' / ') || '(sin identificador)';
+            const tipo = e.tipo_equipo || '';
+            const marca_modelo = [e.marca, e.modelo].filter(Boolean).join(' ');
+            const ubic = e.ubicacion ? ' - ' + e.ubicacion : '';
+            const star = e.asignado_al_usuario ? '⭐ ' : '';
+            const texto = `${star}${ref} (${tipo})${marca_modelo ? ' · ' + marca_modelo : ''}${ubic}`;
+            const sel = (String(e.id) === String(PRESELECCION.equipo_id)) ? 'selected' : '';
+            html += `<option value="${e.id}" ${sel}>${escapeHtml(texto)}</option>`;
+        });
+        selEquipo.innerHTML = html;
+        selEquipo.disabled = false;
+        document.getElementById('equiposHint').innerHTML =
+            `<span class="text-muted">${j.data.length} equipo(s). ⭐ = asignado al usuario seleccionado.</span>`;
+    } catch (err) {
+        console.error(err);
+        selEquipo.innerHTML = '<option value="">-- Error al cargar equipos --</option>';
+    }
+}
+
+// =====================================================================
+// CARDS DE GRUPO
+// =====================================================================
+function seleccionarGrupo(grupo) {
+    document.querySelectorAll('.grupo-card').forEach(c => c.classList.remove('selected'));
+    const card = document.querySelector(`.grupo-card[data-grupo="${grupo}"]`);
+    if (card) card.classList.add('selected');
+    inpGrupo.value = grupo;
+
+    const deptoId = selDepto.value;
+    if (deptoId) {
+        cargarEquipos(deptoId, grupo, selUsuario.value || '');
+    }
+}
+
+// =====================================================================
+// TIPO DE MANTENIMIENTO (cards)
+// =====================================================================
+function seleccionarTipoMant(tipo) {
+    document.getElementById('cardLogico').classList.remove('selected');
+    document.getElementById('cardFisico').classList.remove('selected');
+    document.getElementById('card' + (tipo === 'logico' ? 'Logico' : 'Fisico')).classList.add('selected');
+    document.getElementById('tipo' + (tipo === 'logico' ? 'Logico' : 'Fisico')).checked = true;
+}
+
+// =====================================================================
+// PRIORIDAD (pills)
+// =====================================================================
+function seleccionarPrioridad(p) {
+    document.querySelectorAll('.prioridad-option').forEach(el => el.classList.remove('selected'));
+    document.querySelector(`.prioridad-option.${p}`).classList.add('selected');
+    document.querySelector(`input[name="prioridad"][value="${p}"]`).checked = true;
+}
+
+// =====================================================================
+// CONTADOR DE CARACTERES
+// =====================================================================
+const txtDesc = document.getElementById('descripcion_problema');
+const charCount = document.getElementById('charCount');
+function actualizarContador() {
+    charCount.textContent = txtDesc.value.length;
+}
+txtDesc.addEventListener('input', actualizarContador);
+actualizarContador();
+
+// =====================================================================
+// VALIDACION AL ENVIAR
+// =====================================================================
+document.getElementById('formMantenimiento').addEventListener('submit', function(e) {
+    if (!inpGrupo.value) {
+        e.preventDefault();
+        alert('Selecciona el tipo de equipo (Cómputo, Periféricos, Impresoras, Red u Otros).');
+        return false;
+    }
+    if (!selDepto.value) {
+        e.preventDefault();
+        alert('Selecciona un departamento.');
+        return false;
+    }
+    if (!selUsuario.value) {
+        e.preventDefault();
+        alert('Selecciona un usuario destinatario.');
+        return false;
+    }
+    if (!selEquipo.value) {
+        e.preventDefault();
+        alert('Selecciona un equipo del inventario.');
+        return false;
+    }
+    const tipoMant = document.querySelector('input[name="tipo_mantenimiento"]:checked');
+    if (!tipoMant) {
+        e.preventDefault();
+        alert('Selecciona el tipo de mantenimiento (Lógico o Físico).');
+        return false;
+    }
+});
+
+function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/[&<>"']/g, m => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+}
+
+(async function init() {
+    if (PRESELECCION.departamento_id) {
+        await cargarUsuarios(PRESELECCION.departamento_id);
+        if (PRESELECCION.grupo_equipo) {
+            await cargarEquipos(
+                PRESELECCION.departamento_id,
+                PRESELECCION.grupo_equipo,
+                PRESELECCION.usuario_id
+            );
+        }
+    }
+})();
+</script>
+
 </body>
 </html>

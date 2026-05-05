@@ -178,7 +178,7 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <input type="text" name="usuario" class="form-control" 
                                                value="<?php echo htmlspecialchars($form_data['usuario'] ?? ''); ?>"
                                                required maxlength="50" placeholder="Ej: GVSIS01" 
-                                               pattern="[A-Za-z0-9_-]+" title="Solo letras, numeros, guion y guion bajo">
+                                               pattern="[A-Za-z0-9_\-]+" title="Solo letras, numeros, guion y guion bajo">
                                         <small class="text-muted">Sin espacios. Se convertir&aacute; a may&uacute;sculas.</small>
                                     </div>
                                     <div class="col-md-6" id="campoDepartamento">

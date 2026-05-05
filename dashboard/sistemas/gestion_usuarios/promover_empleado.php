@@ -138,7 +138,7 @@ unset($_SESSION['form_data_promover'], $_SESSION['form_errors_promover']);
                                         <label class="form-label required">Nombre de Usuario</label>
                                         <input type="text" name="usuario" class="form-control" required maxlength="50"
                                                value="<?php echo htmlspecialchars($form_data['usuario'] ?? ''); ?>"
-                                               pattern="[A-Za-z0-9_-]+" title="Solo letras, numeros, guion y guion bajo"
+                                               pattern="[A-Za-z0-9_\-]+" title="Solo letras, numeros, guion y guion bajo"
                                                placeholder="Ej: GVSIS01">
                                         <small class="text-muted">Se convertira a mayusculas.</small>
                                     </div>

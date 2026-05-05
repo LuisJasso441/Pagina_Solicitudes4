@@ -1,0 +1,11 @@
+/vendor/
+/node_modules/
+/uploads/
+/Imagenes_OSM/
+/Imagenes_QR/
+/Imagenes_SSC/
+/Imagenes_Tickets/
+/*.log
+.env
+.DS_Store
+Thumbs.db

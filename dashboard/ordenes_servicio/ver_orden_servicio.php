@@ -356,10 +356,11 @@ function formatear_tamanio_osm($bytes) {
         } elseif ($departamento === 'ti' || $departamento === 'sistemas' || $departamento === 'ti_sistemas') {
             include __DIR__ . '/../../includes/sidebar/sidebar_ti.php';
         } elseif (es_usuario_gth()) {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
-        } else {
-            // Para usuarios colaborativos
+            include __DIR__ . '/../../includes/sidebar/sidebar_gth.php';
+        } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
+        } else {
+            include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
         }
         ?>
         
