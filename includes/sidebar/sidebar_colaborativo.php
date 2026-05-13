@@ -56,12 +56,6 @@ require_once __DIR__ . '/../../config/database.php';
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'crear_mantenimiento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
-                    <i class="bi bi-tools"></i> Solicitar Mantenimiento
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'listar_mantenimientos.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
                     <i class="bi bi-wrench"></i> Mis Mantenimientos

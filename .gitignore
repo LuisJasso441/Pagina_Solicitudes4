@@ -4,7 +4,10 @@
 /Imagenes_OSM/
 /Imagenes_QR/
 /Imagenes_SSC/
+/Imagenes_Mantenimientos/
 /Imagenes_Tickets/
+/plantillas_reportes/
+/templates/
 /*.log
 .env
 .DS_Store

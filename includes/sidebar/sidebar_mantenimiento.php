@@ -82,18 +82,10 @@ try {
                     <i class="bi bi-list-ul"></i> Mis Solicitudes
                 </a>
             </li>
-            
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
                     <i class="bi bi-search"></i> Buscar
-                </a>
-            </li>
-            
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'solicitar_mantenimiento.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php">
-                    <i class="bi bi-tools"></i> Solicitar Mantenimiento
                 </a>
             </li>
             <li class="nav-item">

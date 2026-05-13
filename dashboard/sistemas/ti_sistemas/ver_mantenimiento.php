@@ -237,12 +237,15 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
             background: #fff;
             padding: 4px;
             margin: 0.5rem 0;
+            text-align: center;
         }
         #firmaPad {
             background: #fff;
             cursor: crosshair;
-            width: 100%;
-            min-height: 150px;
+            width: 600px;
+            max-width: 100%;
+            min-height: 200px;
+            margin: 0 auto;
         }
         .firma-imagen {
             max-width: 100%;
@@ -863,8 +866,8 @@ $(document).ready(function() {
         lineWidth: 2,
         background: '#ffffff',
         'decor-color': 'transparent',
-        width: '100%',
-        height: 150
+        width: 600,
+        height: 200
     });
 
     const btnConfirmar = document.getElementById('btnConfirmarFirma');

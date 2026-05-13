@@ -1,32 +1,30 @@
 <?php
 /**
  * Sidebar para usuarios de TI/Sistemas
- * includes/sidebar/sidebar_ti.php
- * 
- * v2.0 - Agregado: Acceso Equipos, Importar Excel, contador acceso
+ * Componente reutilizable
  */
 
-// Obtener p&aacute;gina actual para marcar como activa
+// Obtener página actual para marcar como activa
 $current_page = basename($_SERVER['PHP_SELF']);
 
 // Obtener filtro de estado actual (para marcar links activos)
 $filtro_estado_actual = $_GET['estado'] ?? '';
 
-// Determinar si est&aacute; en secci&oacute;n de &oacute;rdenes de servicio
+// Determinar si está en sección de órdenes de servicio
 $en_mis_ordenes = in_array($current_page, [
     'mis_ordenes_servicio.php',
     'mis_ordenes_servicio_finalizadas.php',
     'ver_orden_servicio.php'
 ]);
 
-// Determinar si est&aacute; en secci&oacute;n de gesti&oacute;n de usuarios
+// Determinar si está en sección de gestión de usuarios
 $en_gestion_usuarios = in_array($current_page, [
     'dashboard_usuarios.php',
     'crear_usuario.php',
     'editar_usuario.php'
 ]);
 
-// Obtener estad&iacute;sticas para badges
+// Obtener estadísticas para badges (opcional)
 try {
     if (!isset($pdo)) {
         require_once __DIR__ . '/../../config/database.php';
@@ -41,7 +39,7 @@ try {
     ");
     $stats_sidebar = $stmt->fetch();
     
-    // Obtener &oacute;rdenes pendientes de validaci&oacute;n
+    // Obtener órdenes pendientes de validación
     $stmt_ordenes = $pdo->prepare("
         SELECT COUNT(*) as total 
         FROM ordenes_servicio_mantenimiento 
@@ -56,7 +54,7 @@ try {
     $total_usuarios = $stmt_usuarios->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Contar equipos en inventario
-    $stmt_equipos = $pdo->query("SELECT COUNT(*) as total FROM inventario_equipos WHERE estado != 'dado_de_baja'");
+    $stmt_equipos = $pdo->query("SELECT COUNT(*) as total FROM inventario_equipos WHERE estado = 'activo'");
     $total_equipos = $stmt_equipos->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Contar mantenimientos pendientes
@@ -77,14 +75,14 @@ try {
 }
 ?>
 
-<!-- Bot&oacute;n Hamburguesa para m&oacute;vil -->
-<button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir men&uacute;">
+<!-- Botón Hamburguesa para móvil -->
+<button class="hamburger-btn" id="hamburgerBtn" aria-label="Abrir menú">
     <span></span>
     <span></span>
     <span></span>
 </button>
 
-<!-- Overlay para cerrar sidebar en m&oacute;vil -->
+<!-- Overlay para cerrar sidebar en móvil -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
 <aside class="sidebar" id="sidebar">
@@ -105,7 +103,7 @@ try {
             </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">GESTI&Oacute;N DE SOLICITUDES</small>
+            <small class="text-white-50 px-3 fw-bold">GESTIÓN DE SOLICITUDES</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo ($current_page == 'gestion_solicitudes.php' && empty($filtro_estado_actual)) ? 'active' : ''; ?>" 
@@ -139,12 +137,12 @@ try {
             </li>
 
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ADMINISTRACI&Oacute;N DE USUARIOS</small>
+            <small class="text-white-50 px-3 fw-bold">ADMINISTRACIÓN DE USUARIOS</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'dashboard_usuarios.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php">
-                    <i class="bi bi-people"></i> Gesti&oacute;n de Usuarios
+                    <i class="bi bi-people"></i> Gestión de Usuarios
                     <?php if ($total_usuarios > 0): ?>
                     <span class="badge bg-secondary ms-2"><?php echo $total_usuarios; ?></span>
                     <?php endif; ?>
@@ -210,14 +208,24 @@ try {
                     <?php endif; ?>
                 </a>
             </li>
+
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">CENTRO DE DESCARGAS</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo (basename(dirname($_SERVER['PHP_SELF'])) === 'maestro') ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/maestro/index.php">
+                    <i class="bi bi-folder-symlink"></i> Apartado Maestro
+                </a>
+            </li>
             
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">&Oacute;RDENES DE SERVICIO</small>
+            <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
-                    <i class="bi bi-clipboard-check"></i> &Oacute;rdenes de Mantenimiento
+                    <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                 </a>
             </li>
             
@@ -234,7 +242,7 @@ try {
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesi&oacute;n
+                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
                 </a>
             </li>
         </ul>
