@@ -124,7 +124,7 @@ if (!empty($fecha_entrega)) {
 $pdf = new TCPDF('P', 'mm', 'LETTER', true, 'UTF-8', false);
 
 // Configurar documento
-$pdf->SetCreator('GrupoVerden - Sistema SSC');
+$pdf->SetCreator('VerdenCore - Sistema SSC');
 $pdf->SetAuthor('Sistema de Solicitudes');
 $pdf->SetTitle('Solicitud de Servicio a Clientes - ' . $documento['folio']);
 $pdf->SetSubject('Solicitud de Servicio a Clientes');

@@ -74,7 +74,7 @@ $apartado3 = $orden['apartado3'] ?? [];
 $pdf = new TCPDF('P', 'mm', 'LETTER', true, 'UTF-8', false);
 
 // Configurar documento
-$pdf->SetCreator('GrupoVerden - Sistema de Órdenes de Servicio');
+$pdf->SetCreator('VerdenCore - Sistema de Órdenes de Servicio');
 $pdf->SetAuthor('Sistema OSM');
 $pdf->SetTitle('Orden de Servicio - ' . ($apartado1['folio'] ?? $orden['folio']));
 $pdf->SetSubject('Orden de Servicio para Mantenimiento');

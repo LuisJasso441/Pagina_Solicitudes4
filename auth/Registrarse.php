@@ -71,7 +71,7 @@
   <nav class="navbar">
     <div class="navbar-container">
       <div class="navbar-logo">
-        <img src="../assets/img/Logo.png" alt="GrupoVerden Logo">
+        <img src="../assets/img/Logo.png" alt="VerdenCore Logo">
       </div>
       <div class="navbar-buttons">
         <a href="../index.php" class="btn btn-primary">Inicio</a>

@@ -108,7 +108,7 @@ function exportarConPhpSpreadsheet($mantenimientos, $nombre_periodo, $fecha_inic
     
     // Configurar propiedades del documento
     $spreadsheet->getProperties()
-        ->setCreator('Sistema TI - GrupoVerden')
+        ->setCreator('Sistema TI - VerdenCore')
         ->setTitle('Reporte de Mantenimientos')
         ->setSubject('Mantenimientos Finalizados')
         ->setDescription('Reporte generado automáticamente');

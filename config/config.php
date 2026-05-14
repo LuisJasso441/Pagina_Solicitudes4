@@ -15,7 +15,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Nombre del sistema
 define('NOMBRE_SISTEMA', 'Portal de Solicitudes TI');
-define('NOMBRE_EMPRESA', 'GrupoVerden');
+define('NOMBRE_EMPRESA', 'VerdenCore');
 
 // Versión del sistema
 define('VERSION', '1.0.0');

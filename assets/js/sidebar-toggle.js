@@ -1,6 +1,6 @@
 /**
  * Sidebar Toggle
- * Portal de Solicitudes TI - GrupoVerden
+ * Portal de Solicitudes TI - VerdenCore
  * 
  * Maneja la funcionalidad del botón hamburguesa y el toggle del sidebar.
  * Incluye: abrir/cerrar sidebar, overlay, y cierre con tecla Escape.

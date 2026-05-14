@@ -69,7 +69,7 @@ $fecha_regreso_fmt = fmtFechaCorta($fecha_regreso);
 // ========================================
 
 $pdf = new TCPDF('P', 'mm', 'LETTER', true, 'UTF-8', false);
-$pdf->SetCreator('GrupoVerden - Sistema de Vacaciones');
+$pdf->SetCreator('VerdenCore - Sistema de Vacaciones');
 $pdf->SetAuthor('Sistema Vacaciones');
 $pdf->SetTitle('Solicitud de Vacaciones - ' . $nombre);
 $pdf->setPrintHeader(false);

@@ -13,7 +13,7 @@
   <nav class="navbar">
     <div class="navbar-container">
       <div class="navbar-logo">
-        <img src="assets/img/Logo.png" alt="GrupoVerden Logo">
+        <img src="assets/img/Logo.png" alt="VerdenCore Logo">
       </div>
       <div class="navbar-buttons">
         <a href="auth/InicioSesion.php" class="btn btn-primary">Iniciar Sesión</a>

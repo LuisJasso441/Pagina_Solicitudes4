@@ -125,7 +125,7 @@ try {
     // =====================================================
     $spreadsheet = new Spreadsheet();
     $spreadsheet->getProperties()
-        ->setCreator('Sistema GrupoVerden - GTH')
+        ->setCreator('Sistema VerdenCore - GTH')
         ->setTitle('Reporte de Vacaciones ' . $anio);
 
     $sheet = $spreadsheet->getActiveSheet();

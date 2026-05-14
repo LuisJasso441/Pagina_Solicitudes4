@@ -2,7 +2,7 @@
 /**
  * Nueva Solicitud de Vacaciones
  * dashboard/vacaciones/nueva_solicitud_vacaciones.php
- * Formato basado en documento oficial GrupoVerden
+ * Formato basado en documento oficial VerdenCore
  * ACTUALIZADO: Dias festivos MX + jornada L-V/L-S
  */
 session_start();
