@@ -1,13 +1,13 @@
 <?php
 /**
  * Ver Detalles de Solicitud de Mantenimiento (Nuevo Flujo + Firma)
- * dashboard/sistemas/ti_sistemas/ver_mantenimiento.php
+ * dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php
  */
 
 session_start();
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
+require_once __DIR__ . '/../../../../includes/functions.php';
 
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -17,7 +17,7 @@ if (!isset($_SESSION['usuario_id'])) {
 $solicitud_id = intval($_GET['id'] ?? 0);
 if (!$solicitud_id) {
     establecer_alerta('error', 'ID de solicitud no válido.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
@@ -51,13 +51,13 @@ $solicitud = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$solicitud) {
     establecer_alerta('error', 'Solicitud no encontrada.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
 if (!$es_ti && $solicitud['usuario_id'] != $_SESSION['usuario_id']) {
     establecer_alerta('error', 'No tiene permisos para ver esta solicitud.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
@@ -237,15 +237,12 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
             background: #fff;
             padding: 4px;
             margin: 0.5rem 0;
-            text-align: center;
         }
         #firmaPad {
             background: #fff;
             cursor: crosshair;
-            width: 600px;
-            max-width: 100%;
-            min-height: 200px;
-            margin: 0 auto;
+            width: 100%;
+            min-height: 150px;
         }
         .firma-imagen {
             max-width: 100%;
@@ -272,15 +269,15 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
 
     <?php
     if ($es_mantenimiento) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_mantenimiento.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_mantenimiento.php';
     } elseif ($es_ti) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_ti.php';
     } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_colaborativo.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_colaborativo.php';
     } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_gth.php';
     } else {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_normal.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_normal.php';
     }
     ?>
 
@@ -290,7 +287,7 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
             <!-- Encabezado -->
             <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"
+                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php"
                        class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-arrow-left"></i>
                     </a>
@@ -451,7 +448,7 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                                 </p>
 
                                 <form method="POST"
-                                      action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_firmar_mantenimiento.php"
+                                      action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/procesar_firmar_mantenimiento.php"
                                       id="formFirmar" novalidate>
                                     <input type="hidden" name="solicitud_id" value="<?php echo $solicitud_id; ?>">
                                     <input type="hidden" name="firma_usuario" id="firma_usuario_input">
@@ -546,7 +543,7 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
 
                             <?php if ($puede_subir_evidencias): ?>
                                 <div class="collapse mb-3" id="formSubirEvidencia">
-                                    <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_evidencia_mantenimiento.php"
+                                    <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/procesar_evidencia_mantenimiento.php"
                                           method="POST" enctype="multipart/form-data" class="border rounded p-3 bg-light">
                                         <input type="hidden" name="accion" value="subir_evidencia">
                                         <input type="hidden" name="solicitud_id" value="<?php echo $solicitud_id; ?>">
@@ -752,7 +749,7 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                 <h5 class="modal-title"><i class="bi bi-arrow-repeat me-2"></i><span id="modalEstadoTitulo">Actualizar Estado</span></h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_mantenimiento.php">
+            <form method="POST" action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/procesar_mantenimiento.php">
                 <div class="modal-body">
                     <input type="hidden" name="accion" value="cambiar_estado">
                     <input type="hidden" name="solicitud_id" value="<?php echo $solicitud_id; ?>">
@@ -793,7 +790,7 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                 <p class="text-muted small mb-0 mt-2">Esta acción no se puede deshacer.</p>
             </div>
             <div class="modal-footer">
-                <form method="POST" action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_evidencia_mantenimiento.php">
+                <form method="POST" action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/procesar_evidencia_mantenimiento.php">
                     <input type="hidden" name="accion" value="eliminar_evidencia">
                     <input type="hidden" name="solicitud_id" value="<?php echo $solicitud_id; ?>">
                     <input type="hidden" name="evidencia_id" id="evidIdEliminar">
@@ -866,8 +863,8 @@ $(document).ready(function() {
         lineWidth: 2,
         background: '#ffffff',
         'decor-color': 'transparent',
-        width: 600,
-        height: 200
+        width: '100%',
+        height: 150
     });
 
     const btnConfirmar = document.getElementById('btnConfirmarFirma');

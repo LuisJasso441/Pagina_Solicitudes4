@@ -1,7 +1,7 @@
 <?php
 /**
  * Solicitar Mantenimiento de Equipo (Nuevo Flujo - Solo Sistemas)
- * dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php
+ * dashboard/sistemas/ti_sistemas/mantenimientos/solicitar_mantenimiento.php
  *
  * Sistemas crea, selecciona usuario y equipo, y envia la solicitud al usuario
  * en un solo paso (estado inicial: pendiente).
@@ -11,9 +11,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
+require_once __DIR__ . '/../../../../includes/functions.php';
 
 // ------- Verificar sesion -------
 if (!isset($_SESSION['usuario_id'])) {
@@ -178,7 +178,7 @@ $current_page = basename(__FILE__);
 <div class="dashboard-container">
 
     <!-- SIDEBAR -->
-    <?php include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php'; ?>
+    <?php include __DIR__ . '/../../../../includes/sidebar/sidebar_ti.php'; ?>
 
     <!-- CONTENIDO PRINCIPAL -->
     <main class="main-content">
@@ -186,7 +186,7 @@ $current_page = basename(__FILE__);
 
             <!-- Encabezado -->
             <div class="d-flex align-items-center mb-3 flex-wrap gap-2">
-                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"
+                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php"
                    class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-left"></i>
                 </a>
@@ -208,7 +208,7 @@ $current_page = basename(__FILE__);
                 </div>
             <?php endif; ?>
 
-            <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/procesar_mantenimiento.php"
+            <form action="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/procesar_mantenimiento.php"
                   method="POST" id="formMantenimiento" novalidate>
                 <input type="hidden" name="accion" value="crear">
                 <input type="hidden" name="grupo_equipo" id="grupo_equipo"
@@ -390,7 +390,7 @@ $current_page = basename(__FILE__);
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-send me-1"></i> Enviar Solicitud
                             </button>
-                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"
+                            <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php"
                                class="btn btn-outline-secondary">
                                 <i class="bi bi-x-circle me-1"></i> Cancelar
                             </a>
@@ -448,7 +448,7 @@ $current_page = basename(__FILE__);
 <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
 
 <script>
-const URL_API = '<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/api_mantenimiento.php';
+const URL_API = '<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/api_mantenimiento.php';
 
 const PRESELECCION = {
     departamento_id: '<?php echo intval($form_data['departamento_id'] ?? 0); ?>',

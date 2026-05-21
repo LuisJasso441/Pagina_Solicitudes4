@@ -201,7 +201,7 @@ try {
             
             <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php">
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
                     <?php if ($mant_pendientes > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $mant_pendientes; ?></span>

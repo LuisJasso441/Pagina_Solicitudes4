@@ -1,7 +1,7 @@
 <?php
 /**
  * API Mantenimiento - Endpoints AJAX para cascada Departamento → Usuario → Equipos
- * dashboard/sistemas/ti_sistemas/api_mantenimiento.php
+ * dashboard/sistemas/ti_sistemas/mantenimientos/api_mantenimiento.php
  *
  * Acciones:
  *   GET  ?accion=usuarios&departamento_id=N
@@ -11,8 +11,8 @@
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
 
 // ------- Verificar sesión -------
 if (!isset($_SESSION['usuario_id'])) {

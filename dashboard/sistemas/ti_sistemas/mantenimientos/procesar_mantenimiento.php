@@ -1,7 +1,7 @@
 <?php
 /**
  * Procesar Solicitudes de Mantenimiento (Nuevo Flujo)
- * dashboard/sistemas/ti_sistemas/procesar_mantenimiento.php
+ * dashboard/sistemas/ti_sistemas/mantenimientos/procesar_mantenimiento.php
  *
  * Acciones:
  *   - crear          (solo Sistemas)  -> estado inicial: pendiente
@@ -12,9 +12,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
+require_once __DIR__ . '/../../../../includes/functions.php';
 
 // ------- Verificar sesion -------
 if (!isset($_SESSION['usuario_id'])) {
@@ -23,7 +23,7 @@ if (!isset($_SESSION['usuario_id'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
@@ -56,7 +56,7 @@ switch ($accion) {
     case 'cambiar_estado':
         if (!$es_sistemas) {
             establecer_alerta('error', 'No tiene permisos para realizar esta accion.');
-            header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+            header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
             exit;
         }
         cambiarEstado($pdo);
@@ -64,7 +64,7 @@ switch ($accion) {
 
     default:
         establecer_alerta('error', 'Accion no valida.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
         exit;
 }
 
@@ -176,7 +176,7 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
     if (!empty($errores)) {
         $_SESSION['form_errors'] = $errores;
         $_SESSION['form_data']   = $_POST;
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php');
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/solicitar_mantenimiento.php');
         exit;
     }
 
@@ -226,7 +226,7 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
         $pdo->commit();
 
         establecer_alerta('success', "Solicitud {$folio} creada y enviada al usuario {$usuario_destino['nombre_completo']}.");
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 
     } catch (Exception $e) {
@@ -234,7 +234,7 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
         error_log("Error al crear solicitud de mantenimiento: " . $e->getMessage());
         $_SESSION['form_errors'] = ['Error al crear la solicitud. Por favor, intente nuevamente.'];
         $_SESSION['form_data']   = $_POST;
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php');
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/solicitar_mantenimiento.php');
         exit;
     }
 }
@@ -249,7 +249,7 @@ function cambiarEstado($pdo) {
 
     if (!$solicitud_id) {
         establecer_alerta('error', 'ID de solicitud no valido.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
         exit;
     }
 
@@ -257,7 +257,7 @@ function cambiarEstado($pdo) {
     $estados_validos = ['en_proceso', 'finalizada', 'cancelada'];
     if (!in_array($nuevo_estado, $estados_validos)) {
         establecer_alerta('error', 'Estado no valido.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
         exit;
     }
 
@@ -341,14 +341,14 @@ function cambiarEstado($pdo) {
             'cancelada'  => 'Cancelada',
         ];
         establecer_alerta('success', "Solicitud {$solicitud['folio']} actualizada a: {$nombres_estado[$nuevo_estado]}");
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 
     } catch (Exception $e) {
         $pdo->rollBack();
         error_log("Error al cambiar estado de mantenimiento: " . $e->getMessage());
         establecer_alerta('error', 'Error al actualizar la solicitud: ' . $e->getMessage());
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 }
@@ -367,7 +367,7 @@ function notificarUsuarioReceptor($pdo, $solicitud_id, $folio, $usuario_id, $sis
     $datos = json_encode([
         'solicitud_id' => $solicitud_id,
         'folio'        => $folio,
-        'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id,
+        'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id,
     ]);
 
     $sql = "INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion)
@@ -398,7 +398,7 @@ function notificarCambioEstado($pdo, $solicitud, $nuevo_estado, $descripcion) {
         'solicitud_id' => $solicitud['id'],
         'folio'        => $solicitud['folio'],
         'estado'       => $nuevo_estado,
-        'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud['id'],
+        'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud['id'],
     ]);
 
     $sql = "INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion)

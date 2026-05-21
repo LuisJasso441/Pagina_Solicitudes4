@@ -10,9 +10,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
+require_once __DIR__ . '/../../../../includes/functions.php';
 
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -312,15 +312,15 @@ $current_page = basename(__FILE__);
 
     <?php
     if ($es_mantenimiento) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_mantenimiento.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_mantenimiento.php';
     } elseif ($es_ti) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_ti.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_ti.php';
     } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_colaborativo.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_colaborativo.php';
     } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_gth.php';
     } else {
-        include __DIR__ . '/../../../includes/sidebar/sidebar_normal.php';
+        include __DIR__ . '/../../../../includes/sidebar/sidebar_normal.php';
     }
     ?>
 
@@ -339,10 +339,16 @@ $current_page = basename(__FILE__);
                     </small>
                 </div>
                 <?php if ($es_ti): ?>
-                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/solicitar_mantenimiento.php"
-                       class="btn btn-primary">
-                        <i class="bi bi-plus-circle me-1"></i>Nueva Solicitud
-                    </a>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/crear_mantenimiento_historico.php"
+                           class="btn btn-outline-info">
+                            <i class="bi bi-clock-history me-1"></i>Registrar histórico
+                        </a>
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/solicitar_mantenimiento.php"
+                           class="btn btn-primary">
+                            <i class="bi bi-plus-circle me-1"></i>Nueva Solicitud
+                        </a>
+                    </div>
                 <?php endif; ?>
             </div>
 
@@ -490,7 +496,7 @@ $current_page = basename(__FILE__);
 
                         <?php if ($filtro_grupo || $filtro_prioridad || $busqueda || $filtro_estado): ?>
                             <div class="col-12">
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos.php"
+                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php"
                                    class="btn btn-link btn-sm p-0">
                                     <i class="bi bi-x-circle me-1"></i>Limpiar todos los filtros
                                 </a>
@@ -571,6 +577,9 @@ $current_page = basename(__FILE__);
                                         <tr class="<?php echo $row_class; ?>">
                                             <td>
                                                 <span class="folio"><?php echo htmlspecialchars($s['folio']); ?></span>
+                                                <?php if (!empty($s['es_historico'])): ?>
+                                                    <br><span class="badge bg-info mt-1"><i class="bi bi-clock-history"></i> Histórico</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <i class="bi <?php echo $grupos_iconos[$grupo] ?? 'bi-question-circle'; ?> me-1 text-muted"></i>
@@ -638,7 +647,12 @@ $current_page = basename(__FILE__);
                                                 </small>
                                             </td>
                                             <td class="text-center">
-                                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=<?php echo $s['id']; ?>"
+                                                <?php
+                                                $ver_archivo = !empty($s['es_historico'])
+                                                    ? 'ver_mantenimiento_historico.php'
+                                                    : 'ver_mantenimiento.php';
+                                                ?>
+                                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/<?php echo $ver_archivo; ?>?id=<?php echo $s['id']; ?>"
                                                    class="btn btn-sm btn-outline-primary" title="Ver detalle">
                                                     <i class="bi bi-eye"></i>
                                                 </a>

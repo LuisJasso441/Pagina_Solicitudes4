@@ -1,7 +1,7 @@
 <?php
 /**
  * Procesar Firma del Usuario (Segundo Cierre)
- * dashboard/sistemas/ti_sistemas/procesar_firmar_mantenimiento.php
+ * dashboard/sistemas/ti_sistemas/mantenimientos/procesar_firmar_mantenimiento.php
  *
  * Recibe la firma del usuario destinatario sobre una solicitud en estado
  * 'finalizada' y la cierra (estado: 'cerrada').
@@ -10,9 +10,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
+require_once __DIR__ . '/../../../../includes/functions.php';
 
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -20,7 +20,7 @@ if (!isset($_SESSION['usuario_id'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
@@ -34,38 +34,38 @@ $comentario_firma    = trim($_POST['comentario_firma'] ?? '');
 // ---------- Validaciones basicas ----------
 if (!$solicitud_id) {
     establecer_alerta('error', 'ID de solicitud no valido.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
 if (empty($firma_data)) {
     establecer_alerta('error', 'La firma es obligatoria. Por favor, dibuje su firma antes de confirmar.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
 // Validar formato de firma (base64 PNG)
 if (!preg_match('/^data:image\/(png|jpeg|jpg);base64,/', $firma_data)) {
     establecer_alerta('error', 'Formato de firma invalido.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
 if (empty($nombre_firma) || strlen($nombre_firma) < 3) {
     establecer_alerta('error', 'Debe escribir su nombre completo (mínimo 3 caracteres).');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
 if (strlen($nombre_firma) > 150) {
     establecer_alerta('error', 'El nombre es demasiado largo.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
 if (strlen($comentario_firma) > 1000) {
     establecer_alerta('error', 'El comentario es demasiado largo (máx. 1000 caracteres).');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
@@ -81,28 +81,28 @@ try {
 
     if (!$solicitud) {
         establecer_alerta('error', 'Solicitud no encontrada.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
         exit;
     }
 
     // Validar permisos: solo el usuario destinatario puede firmar
     if ($solicitud['usuario_id'] != $_SESSION['usuario_id']) {
         establecer_alerta('error', 'Solo el usuario destinatario de la solicitud puede firmarla.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
     // Validar estado: solo se puede firmar una solicitud finalizada
     if ($solicitud['estado'] !== 'finalizada') {
         establecer_alerta('error', 'Solo se pueden firmar solicitudes en estado "Finalizada". Estado actual: ' . $solicitud['estado']);
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
     // Si ya fue firmada antes (defensa contra doble click)
     if (!empty($solicitud['firma_usuario'])) {
         establecer_alerta('warning', 'Esta solicitud ya fue firmada anteriormente.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
@@ -141,7 +141,7 @@ try {
     $pdo->commit();
 
     establecer_alerta('success', "Firma registrada. La solicitud {$solicitud['folio']} ha sido cerrada correctamente.");
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 
 } catch (Exception $e) {
@@ -150,7 +150,7 @@ try {
     }
     error_log("Error al firmar mantenimiento: " . $e->getMessage());
     establecer_alerta('error', 'Error al guardar la firma. Por favor, intente nuevamente.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
@@ -169,7 +169,7 @@ function notificarFirmaUsuario($pdo, $solicitud, $usuario_nombre) {
         'solicitud_id' => $solicitud['id'],
         'folio'        => $solicitud['folio'],
         'estado'       => 'cerrada',
-        'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud['id'],
+        'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud['id'],
     ]);
 
     $sql_notif = "INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion)

@@ -1,7 +1,7 @@
 <?php
 /**
  * Procesar evidencias de Mantenimiento
- * dashboard/sistemas/ti_sistemas/procesar_evidencia_mantenimiento.php
+ * dashboard/sistemas/ti_sistemas/mantenimientos/procesar_evidencia_mantenimiento.php
  *
  * Acciones (solo Sistemas, solo si la solicitud no esta cerrada/cancelada):
  *   - subir_evidencia
@@ -9,9 +9,9 @@
  */
 
 session_start();
-require_once __DIR__ . '/../../../config/config.php';
-require_once __DIR__ . '/../../../config/database.php';
-require_once __DIR__ . '/../../../includes/functions.php';
+require_once __DIR__ . '/../../../../config/config.php';
+require_once __DIR__ . '/../../../../config/database.php';
+require_once __DIR__ . '/../../../../includes/functions.php';
 
 if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -19,7 +19,7 @@ if (!isset($_SESSION['usuario_id'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
@@ -39,7 +39,7 @@ $solicitud_id = intval($_POST['solicitud_id'] ?? 0);
 
 if (!$solicitud_id) {
     establecer_alerta('error', 'ID de solicitud no valido.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
@@ -50,14 +50,14 @@ $solicitud = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$solicitud) {
     establecer_alerta('error', 'Solicitud no encontrada.');
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos.php');
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
 }
 
 $estados_editables = ['pendiente', 'en_proceso', 'finalizada'];
 if (!in_array($solicitud['estado'], $estados_editables)) {
     establecer_alerta('error', "No se pueden modificar evidencias en una solicitud {$solicitud['estado']}.");
-    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+    header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
     exit;
 }
 
@@ -70,7 +70,7 @@ switch ($accion) {
         break;
     default:
         establecer_alerta('error', 'Accion no valida.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 }
 
@@ -83,7 +83,7 @@ function subirEvidencia($pdo, $solicitud) {
 
     if (empty($_FILES['evidencias']['name'][0])) {
         establecer_alerta('warning', 'No se selecciono ningun archivo.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
@@ -96,7 +96,7 @@ function subirEvidencia($pdo, $solicitud) {
     if ($existentes + $total_nuevos > 5) {
         $disponibles = max(0, 5 - $existentes);
         establecer_alerta('error', "Solo puedes subir {$disponibles} archivo(s) mas (limite: 5 por solicitud).");
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
@@ -131,20 +131,20 @@ function subirEvidencia($pdo, $solicitud) {
 
     if (!empty($errores)) {
         establecer_alerta('error', implode(' | ', $errores));
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
     if (empty($archivos_validos)) {
         establecer_alerta('warning', 'No hay archivos validos para subir.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
     try {
         $pdo->beginTransaction();
 
-        $base_dir = __DIR__ . '/../../../Imagenes_Mantenimientos';
+        $base_dir = __DIR__ . '/../../../../Imagenes_Mantenimientos';
         if (!is_dir($base_dir)) {
             @mkdir($base_dir, 0775, true);
         }
@@ -191,14 +191,14 @@ function subirEvidencia($pdo, $solicitud) {
         $pdo->commit();
 
         establecer_alerta('success', "{$subidos} archivo(s) subido(s) correctamente.");
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 
     } catch (Exception $e) {
         $pdo->rollBack();
         error_log("Error al subir evidencia: " . $e->getMessage());
         establecer_alerta('error', 'Error al subir las evidencias.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 }
@@ -212,7 +212,7 @@ function eliminarEvidencia($pdo, $solicitud) {
 
     if (!$evidencia_id) {
         establecer_alerta('error', 'ID de evidencia no valido.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 
@@ -223,14 +223,14 @@ function eliminarEvidencia($pdo, $solicitud) {
 
         if (!$evid) {
             establecer_alerta('error', 'Evidencia no encontrada.');
-            header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+            header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
             exit;
         }
 
         $pdo->beginTransaction();
 
         // Borrar archivo fisico
-        $ruta_completa = __DIR__ . '/../../../' . $evid['ruta_archivo'];
+        $ruta_completa = __DIR__ . '/../../../../' . $evid['ruta_archivo'];
         if (file_exists($ruta_completa)) {
             @unlink($ruta_completa);
         }
@@ -250,14 +250,14 @@ function eliminarEvidencia($pdo, $solicitud) {
         $pdo->commit();
 
         establecer_alerta('success', 'Evidencia eliminada correctamente.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 
     } catch (Exception $e) {
         $pdo->rollBack();
         error_log("Error al eliminar evidencia: " . $e->getMessage());
         establecer_alerta('error', 'Error al eliminar la evidencia.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_mantenimiento.php?id=' . $solicitud_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
 }
