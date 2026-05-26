@@ -57,6 +57,15 @@ $grupos_cards = [
 $fecha_registro = !empty($registro['fecha_finalizacion']) 
     ? date('Y-m-d', strtotime($registro['fecha_finalizacion'])) : date('Y-m-d');
 
+// Calcular duración guardada (diferencia atencion -> finalizacion)
+$dur_seg = 0;
+if (!empty($registro['fecha_atencion']) && !empty($registro['fecha_finalizacion'])) {
+    $dur_seg = strtotime($registro['fecha_finalizacion']) - strtotime($registro['fecha_atencion']);
+}
+$dur_total_min = max(0, (int) round($dur_seg / 60));
+$dur_horas     = intdiv($dur_total_min, 60);
+$dur_minutos   = $dur_total_min % 60;
+
 $current_page = basename(__FILE__);
 ?>
 <!DOCTYPE html>
@@ -186,7 +195,7 @@ $current_page = basename(__FILE__);
                         <div class="form-section">
                             <div class="form-section-title"><i class="bi bi-gear me-2"></i>Detalles del mantenimiento</div>
                             <div class="row g-3">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label class="form-label required">Tipo de mantenimiento</label>
                                     <div class="d-flex gap-3 mt-1">
                                         <div class="form-check form-check-inline">
@@ -199,10 +208,20 @@ $current_page = basename(__FILE__);
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <label for="fecha_realizado" class="form-label required">Fecha en que se realizó</label>
                                     <input type="date" name="fecha_realizado" id="fecha_realizado" class="form-control" max="<?php echo date('Y-m-d'); ?>" value="<?php echo $fecha_registro; ?>" required>
                                     <small class="text-muted">No puede ser una fecha futura.</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label required">Duración del mantenimiento</label>
+                                    <div class="input-group">
+                                        <input type="number" name="duracion_horas" id="duracion_horas" class="form-control" min="0" max="23" value="<?php echo $dur_horas; ?>" required>
+                                        <span class="input-group-text">h</span>
+                                        <input type="number" name="duracion_minutos" id="duracion_minutos" class="form-control" min="0" max="59" value="<?php echo $dur_minutos; ?>" required>
+                                        <span class="input-group-text">min</span>
+                                    </div>
+                                    <small class="text-muted">Tiempo que tomó realizarlo.</small>
                                 </div>
                             </div>
                         </div>

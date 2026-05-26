@@ -31,6 +31,8 @@ $es_ti            = in_array($departamento, ['ti', 'sistemas', 'ti_sistemas']);
 $filtro_estado    = $_GET['estado']    ?? '';
 $filtro_grupo     = $_GET['grupo']     ?? '';
 $filtro_prioridad = $_GET['prioridad'] ?? '';
+$filtro_tipo_mant = $_GET['tipo_mant'] ?? '';
+$filtro_registro  = $_GET['registro']  ?? '';
 $busqueda         = trim($_GET['buscar'] ?? '');
 $pagina           = max(1, intval($_GET['pagina'] ?? 1));
 $por_pagina       = 10;
@@ -38,6 +40,7 @@ $por_pagina       = 10;
 $estados_validos = ['pendiente', 'en_proceso', 'finalizada', 'cerrada', 'cancelada'];
 $grupos_validos  = ['computo', 'perifericos', 'impresoras', 'red', 'otros'];
 $prioridades_validas = ['alta', 'media', 'baja'];
+$tipos_mant_validos  = ['logico', 'fisico'];
 
 $where  = [];
 $params = [];
@@ -60,6 +63,17 @@ if ($filtro_grupo && in_array($filtro_grupo, $grupos_validos)) {
 if ($filtro_prioridad && in_array($filtro_prioridad, $prioridades_validas)) {
     $where[] = "sm.prioridad = ?";
     $params[] = $filtro_prioridad;
+}
+
+if ($filtro_tipo_mant && in_array($filtro_tipo_mant, $tipos_mant_validos)) {
+    $where[] = "sm.tipo_mantenimiento = ?";
+    $params[] = $filtro_tipo_mant;
+}
+
+if ($filtro_registro === 'programado') {
+    $where[] = "sm.es_historico = 0";
+} elseif ($filtro_registro === 'historico') {
+    $where[] = "sm.es_historico = 1";
 }
 
 if ($busqueda) {
@@ -457,7 +471,7 @@ $current_page = basename(__FILE__);
                     <form method="GET" class="row g-2 align-items-end">
                         <input type="hidden" name="estado" value="<?php echo htmlspecialchars($filtro_estado); ?>">
 
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label small mb-1">Tipo de Equipo</label>
                             <select name="grupo" class="form-select form-select-sm">
                                 <option value="">Todos</option>
@@ -466,6 +480,24 @@ $current_page = basename(__FILE__);
                                         <?php echo $nombre; ?>
                                     </option>
                                 <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Tipo de Mantenimiento</label>
+                            <select name="tipo_mant" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                <option value="fisico" <?php echo $filtro_tipo_mant === 'fisico' ? 'selected' : ''; ?>>Físico</option>
+                                <option value="logico" <?php echo $filtro_tipo_mant === 'logico' ? 'selected' : ''; ?>>Lógico</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Tipo de Registro</label>
+                            <select name="registro" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                <option value="programado" <?php echo $filtro_registro === 'programado' ? 'selected' : ''; ?>>Programado</option>
+                                <option value="historico" <?php echo $filtro_registro === 'historico' ? 'selected' : ''; ?>>Histórico</option>
                             </select>
                         </div>
 
@@ -481,20 +513,20 @@ $current_page = basename(__FILE__);
                             </select>
                         </div>
 
-                        <div class="col-md-5">
+                        <div class="col-md-4">
                             <label class="form-label small mb-1">Buscar (folio, descripción, usuario)</label>
                             <input type="text" name="buscar" class="form-control form-control-sm"
                                    placeholder="Escriba para buscar..."
                                    value="<?php echo htmlspecialchars($busqueda); ?>">
                         </div>
 
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <button type="submit" class="btn btn-primary btn-sm w-100">
                                 <i class="bi bi-funnel me-1"></i>Filtrar
                             </button>
                         </div>
 
-                        <?php if ($filtro_grupo || $filtro_prioridad || $busqueda || $filtro_estado): ?>
+                        <?php if ($filtro_grupo || $filtro_prioridad || $busqueda || $filtro_estado || $filtro_tipo_mant || $filtro_registro): ?>
                             <div class="col-12">
                                 <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php"
                                    class="btn btn-link btn-sm p-0">
@@ -536,6 +568,7 @@ $current_page = basename(__FILE__);
                                     <tr>
                                         <th>Folio</th>
                                         <th>Tipo</th>
+                                        <th class="text-center">Mantenimiento</th>
                                         <?php if ($es_ti): ?>
                                             <th>Usuario</th>
                                             <th>Departamento</th>
@@ -584,6 +617,15 @@ $current_page = basename(__FILE__);
                                             <td>
                                                 <i class="bi <?php echo $grupos_iconos[$grupo] ?? 'bi-question-circle'; ?> me-1 text-muted"></i>
                                                 <small><?php echo $grupos_nombres[$grupo] ?? '—'; ?></small>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if (($s['tipo_mantenimiento'] ?? '') === 'fisico'): ?>
+                                                    <span class="badge bg-primary"><i class="bi bi-tools"></i> Físico</span>
+                                                <?php elseif (($s['tipo_mantenimiento'] ?? '') === 'logico'): ?>
+                                                    <span class="badge bg-success"><i class="bi bi-cpu"></i> Lógico</span>
+                                                <?php else: ?>
+                                                    <span class="text-muted">—</span>
+                                                <?php endif; ?>
                                             </td>
                                             <?php if ($es_ti): ?>
                                                 <td>

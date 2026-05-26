@@ -200,7 +200,7 @@ try {
             <small class="text-white-50 px-3 fw-bold">Mantenimientos TI</small>
             
             <li class="nav-item">
-                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php']) ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php', 'solicitar_mantenimiento.php', 'crear_mantenimiento_historico.php', 'ver_mantenimiento_historico.php', 'editar_mantenimiento_historico.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
                     <?php if ($mant_pendientes > 0): ?>

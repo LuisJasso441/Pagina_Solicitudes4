@@ -37,7 +37,10 @@ $usuario_id         = (int) ($_POST['usuario_id'] ?? 0);
 $equipo_id          = (int) ($_POST['equipo_id'] ?? 0);
 $tipo_mantenimiento = trim($_POST['tipo_mantenimiento'] ?? '');
 $fecha_realizado    = trim($_POST['fecha_realizado'] ?? '');
+$duracion_horas     = (int) ($_POST['duracion_horas'] ?? 0);
+$duracion_minutos   = (int) ($_POST['duracion_minutos'] ?? 0);
 $descripcion        = trim($_POST['descripcion_trabajo'] ?? '');
+$total_minutos      = $duracion_horas * 60 + $duracion_minutos;
 
 $errores = [];
 if ($id <= 0) $errores[] = 'Registro inválido.';
@@ -54,6 +57,9 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_realizado)) {
     elseif ($ts > strtotime(date('Y-m-d') . ' 23:59:59')) $errores[] = 'La fecha no puede ser futura.';
 }
 if (strlen($descripcion) > 2000) $errores[] = 'La descripción no puede exceder 2000 caracteres.';
+if ($duracion_horas < 0 || $duracion_horas > 23) $errores[] = 'Horas de duración inválidas (0-23).';
+if ($duracion_minutos < 0 || $duracion_minutos > 59) $errores[] = 'Minutos de duración inválidos (0-59).';
+if ($total_minutos < 1) $errores[] = 'La duración debe ser de al menos 1 minuto.';
 
 if (!empty($errores)) {
     establecer_alerta('error', implode(' | ', $errores));
@@ -122,8 +128,8 @@ try {
         ':equipo_id'          => $equipo_id,
         ':desc_solucion'      => $descripcion ?: null,
         ':fecha_deseada'      => $fecha_realizado,
-        ':fecha_atencion'     => $fecha_realizado . ' 00:00:00',
-        ':fecha_finalizacion' => $fecha_realizado . ' 00:00:00',
+        ':fecha_atencion'     => $fecha_realizado . ' 09:00:00',
+        ':fecha_finalizacion' => date('Y-m-d H:i:s', strtotime($fecha_realizado . ' 09:00:00') + $total_minutos * 60),
         ':id'                 => $id,
     ]);
 

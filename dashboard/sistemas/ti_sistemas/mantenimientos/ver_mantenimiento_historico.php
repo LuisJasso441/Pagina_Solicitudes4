@@ -57,6 +57,21 @@ if (!$registro) {
     exit;
 }
 
+// Calcular duración del mantenimiento (fecha_atencion -> fecha_finalizacion)
+$duracion_texto = '—';
+if (!empty($registro['fecha_atencion']) && !empty($registro['fecha_finalizacion'])) {
+    $dur_seg = strtotime($registro['fecha_finalizacion']) - strtotime($registro['fecha_atencion']);
+    $dur_min = max(0, (int) round($dur_seg / 60));
+    if ($dur_min > 0) {
+        $h = intdiv($dur_min, 60);
+        $m = $dur_min % 60;
+        $partes = [];
+        if ($h > 0) $partes[] = $h . ' h';
+        if ($m > 0) $partes[] = $m . ' min';
+        $duracion_texto = implode(' ', $partes);
+    }
+}
+
 $current_page = basename(__FILE__);
 ?>
 <!DOCTYPE html>
@@ -164,6 +179,13 @@ $current_page = basename(__FILE__);
                                     <?php endif; ?>
                                 </td></tr>
                                 <tr><td class="text-muted">Fecha realizado:</td><td class="fw-semibold"><?php echo date('d/m/Y', strtotime($registro['fecha_finalizacion'])); ?></td></tr>
+                                <tr><td class="text-muted">Duración:</td><td>
+                                    <?php if ($duracion_texto !== '—'): ?>
+                                        <span class="badge bg-light text-dark border"><i class="bi bi-stopwatch"></i> <?php echo $duracion_texto; ?></span>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td></tr>
                                 <tr><td class="text-muted">Estado:</td><td><span class="badge bg-secondary">Cerrada</span></td></tr>
                                 <tr><td class="text-muted">Usuario asignado:</td><td>
                                     <?php echo $registro['usuario_nombre'] ? htmlspecialchars($registro['usuario_nombre']) : '<span class="text-muted fst-italic">Sin asignar</span>'; ?>
