@@ -206,7 +206,7 @@ function notificar_nuevo_comentario($documento, $autor_id, $autor_nombre, $autor
         // ========================================
         
         // Definir departamentos colaborativos (SSC)
-        $departamentos_colaborativos = ['ventas', 'normatividad', 'laboratorio'];
+        $departamentos_colaborativos = ['ventas', 'normatividad', 'laboratorio', 'ptar'];
         
         // Crear placeholders para IN clause
         $placeholders = str_repeat('?,', count($departamentos_colaborativos) - 1) . '?';

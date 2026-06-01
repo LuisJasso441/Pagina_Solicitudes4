@@ -129,7 +129,7 @@ function puede_leer_ssc() {
 function puede_crear_ssc() {
     // Solo Normatividad y Ventas pueden crear SSC
     $departamento = strtolower($_SESSION['departamento'] ?? '');
-    if (!in_array($departamento, ['normatividad', 'ventas'])) {
+    if (!in_array($departamento, ['normatividad', 'ventas', 'ptar'])) {
         return false;
     }
     

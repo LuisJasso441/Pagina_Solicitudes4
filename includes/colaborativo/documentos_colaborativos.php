@@ -129,7 +129,7 @@ function verificar_permisos_edicion($usuario_id, $departamento, $documento) {
     // 3. Tiene permiso de EDITOR en permisos_ssc
     if ($documento['estado'] != 'completado') {
         // Departamentos que pueden editar Apartado 1
-        $deptos_apartado1 = ['normatividad', 'ventas', 'direccion', 'dirección'];
+        $deptos_apartado1 = ['normatividad', 'ventas', 'direccion', 'dirección', 'ptar'];
         
         if (in_array($dept_usuario, $deptos_apartado1) && $dept_usuario == $dept_documento) {
             // Es del mismo departamento que creó el documento
@@ -170,10 +170,10 @@ function crear_documento_colaborativo($datos, $usuario_id, $departamento) {
         
         // Verificar que el usuario tenga permiso (Normatividad, Ventas o Dirección)
         $dept_lower = strtolower($departamento);
-        if (!in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección'])) {
+        if (!in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección', 'ptar'])) {
             return [
                 'success' => false,
-                'message' => 'Solo Normatividad, Ventas y Dirección pueden crear documentos colaborativos'
+                'message' => 'Solo Normatividad, Ventas, Dirección y PTAR pueden crear documentos colaborativos'
             ];
         }
         

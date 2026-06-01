@@ -23,14 +23,14 @@ $departamento = $_SESSION['departamento'];
 $dept_lower = strtolower($departamento);
 
 // Verificar que el usuario tenga acceso (Normatividad, Ventas, Laboratorio o Dirección)
-$departamentos_permitidos = ['normatividad', 'ventas', 'laboratorio', 'direccion', 'dirección'];
+$departamentos_permitidos = ['normatividad', 'ventas', 'laboratorio', 'direccion', 'dirección', 'ptar'];
 if (!in_array($dept_lower, $departamentos_permitidos)) {
     header('Location: ' . URL_BASE . 'dashboard/departamento.php');
     exit;
 }
 
 // Determinar vista y permisos
-$puede_crear = in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección']);
+$puede_crear = in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección', 'ptar']);
 $es_laboratorio = $dept_lower == 'laboratorio';
 $es_direccion = in_array($dept_lower, ['direccion', 'dirección']);
 
@@ -542,6 +542,7 @@ try {
                                 <option value="">Todos</option>
                                 <option value="Ventas" <?= $filtro_departamento == 'Ventas' ? 'selected' : '' ?>>Ventas</option>
                                 <option value="Normatividad" <?= $filtro_departamento == 'Normatividad' ? 'selected' : '' ?>>Normatividad</option>
+                                <option value="PTAR" <?= $filtro_departamento == 'PTAR' ? 'selected' : '' ?>>PTAR</option>
                             </select>
                         </div>
                         

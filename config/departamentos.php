@@ -82,7 +82,8 @@ $departamentos = [
         'nombre' => 'PTAR',
         'codigo' => 'PTAR',
         'icono' => 'bi-droplet',
-        'color' => '#0ea5e9'
+        'color' => '#0ea5e9',
+        'colaborativo' => true
     ],
     'seguridad' => [
         'nombre' => 'Seguridad',
@@ -124,7 +125,7 @@ $departamentos = [
 // ====================================
 
 // Departamentos que comparten base de datos colaborativa
-$departamentos_colaborativos = ['normatividad', 'ventas', 'laboratorio', 'direccion', 'dirección'];
+$departamentos_colaborativos = ['normatividad', 'ventas', 'laboratorio', 'direccion', 'dirección', 'ptar'];
 
 // ====================================
 // FUNCIONES AUXILIARES

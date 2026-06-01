@@ -22,7 +22,7 @@ $puede_crear_ssc = false;
 $departamento = $_SESSION['departamento'] ?? '';
 $dept_lower = strtolower($departamento);
 
-if (in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección'])) {
+if (in_array($dept_lower, ['normatividad', 'ventas', 'direccion', 'dirección', 'ptar'])) {
     try {
         require_once __DIR__ . '/../../config/database.php';
         $pdo_modal = conectarDB();
@@ -239,7 +239,7 @@ if ($puede_crear_ssc):
                         <i class="bi bi-x-circle"></i> Cancelar
                     </button>
                     <button type="submit" class="btn btn-primary" id="btnGuardarDocumento">
-                        <i class="bi bi-save"></i> Crear Documento
+                        <i class="bi bi-save"></i> Enviar SSC
                     </button>
                 </div>
             </form>
