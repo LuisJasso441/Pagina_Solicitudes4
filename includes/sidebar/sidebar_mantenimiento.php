@@ -83,18 +83,18 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                    <i class="bi bi-search"></i> Buscar
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php', 'solicitar_mantenimiento.php', 'crear_mantenimiento_historico.php', 'ver_mantenimiento_historico.php', 'editar_mantenimiento_historico.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php">
                     <i class="bi bi-wrench"></i> Mis Mantenimientos
                     <?php if ($mis_mant_pendientes > 0): ?>
                     <span class="badge bg-info ms-2"><?php echo $mis_mant_pendientes; ?></span>
                     <?php endif; ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'bitacora_aires.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/bitacora_aires.php">
+                    <i class="bi bi-snow"></i> Control Aire Acondicionado
                 </a>
             </li>
             

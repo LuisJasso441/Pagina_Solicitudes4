@@ -177,15 +177,15 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'inventario_sistemas.php' ? 'active' : ''; ?>" 
-                href="<?php echo URL_BASE; ?>dashboard/sistemas/inventario/inventario_sistemas.php">
-                    <i class="bi bi-box-seam"></i> Inventario Sistemas
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'equipos_por_usuario.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/equipos_por_usuario.php">
                     <i class="bi bi-people"></i> Equipos por Usuario
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'inventario_sistemas.php' ? 'active' : ''; ?>" 
+                href="<?php echo URL_BASE; ?>dashboard/sistemas/inventario/inventario_sistemas.php">
+                    <i class="bi bi-box-seam"></i> Inventario Sistemas
                 </a>
             </li>
             <li class="nav-item">
@@ -206,6 +206,16 @@ try {
                     <?php if ($mant_pendientes > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $mant_pendientes; ?></span>
                     <?php endif; ?>
+                </a>
+            </li>
+
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">BITÁCORAS</small>
+ 
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'bitacora_aires.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/bitacora_aires.php">
+                    <i class="bi bi-snow"></i> Bitácora Aires AC
                 </a>
             </li>
 

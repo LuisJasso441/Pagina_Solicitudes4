@@ -61,6 +61,12 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-wrench"></i> Mis Mantenimientos
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'bitacora_aires.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/bitacora_aires.php">
+                    <i class="bi bi-snow"></i> Control Aire Acondicionado
+                </a>
+            </li>
             
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>

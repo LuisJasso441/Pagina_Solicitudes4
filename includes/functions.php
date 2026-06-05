@@ -98,11 +98,6 @@ function es_usuario_colaborativo() {
     return isset($_SESSION['es_colaborativo']) && $_SESSION['es_colaborativo'] === true;
 }
 
-function es_usuario_epp() {
-    $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
-    return in_array($depto, ['almacen_refacciones', 'seguridad']);
-}
-
 /**
  * ⭐ Verificar si el usuario es administrador de área (módulo Vacaciones)
  * Para determinar si puede aprobar solicitudes de vacaciones

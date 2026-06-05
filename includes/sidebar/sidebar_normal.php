@@ -97,9 +97,9 @@ try {
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'buscar.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>solicitudes/buscar.php">
-                    <i class="bi bi-search"></i> Buscar
+                <a class="nav-link <?php echo $current_page == 'bitacora_aires.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/bitacora_aires.php">
+                    <i class="bi bi-snow"></i> Control Aire Acondicionado
                 </a>
             </li>
             
