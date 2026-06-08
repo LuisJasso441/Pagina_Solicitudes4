@@ -378,19 +378,12 @@ if (file_exists($logo_path_fs)) {
 
                     <!-- Acciones -->
                     <div class="ba-actions">
-                        <?php if (!$es_ti): ?>
-                            <button class="ba-btn-pedir"
-                                    id="btnPedirControl"
-                                    <?php echo $tiene_prestamo_activo ? 'disabled title="Ya tienes un control en préstamo activo"' : ''; ?>>
-                                <i class="bi bi-plus-lg"></i>
-                                Pedir Control
-                            </button>
-                        <?php else: ?>
-                            <span class="text-muted small">
-                                <i class="bi bi-shield-check me-1"></i>
-                                Vista Sistemas — todos los registros
-                            </span>
-                        <?php endif; ?>
+                        <button class="ba-btn-pedir"
+                                id="btnPedirControl"
+                                <?php echo $tiene_prestamo_activo ? 'disabled title="Ya tienes un control en préstamo activo"' : ''; ?>>
+                            <i class="bi bi-plus-lg"></i>
+                            Pedir Control
+                        </button>
 
                         <?php if ($es_ti): ?>
                             <a class="ba-btn-descargar" href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/descargar_bitacora_aires.php">
@@ -438,7 +431,7 @@ if (file_exists($logo_path_fs)) {
                                     <?php foreach ($registros as $reg):
                                         $activo    = ($reg['estado'] === 'activo');
                                         $es_mio    = ((int)$reg['usuario_id'] === $usuario_id);
-                                        $clickable = $activo && $es_mio && !$es_ti;
+                                        $clickable = $activo && $es_mio;
 
                                         $fecha_fmt = date('d/m/Y', strtotime($reg['fecha_prestamo']));
                                         $hora_p    = $reg['hora_prestamo'] ? substr($reg['hora_prestamo'], 0, 5) : '';
@@ -488,7 +481,6 @@ if (file_exists($logo_path_fs)) {
     <!-- ============================================================
          MODAL: Pedir Control
          ============================================================ -->
-    <?php if (!$es_ti): ?>
     <div class="modal fade ba-modal" id="modalPedirControl" tabindex="-1" aria-labelledby="modalPedirControlLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -585,7 +577,6 @@ if (file_exists($logo_path_fs)) {
         </div>
       </div>
     </div>
-    <?php endif; ?>
 
     <!-- Form oculto para enviar acción de pedir préstamo -->
     <form id="formPedir" method="POST" action="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/procesar_bitacora_aires.php" style="display:none;">
@@ -606,7 +597,6 @@ if (file_exists($logo_path_fs)) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
 
-    <?php if (!$es_ti): ?>
     <script>
     // ============================================================
     // Datos del usuario (preparados en PHP)
@@ -792,7 +782,6 @@ if (file_exists($logo_path_fs)) {
         document.getElementById('formDevolver').submit();
     });
     </script>
-    <?php endif; ?>
 
 </body>
 </html>

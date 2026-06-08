@@ -56,13 +56,6 @@ if ($accion === 'pedir') {
         exit;
     }
 
-    // Bloqueo: Sistemas no debe poder pedir el control desde aquí
-    if (ba_es_sistemas()) {
-        establecer_alerta('error', 'Los usuarios de Sistemas no pueden registrar préstamos desde esta vista.');
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/bitacora_aires/bitacora_aires.php');
-        exit;
-    }
-
     // Obtener departamento limpio del usuario (solo nombre, sin oficina/sala)
     $info_depto = ba_obtener_departamento_usuario($usuario_id);
     if (!$info_depto || empty($info_depto['nombre'])) {
