@@ -7,22 +7,22 @@
  */
 
 // Incluir config primero (ya inicia sesión)
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../../config/config.php';
+require_once __DIR__ . '/../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../config/database.php';
 
 // Verificar que sea usuario de TI (misma función que usa gestion_solicitudes.php)
 if (!es_usuario_ti()) {
     $_SESSION['error'] = "No tienes permiso para descargar estos registros.";
-    header('Location: gestion_solicitudes.php');
+    header('Location: ' . URL_BASE . 'dashboard/maestro/index.php');
     exit;
 }
 
 // Cargar autoloader de Composer
-$autoloadPath = __DIR__ . '/../vendor/autoload.php';
+$autoloadPath = __DIR__ . '/../../vendor/autoload.php';
 if (!file_exists($autoloadPath)) {
     $_SESSION['error'] = "PhpSpreadsheet no está instalado. Ejecuta: composer require phpoffice/phpspreadsheet";
-    header('Location: gestion_solicitudes.php');
+    header('Location: ' . URL_BASE . 'dashboard/maestro/index.php');
     exit;
 }
 require $autoloadPath;
@@ -78,7 +78,7 @@ try {
     
     if (empty($solicitudes)) {
         $_SESSION['error'] = "No hay solicitudes registradas en el mes actual para descargar.";
-        header('Location: gestion_solicitudes.php');
+        header('Location: ' . URL_BASE . 'dashboard/maestro/index.php');
         exit;
     }
     
@@ -154,6 +154,22 @@ try {
     $conteoDepartamentos = [];
     $conteoTipoSoporte = ['Apoyo' => 0, 'Problema' => 0];
     $conteoTecnicos = [];
+    
+    // Conteo cruzado: prioridad x tipo de soporte (orden alfabético igual que el ejemplo)
+    $conteoTipoPrioridad = [
+        'Alta'    => ['Apoyo' => 0, 'Problema' => 0],
+        'Baja'    => ['Apoyo' => 0, 'Problema' => 0],
+        'Crítica' => ['Apoyo' => 0, 'Problema' => 0],
+        'Media'   => ['Apoyo' => 0, 'Problema' => 0],
+    ];
+    
+    // Mapeo de prioridad de BD → etiqueta de gráfica
+    $prioridadDisplay = [
+        'alta'    => 'Alta',
+        'baja'    => 'Baja',
+        'critica' => 'Crítica',
+        'media'   => 'Media',
+    ];
     
     // Mapeo de estados para mostrar
     $estadosDisplay = [
@@ -248,6 +264,13 @@ try {
         
         if (isset($conteoTipoSoporte[$sol['tipo_soporte']])) {
             $conteoTipoSoporte[$sol['tipo_soporte']]++;
+        }
+        
+        // Acumular conteo cruzado tipo x prioridad
+        $prioridadKey = $prioridadDisplay[$sol['prioridad']] ?? null;
+        $tipoKey = $sol['tipo_soporte'] ?? null;
+        if ($prioridadKey !== null && $tipoKey !== null && isset($conteoTipoPrioridad[$prioridadKey][$tipoKey])) {
+            $conteoTipoPrioridad[$prioridadKey][$tipoKey]++;
         }
         
         if (!empty($sol['tecnico_nombre'])) {
@@ -403,7 +426,7 @@ try {
     
     // ========== GRÁFICAS ==========
     
-    // GRÁFICA 1: Solicitudes por Estado (Pastel)
+    // GRÁFICA 1: Solicitudes por Estado (Barras)
     $dataSeriesLabels1 = [
         new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'Estadísticas y Gráficas'!\$B\$2", null, 1)
     ];
@@ -415,17 +438,17 @@ try {
     ];
     
     $series1 = new DataSeries(
-        DataSeries::TYPE_PIECHART,
-        null,
+        DataSeries::TYPE_BARCHART,
+        DataSeries::GROUPING_STANDARD,
         range(0, count($dataSeriesValues1) - 1),
         $dataSeriesLabels1,
         $xAxisTickValues1,
         $dataSeriesValues1
     );
+    $series1->setPlotDirection(DataSeries::DIRECTION_COL);
     
     $layout1 = new Layout();
     $layout1->setShowVal(true);
-    $layout1->setShowPercent(true);
     
     $plotArea1 = new PlotArea($layout1, [$series1]);
     $legend1 = new Legend(Legend::POSITION_RIGHT, null, false);
@@ -531,8 +554,74 @@ try {
     $chart3->setTopLeftPosition('L2');
     $chart3->setBottomRightPosition('S16');
     $sheet2->addChart($chart3);
+        
+    // ========== TABLA 5: SOLICITUDES POR TIPO Y PRIORIDAD ==========
+    $startRowT5 = $rowTabla3 + 3;
+    $sheet2->setCellValue('A' . $startRowT5, 'SOLICITUDES POR TIPO Y PRIORIDAD');
+    $sheet2->mergeCells('A' . $startRowT5 . ':C' . $startRowT5);
+    $sheet2->getStyle('A' . $startRowT5 . ':C' . $startRowT5)->applyFromArray($titleStyle);
     
-    // GRÁFICA 4: Eliminada - La tabla de técnicos se mantiene vacía
+    // Encabezados (Prioridad / Apoyo / Problema)
+    $sheet2->setCellValue('A' . ($startRowT5 + 1), 'Prioridad');
+    $sheet2->setCellValue('B' . ($startRowT5 + 1), 'Apoyo');
+    $sheet2->setCellValue('C' . ($startRowT5 + 1), 'Problema');
+    $sheet2->getStyle('A' . ($startRowT5 + 1) . ':C' . ($startRowT5 + 1))->applyFromArray($tableHeaderStyle);
+    
+    $rowTabla5 = $startRowT5 + 2;
+    $startDataT5 = $rowTabla5;
+    foreach ($conteoTipoPrioridad as $prioridad => $tipos) {
+        $sheet2->setCellValue('A' . $rowTabla5, $prioridad);
+        $sheet2->setCellValue('B' . $rowTabla5, $tipos['Apoyo']);
+        $sheet2->setCellValue('C' . $rowTabla5, $tipos['Problema']);
+        $sheet2->getStyle('A' . $rowTabla5 . ':C' . $rowTabla5)->applyFromArray($cellStyle);
+        $rowTabla5++;
+    }
+    $lastRowT5 = $rowTabla5 - 1;
+    
+    // GRÁFICA 5: Solicitudes por Tipo y Prioridad (Barras agrupadas)
+    $dataSeriesLabels5 = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'Estadísticas y Gráficas'!\$B\$" . ($startRowT5 + 1), null, 1), // Apoyo
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'Estadísticas y Gráficas'!\$C\$" . ($startRowT5 + 1), null, 1), // Problema
+    ];
+    $xAxisTickValues5 = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, "'Estadísticas y Gráficas'!\$A\$" . $startDataT5 . ":\$A\$" . $lastRowT5, null, 4)
+    ];
+    $dataSeriesValues5 = [
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'Estadísticas y Gráficas'!\$B\$" . $startDataT5 . ":\$B\$" . $lastRowT5, null, 4), // Apoyo
+        new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, "'Estadísticas y Gráficas'!\$C\$" . $startDataT5 . ":\$C\$" . $lastRowT5, null, 4), // Problema
+    ];
+    
+    $series5 = new DataSeries(
+        DataSeries::TYPE_BARCHART,
+        DataSeries::GROUPING_CLUSTERED,
+        range(0, count($dataSeriesValues5) - 1),
+        $dataSeriesLabels5,
+        $xAxisTickValues5,
+        $dataSeriesValues5
+    );
+    $series5->setPlotDirection(DataSeries::DIRECTION_COL);
+    
+    $layout5 = new Layout();
+    $layout5->setShowVal(true);
+    
+    $plotArea5 = new PlotArea($layout5, [$series5]);
+    $legend5 = new Legend(Legend::POSITION_RIGHT, null, false);
+    $title5 = new Title('Solicitudes por Tipo y Prioridad');
+    
+    $chart5 = new Chart(
+        'chart5',
+        $title5,
+        $legend5,
+        $plotArea5,
+        true,
+        DataSeries::EMPTY_AS_GAP,
+        null,
+        null
+    );
+    
+    $chart5->setTopLeftPosition('L18');
+    $chart5->setBottomRightPosition('S35');
+    $sheet2->addChart($chart5);
     
     // Activar la primera hoja al abrir
     $spreadsheet->setActiveSheetIndex(0);
@@ -565,6 +654,6 @@ try {
 } catch (Exception $e) {
     error_log("Error al generar Excel de solicitudes: " . $e->getMessage());
     $_SESSION['error'] = "Error al generar el archivo Excel: " . $e->getMessage();
-    header('Location: gestion_solicitudes.php');
+    header('Location: ' . URL_BASE . 'dashboard/maestro/index.php');
     exit;
 }

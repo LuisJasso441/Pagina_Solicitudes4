@@ -404,6 +404,69 @@ $current_page = basename(__FILE__);
             </div>
 
             <!-- =========================================================
+                 SECCION: SOLICITUDES DE ATENCIÓN
+                 ========================================================= -->
+            <div class="maestro-seccion">
+                <div class="maestro-seccion-titulo">
+                    <i class="bi bi-headset"></i>
+                    Solicitudes de Atención
+                </div>
+
+                <div class="row g-3">
+
+                    <!-- =====================================================
+                         REPORTE: DB del mes actual
+                         ===================================================== -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="descarga-card">
+                            <div class="descarga-card-icon verde">
+                                <i class="bi bi-file-earmark-excel"></i>
+                            </div>
+                            <div class="descarga-card-title">DB Solicitudes de Atención</div>
+                            <div class="descarga-card-desc">
+                                Base de datos completa de solicitudes del <strong>mes en curso</strong>, con tablas y gráficas estadísticas.
+                            </div>
+                            <div class="descarga-card-meta">
+                                <span class="badge-codigo">SOL-AT-01</span> · Mes actual
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-success btn-descargar mt-2"
+                                    onclick="descargarExcelSolicitudes()">
+                                <i class="bi bi-download me-1"></i>Descargar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- =====================================================
+                         REPORTE: DB por rango de fechas
+                         ===================================================== -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="descarga-card">
+                            <div class="descarga-card-icon azul">
+                                <i class="bi bi-calendar-range"></i>
+                            </div>
+                            <div class="descarga-card-title">DB Solicitudes por Rango</div>
+                            <div class="descarga-card-desc">
+                                Base de datos de solicitudes filtradas por <strong>rango de fechas personalizado</strong>, con tablas y gráficas estadísticas.
+                            </div>
+                            <div class="descarga-card-meta">
+                                <span class="badge-codigo">SOL-AT-02</span> · Rango personalizado
+                            </div>
+
+                            <button type="button"
+                                    class="btn btn-primary btn-descargar mt-2"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalDescargarRango">
+                                <i class="bi bi-calendar-range me-1"></i>Seleccionar rango
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <!-- =========================================================
                  ESPACIO PARA OTRAS SECCIONES FUTURAS
                  ========================================================= -->
             <div class="maestro-seccion">
@@ -436,6 +499,72 @@ $current_page = basename(__FILE__);
     </main>
 </div>
 
+<!-- ============================================================
+     MODALES — SOLICITUDES DE ATENCIÓN
+     ============================================================ -->
+
+<!-- Modal de procesamiento de descarga -->
+<div class="modal fade" id="modalProcesandoDescarga" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-success mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Procesando...</span>
+                </div>
+                <h5 class="mb-2">Procesando descarga...</h5>
+                <p class="text-muted mb-3">Su archivo se está procesando para descargarse.<br>Por favor espere.</p>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para seleccionar rango de fechas -->
+<div class="modal fade" id="modalDescargarRango" tabindex="-1" aria-labelledby="modalDescargarRangoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="modalDescargarRangoLabel">
+                    <i class="bi bi-calendar-range me-2"></i>Descargar por Rango de Fechas
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Seleccione el rango de fechas para filtrar las solicitudes a descargar.</p>
+
+                <div id="errorRangoFechas" class="alert alert-danger d-none" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i><span id="errorRangoTexto"></span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="rango_fecha_desde" class="form-label">
+                            <i class="bi bi-calendar-event"></i> Fecha Desde *
+                        </label>
+                        <input type="date" class="form-control" id="rango_fecha_desde" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="rango_fecha_hasta" class="form-label">
+                            <i class="bi bi-calendar-event"></i> Fecha Hasta *
+                        </label>
+                        <input type="date" class="form-control" id="rango_fecha_hasta" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>Cancelar
+                </button>
+                <button type="button" class="btn btn-info" onclick="descargarExcelRango()">
+                    <i class="bi bi-download me-1"></i>Descargar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
 <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
@@ -451,6 +580,71 @@ document.getElementById('formReporte2').addEventListener('submit', function(e) {
         return false;
     }
 });
+
+// =====================================================================
+// SOLICITUDES DE ATENCIÓN — Descargas
+// =====================================================================
+
+// Descargar Excel del mes actual
+function descargarExcelSolicitudes() {
+    const modal = new bootstrap.Modal(document.getElementById('modalProcesandoDescarga'));
+    modal.show();
+
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = '<?php echo URL_BASE; ?>dashboard/maestro/descargar_solicitudes_excel.php';
+    document.body.appendChild(iframe);
+
+    setTimeout(function() {
+        modal.hide();
+        setTimeout(function() {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 5000);
+}
+
+// Descargar Excel por rango de fechas
+function descargarExcelRango() {
+    const fechaDesde = document.getElementById('rango_fecha_desde').value;
+    const fechaHasta = document.getElementById('rango_fecha_hasta').value;
+    const errorDiv = document.getElementById('errorRangoFechas');
+    const errorTexto = document.getElementById('errorRangoTexto');
+
+    errorDiv.classList.add('d-none');
+
+    if (!fechaDesde || !fechaHasta) {
+        errorTexto.textContent = 'Ambas fechas son obligatorias.';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+
+    if (fechaDesde > fechaHasta) {
+        errorTexto.textContent = 'La fecha "Desde" no puede ser mayor que la fecha "Hasta".';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+
+    const modalRango = bootstrap.Modal.getInstance(document.getElementById('modalDescargarRango'));
+    modalRango.hide();
+
+    const modalProcesando = new bootstrap.Modal(document.getElementById('modalProcesandoDescarga'));
+    modalProcesando.show();
+
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = '<?php echo URL_BASE; ?>dashboard/maestro/descargar_solicitudes_excel_rango.php?fecha_desde=' +
+            encodeURIComponent(fechaDesde) + '&fecha_hasta=' + encodeURIComponent(fechaHasta);
+    document.body.appendChild(iframe);
+
+    setTimeout(function() {
+        modalProcesando.hide();
+        document.getElementById('rango_fecha_desde').value = '';
+        document.getElementById('rango_fecha_hasta').value = '';
+        setTimeout(function() {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 5000);
+}
 </script>
 
 </body>
