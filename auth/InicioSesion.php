@@ -26,12 +26,12 @@
       <form action="procesar_login.php" method="POST">
         
         <div class="field">
-          <input type="text" name="usuario" id="usuario" required>
+          <input type="text" name="usuario" id="usuario" autocomplete="username" required>
           <label>Nombre de usuario</label>
         </div>
 
         <div class="field">
-          <input type="password" name="password" id="password" required>
+          <input type="password" name="password" id="password" autocomplete="current-password" required>
           <label>Contraseña</label>
         </div>
 
