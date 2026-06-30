@@ -265,10 +265,29 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                             <td><div class="form-check d-flex justify-content-center"><input type="checkbox" name="osm_editor" value="1" class="form-check-input" <?php echo (!empty($form_data['osm_editor'])) ? 'checked' : ''; ?>></div></td>
                                         </tr>
                                         <tr>
-                                            <td><strong>Cotizaciones CQR</strong><br><small class="text-muted">Cotizaciones de Qu&iacute;micos y/o Residuos</small></td>
-                                            <td><div class="form-check d-flex justify-content-center"><input type="checkbox" class="form-check-input" checked disabled></div><input type="hidden" name="cqr_lector" value="1"></td>
-                                            <td><div class="form-check d-flex justify-content-center"><input type="checkbox" name="cqr_creador" value="1" class="form-check-input" <?php echo (!empty($form_data['cqr_creador'])) ? 'checked' : ''; ?>></div></td>
-                                            <td><div class="form-check d-flex justify-content-center"><input type="checkbox" name="cqr_editor" value="1" class="form-check-input" <?php echo (!empty($form_data['cqr_editor'])) ? 'checked' : ''; ?>></div></td>
+                                            <td><strong>Cotizaciones CQR</strong><br><small class="text-muted">...</small></td>
+                                            <td>...</td>
+                                            <td>...<input type="checkbox" name="cqr_creador" ...></td>
+                                            <td>...<input type="checkbox" name="cqr_editor" ...></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Salidas SEC</strong><br><small class="text-muted">Salidas de Envases para Clientes</small></td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" class="form-check-input" checked disabled>
+                                                </div>
+                                                <input type="hidden" name="sec_lector" value="1">
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="sec_creador" value="1" class="form-check-input" <?php echo (!empty($form_data['sec_creador'])) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="sec_editor" value="1" class="form-check-input" <?php echo (!empty($form_data['sec_editor'])) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>

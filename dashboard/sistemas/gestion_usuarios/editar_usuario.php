@@ -49,7 +49,10 @@ $sql = "SELECT
             po.editor AS osm_editor,
             pc.lector AS cqr_lector,
             pc.creador AS cqr_creador,
-            pc.editor AS cqr_editor
+            pc.editor AS cqr_editor,
+            pse.lector AS sec_lector,
+            pse.creador AS sec_creador,
+            pse.editor AS sec_editor
         FROM usuarios u
         LEFT JOIN departamentos d ON u.departamento_id = d.id
         LEFT JOIN usuarios uc ON u.created_by = uc.id
@@ -57,6 +60,7 @@ $sql = "SELECT
         LEFT JOIN permisos_ssc ps ON u.id = ps.user_id
         LEFT JOIN permisos_osm po ON u.id = po.user_id
         LEFT JOIN permisos_cqr pc ON u.id = pc.user_id
+        LEFT JOIN permisos_sec pse ON u.id = pse.user_id
         WHERE u.id = ?";
 
 $stmt = $pdo->prepare($sql);
@@ -364,6 +368,28 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                 <div class="form-check d-flex justify-content-center">
                                                     <input type="checkbox" name="cqr_editor" value="1" class="form-check-input" 
                                                            id="cqr_editor" <?php echo ($form_data['cqr_editor'] ?? 0) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Salidas SEC</strong><br><small class="text-muted">Salidas de Envases para Clientes</small></td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="sec_lector_visual" value="1" class="form-check-input"
+                                                           id="sec_lector" checked disabled>
+                                                </div>
+                                                <input type="hidden" name="sec_lector" value="1">
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="sec_creador" value="1" class="form-check-input"
+                                                           id="sec_creador" <?php echo ($form_data['sec_creador'] ?? 0) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="sec_editor" value="1" class="form-check-input"
+                                                           id="sec_editor" <?php echo ($form_data['sec_editor'] ?? 0) ? 'checked' : ''; ?>>
                                                 </div>
                                             </td>
                                         </tr>

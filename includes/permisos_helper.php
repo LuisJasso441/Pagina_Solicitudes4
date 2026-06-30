@@ -138,21 +138,25 @@ function puede_crear_ssc() {
 }
 
 /**
- * Verifica si el usuario puede EDITAR documentos SSC
- * @return bool
- */
-function puede_editar_ssc() {
-    $permisos = obtener_permisos_ssc();
-    return $permisos && $permisos['editor'] == 1;
-}
-
-/**
  * Verifica si el usuario es del departamento de Mantenimiento
  * @return bool
  */
-function es_mantenimiento() {
-    $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
-    return $departamento === 'mantenimiento';
+if (!function_exists('es_mantenimiento')) {
+    function es_mantenimiento() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'mantenimiento';
+    }
+}
+
+/**
+ * Verifica si el usuario es del departamento de Sistemas
+ * @return bool
+ */
+if (!function_exists('es_sistemas')) {
+    function es_sistemas() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'sistemas';
+    }
 }
 
 /**
@@ -162,4 +166,83 @@ function es_mantenimiento() {
 function es_sistemas() {
     $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
     return $departamento === 'sistemas';
+}
+
+// ====================================
+// PERMISOS SEC (Salidas de Envases para Clientes)
+// ====================================
+
+/**
+ * Obtener permisos SEC del usuario actual
+ * @return array ['lector' => 0|1, 'creador' => 0|1, 'editor' => 0|1]
+ */
+function obtener_permisos_sec() {
+    $usuario_id = $_SESSION['usuario_id'] ?? 0;
+    if (!$usuario_id) {
+        return ['lector' => 0, 'creador' => 0, 'editor' => 0];
+    }
+    try {
+        $pdo = conectarDB();
+        $stmt = $pdo->prepare("SELECT lector, creador, editor FROM permisos_sec WHERE user_id = ?");
+        $stmt->execute([$usuario_id]);
+        $permisos = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$permisos) {
+            return ['lector' => 1, 'creador' => 0, 'editor' => 0];
+        }
+        return $permisos;
+    } catch (Exception $e) {
+        error_log("Error obtener_permisos_sec: " . $e->getMessage());
+        return ['lector' => 1, 'creador' => 0, 'editor' => 0];
+    }
+}
+
+/**
+ * @return bool
+ */
+function puede_leer_sec() {
+    $permisos = obtener_permisos_sec();
+    return $permisos && $permisos['lector'] == 1;
+}
+
+/**
+ * Pueden crear SEC: Logística y Ventas (con permiso de creador activo)
+ * @return bool
+ */
+function puede_crear_sec() {
+    $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+    if (!in_array($departamento, ['logistica', 'ventas'])) {
+        return false;
+    }
+    $permisos = obtener_permisos_sec();
+    return $permisos && $permisos['creador'] == 1;
+}
+
+/**
+ * @return bool
+ */
+function puede_editar_sec() {
+    $permisos = obtener_permisos_sec();
+    return $permisos && $permisos['editor'] == 1;
+}
+
+/**
+ * Solo Logística gestiona Unidades de Transporte y crea Disponibilidad
+ * @return bool
+ */
+if (!function_exists('es_logistica')) {
+    function es_logistica() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'logistica';
+    }
+}
+
+/**
+ * Almacén de Residuos: firma Entrega/Recibe y sube evidencias
+ * @return bool
+ */
+if (!function_exists('es_almacen_residuos')) {
+    function es_almacen_residuos() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'almacen_residuos';
+    }
 }

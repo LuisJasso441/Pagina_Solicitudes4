@@ -114,6 +114,11 @@ if ($accion === 'crear') {
     $cqr_creador = isset($_POST['cqr_creador']) ? 1 : 0;
     $cqr_editor = isset($_POST['cqr_editor']) ? 1 : 0;
     
+    // Permisos SEC
+    $sec_lector = 1;
+    $sec_creador = isset($_POST['sec_creador']) ? 1 : 0;
+    $sec_editor = isset($_POST['sec_editor']) ? 1 : 0;
+    
     // Si se vincula con empleado, obtener datos del empleado
     $empleado_datos = null;
     if ($empleado_gth_id > 0) {
@@ -221,6 +226,10 @@ if ($accion === 'crear') {
         $pdo->prepare("INSERT INTO permisos_cqr (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
             ->execute([$nuevo_usuario_id, $cqr_lector, $cqr_creador, $cqr_editor]);
         
+        // Insertar permisos SEC
+        $pdo->prepare("INSERT INTO permisos_sec (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
+            ->execute([$nuevo_usuario_id, $sec_lector, $sec_creador, $sec_editor]);
+        
         // Vincular con empleado_gth
         if ($empleado_gth_id > 0 && $empleado_datos) {
             $pdo->prepare("UPDATE empleados_gth SET usuario_id = ?, updated_at = NOW(), updated_by = ? WHERE id = ?")
@@ -279,6 +288,11 @@ elseif ($accion === 'editar') {
     $cqr_lector = 1;
     $cqr_creador = isset($_POST['cqr_creador']) ? 1 : 0;
     $cqr_editor = isset($_POST['cqr_editor']) ? 1 : 0;
+    
+    // Permisos SEC
+    $sec_lector = 1;
+    $sec_creador = isset($_POST['sec_creador']) ? 1 : 0;
+    $sec_editor = isset($_POST['sec_editor']) ? 1 : 0;
     
     // Validaciones
     if (empty($nombre_completo)) {
@@ -388,6 +402,11 @@ elseif ($accion === 'editar') {
         $pdo->prepare("INSERT INTO permisos_cqr (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
             ->execute([$id, $cqr_lector, $cqr_creador, $cqr_editor]);
+        
+        // Actualizar permisos SEC
+        $pdo->prepare("INSERT INTO permisos_sec (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
+            ->execute([$id, $sec_lector, $sec_creador, $sec_editor]);
         
         $pdo->commit();
         
