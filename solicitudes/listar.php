@@ -149,6 +149,8 @@ function obtener_texto_prioridad($prioridad) {
             include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
         } elseif (es_mantenimiento()) {
             include __DIR__ . '/../includes/sidebar/sidebar_mantenimiento.php';
+        } elseif (in_array(strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''), ['logistica', 'almacen_residuos'])) {
+            include __DIR__ . '/../includes/sidebar/sidebar_sec.php';
         } else {
             include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
         }

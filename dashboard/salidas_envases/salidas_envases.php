@@ -123,7 +123,7 @@ $folio_flash = $_GET['folio'] ?? null;
 
         <?php
         if (in_array($dept, ['logistica', 'almacen_residuos'])) {
-            include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
         } elseif ($dept === 'ventas') {
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
         } else {

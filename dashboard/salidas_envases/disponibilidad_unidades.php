@@ -117,8 +117,8 @@ unset($_SESSION['disponibilidad_errores']);
     <div class="dashboard-container">
 
         <?php
-        if ($dept === 'logistica') {
-            include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
+        if (in_array($dept, ['logistica', 'almacen_residuos'])) {
+            include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
         } elseif ($dept === 'ventas') {
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
         } else {

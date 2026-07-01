@@ -1,10 +1,11 @@
 <?php
 /**
- * Nueva SEC — Crear Salida de Envases para Clientes
+ * Editar SEC — modificar líneas (sólo si estado = enviada)
  *
- * Ubicación: dashboard/salidas_envases/nueva_sec.php
+ * Ubicación: dashboard/salidas_envases/editar_sec.php
  *
- * Sólo Logística y Ventas (con permiso creador=1).
+ * Sólo Logística o Ventas con permiso de creador.
+ * Fecha del documento y firma de Solicita quedan congeladas (no editables).
  */
 
 session_start();
@@ -24,29 +25,51 @@ if (sesion_expirada()) {
 }
 actualizar_sesion();
 
-if (!puede_crear_sec()) {
-    establecer_alerta('error', 'No tienes permisos para crear Salidas de Envases.');
+$id_sec = (int)($_GET['id'] ?? 0);
+if ($id_sec <= 0) {
+    establecer_alerta('error', 'SEC no especificada.');
     redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+}
+
+$sec = obtener_sec_por_id($id_sec);
+if (!$sec) {
+    establecer_alerta('error', 'La SEC no existe.');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+}
+
+if (!puede_crear_sec() || !sec_es_editable($sec)) {
+    establecer_alerta('error', 'No tienes permisos para editar esta SEC o ya no es editable.');
+    redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$id_sec");
 }
 
 $nombre_usuario = $_SESSION['nombre_completo'];
 $usuario_id     = $_SESSION['usuario_id'];
 $dept           = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
 
-// Datos para selectores
 $unidades = obtener_unidades_transporte(true);
 
-// Errores de validación si vienen de un intento previo
+// Preparar líneas existentes para precarga JS
+$lineas_actuales = [];
+foreach ($sec['lineas'] as $idx => $l) {
+    $lineas_actuales[] = [
+        'cantidad'     => (int)$l['cantidad'],
+        'tipo_envase'  => $l['tipo_envase'],
+        'slot_id'      => (int)$l['slot_id'],
+        'unidad_id'    => (int)$l['unidad_transporte_id'],
+        'unidad_label' => ($l['unidad_nombre'] ?? '') . ' (' . ($l['unidad_placas'] ?? '') . ')',
+        'slot_label'   => ($l['slot_hora_inicio'] ? substr($l['slot_hora_inicio'],0,5) . ' - ' . substr($l['slot_hora_fin'],0,5) : '')
+    ];
+}
+
 $errores_flash = $_SESSION['sec_errores'] ?? [];
-$datos_previos = $_SESSION['sec_datos_previos'] ?? [];
-unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
+unset($_SESSION['sec_errores']);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva SEC | <?php echo NOMBRE_SISTEMA; ?></title>
+    <title>Editar <?php echo htmlspecialchars($sec['folio']); ?> | <?php echo NOMBRE_SISTEMA; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -72,20 +95,13 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
             background: white; border: 1px solid #ced4da; border-radius: 6px;
             padding: 0.5rem 0.75rem; cursor: pointer; min-height: 50px;
             display: flex; align-items: center; justify-content: space-between;
-            transition: all 0.2s;
         }
         .unidad-selector:hover { border-color: #14b8a6; }
         .unidad-selector.seleccionada { border-color: #14b8a6; background: #f0fdfa; }
         .unidad-selector .placeholder { color: #6c757d; font-style: italic; }
-        .firma-canvas-wrapper {
-            border: 2px dashed #ced4da; border-radius: 8px;
-            background: #fff; position: relative; overflow: hidden;
-        }
-        .firma-canvas-wrapper canvas { display: block; width: 100%; height: 180px; }
-        .firma-actions { position: absolute; top: 8px; right: 8px; }
         .unidad-item {
             border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; margin-bottom: 8px;
-            cursor: pointer; transition: all 0.2s;
+            cursor: pointer;
         }
         .unidad-item:hover { border-color: #14b8a6; background: #f0fdfa; }
         .unidad-item .nombre { font-weight: 600; }
@@ -102,16 +118,23 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
         }
         .slot-libre-pill:hover { background: #a7f3d0; }
         .placa-cell { font-family: 'Courier New', monospace; font-weight: 600; }
+        .alert-info-edicion {
+            background: #fff8e1; border-left: 4px solid #f59e0b; color: #856404;
+            padding: 0.75rem 1rem; border-radius: 6px;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
     <div class="dashboard-container">
 
         <?php
-        if ($dept === 'logistica') {
+        if (in_array($dept, ['logistica', 'almacen_residuos'])) {
             include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
-        } else {
+        } elseif ($dept === 'ventas') {
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
+        } else {
+            include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
         }
         ?>
 
@@ -121,21 +144,27 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                 <div class="page-header">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <h1><i class="bi bi-plus-square"></i> Nueva Salida de Envases</h1>
+                            <h1><i class="bi bi-pencil-square"></i> Editar <?php echo htmlspecialchars($sec['folio']); ?></h1>
                             <p class="text-muted mb-0" style="font-size: 0.85rem;">
-                                Creando como <strong><?php echo htmlspecialchars($nombre_usuario); ?></strong> ·
-                                Departamento: <strong><?php echo htmlspecialchars(ucfirst($dept)); ?></strong>
+                                Fecha: <strong><?php echo htmlspecialchars($sec['fecha_documento']); ?></strong> ·
+                                Solicita: <strong><?php echo htmlspecialchars($sec['solicita_nombre']); ?></strong>
                             </p>
                         </div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Cancelar
+                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/ver_sec.php?id=<?php echo $id_sec; ?>" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar edición
                         </a>
                     </div>
                 </div>
 
+                <div class="alert-info-edicion mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Modo edición.</strong> Sólo puedes modificar las líneas de envases (cantidad, tipo, unidad y horario).
+                    La fecha del documento y la firma de "Solicita" quedan congeladas.
+                </div>
+
                 <?php if (!empty($errores_flash)): ?>
                     <div class="alert alert-danger">
-                        <strong>No se pudo crear la SEC:</strong>
+                        <strong>No se pudo actualizar la SEC:</strong>
                         <ul class="mb-0 mt-2">
                             <?php foreach ($errores_flash as $err): ?>
                                 <li><?php echo htmlspecialchars($err); ?></li>
@@ -144,29 +173,9 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                     </div>
                 <?php endif; ?>
 
-                <form id="formNuevaSec" method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/guardar_sec.php" novalidate>
+                <form id="formEditarSec" method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/actualizar_sec.php" novalidate>
+                    <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
 
-                    <!-- Fecha del documento -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label class="form-label">Fecha del documento <span class="text-danger">*</span></label>
-                                    <input type="date" name="fecha_documento" id="fechaDocumento" class="form-control"
-                                           value="<?php echo htmlspecialchars($datos_previos['fecha_documento'] ?? date('Y-m-d')); ?>" required>
-                                    <small class="text-muted">Esto determina los slots de unidades disponibles.</small>
-                                </div>
-                                <div class="col-md-8 text-end">
-                                    <div class="alert alert-info mb-0 py-2" style="font-size: 0.85rem;">
-                                        <i class="bi bi-info-circle"></i>
-                                        Al cambiar la fecha, se reiniciarán las unidades y horarios seleccionados.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Líneas -->
                     <div class="card mb-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0"><i class="bi bi-list-ul"></i> Líneas de envases</h5>
@@ -183,46 +192,14 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                         </div>
                     </div>
 
-                    <!-- Solicita -->
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Solicita</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Nombre completo <span class="text-danger">*</span></label>
-                                    <input type="text" name="solicita_nombre" id="solicitaNombre" class="form-control"
-                                           value="<?php echo htmlspecialchars($datos_previos['solicita_nombre'] ?? $nombre_usuario); ?>"
-                                           maxlength="255" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Firma <span class="text-danger">*</span></label>
-                                    <div class="firma-canvas-wrapper">
-                                        <div id="firmaCanvas"></div>
-                                        <div class="firma-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarFirma()" title="Limpiar firma">
-                                                <i class="bi bi-eraser"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" name="solicita_firma" id="solicitaFirma">
-                                    <small class="text-muted">Dibuja tu firma en el recuadro.</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit -->
                     <div class="d-flex justify-content-end gap-2 mb-4">
-                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php" class="btn btn-outline-secondary">
+                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/ver_sec.php?id=<?php echo $id_sec; ?>" class="btn btn-outline-secondary">
                             Cancelar
                         </a>
-                        <button type="submit" class="btn btn-success btn-lg" id="btnGuardarSec">
-                            <i class="bi bi-check-circle"></i> Crear y enviar SEC
+                        <button type="submit" class="btn btn-success btn-lg" id="btnGuardar">
+                            <i class="bi bi-check-circle"></i> Guardar cambios
                         </button>
                     </div>
-
                 </form>
 
             </div>
@@ -230,9 +207,7 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
 
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- MODAL: Selector de Unidad + Slot                                       -->
-    <!-- ===================================================================== -->
+    <!-- Modal selector de unidad + slot (mismo que nueva_sec) -->
     <div class="modal fade" id="modalUnidadSlot" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
@@ -243,41 +218,29 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                 <div class="modal-body">
                     <input type="hidden" id="modalLineaIndex" value="">
                     <p class="text-muted small">Selecciona una unidad y luego un horario libre.</p>
-                    <div id="listadoUnidades">
-                        <!-- Cargado por JS -->
-                    </div>
+                    <div id="listadoUnidades"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- jQuery → jSignature → Bootstrap → sidebar (orden estándar del proyecto) -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jSignature/2.1.3/jSignature.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
 
     <script>
     const URL_BASE = <?php echo json_encode(URL_BASE); ?>;
     const UNIDADES = <?php echo json_encode($unidades, JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-    let lineaCounter = 0;
-    let lineas = []; // [{cantidad, tipo_envase, slot_id, unidad_id, unidad_label, slot_label}]
-    let firma = null;
+    const FECHA_DOCUMENTO = <?php echo json_encode($sec['fecha_documento']); ?>;
+    const SEC_ID = <?php echo (int)$id_sec; ?>;
+
+    // Precargar líneas existentes
+    let lineas = <?php echo json_encode($lineas_actuales, JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
 
     document.addEventListener('DOMContentLoaded', function() {
-        // jSignature
-        firma = $('#firmaCanvas').jSignature({ width: '100%', height: 180, lineWidth: 2 });
+        renderLineas();
 
-        // Cambio de fecha: limpiar selecciones
-        document.getElementById('fechaDocumento').addEventListener('change', function() {
-            lineas.forEach(l => { l.slot_id = null; l.unidad_id = null; l.unidad_label = null; l.slot_label = null; });
-            renderLineas();
-        });
-
-        agregarLinea();
-
-        // Submit
-        document.getElementById('formNuevaSec').addEventListener('submit', function(e) {
+        document.getElementById('formEditarSec').addEventListener('submit', function(e) {
             e.preventDefault();
             enviarFormulario();
         });
@@ -285,13 +248,9 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
 
     function agregarLinea() {
         lineas.push({
-            id: ++lineaCounter,
-            cantidad: 1,
-            tipo_envase: '',
-            slot_id: null,
-            unidad_id: null,
-            unidad_label: null,
-            slot_label: null
+            cantidad: 1, tipo_envase: '',
+            slot_id: null, unidad_id: null,
+            unidad_label: null, slot_label: null
         });
         renderLineas();
     }
@@ -306,10 +265,7 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
         const vacio = document.getElementById('lineasVacio');
         cont.innerHTML = '';
 
-        if (lineas.length === 0) {
-            vacio.style.display = 'block';
-            return;
-        }
+        if (lineas.length === 0) { vacio.style.display = 'block'; return; }
         vacio.style.display = 'none';
 
         lineas.forEach((l, idx) => {
@@ -358,39 +314,31 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
     }
 
     function abrirModalUnidad(lineaIdx) {
-        const fecha = document.getElementById('fechaDocumento').value;
-        if (!fecha) {
-            alert('Primero indica la fecha del documento.');
-            return;
-        }
         document.getElementById('modalLineaIndex').value = lineaIdx;
         const cont = document.getElementById('listadoUnidades');
         cont.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary"></div></div>';
 
-        // IDs de slots ya seleccionados en OTRAS líneas (para excluirlos)
+        // Excluir slots ya elegidos en OTRAS líneas
         const slotsExcluidos = lineas
             .filter((l, i) => i !== lineaIdx && l.slot_id)
-            .map(l => l.slot_id);
+            .map(l => parseInt(l.slot_id));
 
-        // Cargar unidades activas
-        let html = '';
-        if (UNIDADES.length === 0) {
-            html = '<div class="alert alert-warning">No hay unidades de transporte activas.</div>';
-            cont.innerHTML = html;
-            new bootstrap.Modal(document.getElementById('modalUnidadSlot')).show();
-            return;
-        }
+        // El slot que tenía esta línea originalmente, si lo tenía, debe seguir disponible
+        // (el endpoint slots_unidad incluye sólo slots libres, así que necesitamos también incluir
+        //  el slot actual de esta línea si está ocupado por nuestra propia SEC)
+        const slotActualDeLineaEditada = lineas[lineaIdx].slot_id;
 
-        // Para cada unidad, hacer fetch de sus slots libres
         Promise.all(UNIDADES.map(u =>
-            fetch(URL_BASE + 'dashboard/salidas_envases/api/slots_unidad.php?unidad_id=' + u.id + '&fecha=' + fecha)
+            fetch(URL_BASE + 'dashboard/salidas_envases/api/slots_unidad.php?unidad_id=' + u.id + '&fecha=' + FECHA_DOCUMENTO + '&sec_id_excluir=' + SEC_ID)
                 .then(r => r.json())
-                .then(slots => ({ unidad: u, slots: slots.filter(s => !slotsExcluidos.includes(parseInt(s.id))) }))
+                .then(slots => ({
+                    unidad: u,
+                    slots: slots.filter(s => !slotsExcluidos.includes(parseInt(s.id)))
+                }))
         )).then(resultados => {
-            html = '';
+            let html = '';
             resultados.forEach(r => {
                 const u = r.unidad;
-                const slotsLibres = r.slots;
                 html += `
                     <div class="unidad-item">
                         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -399,16 +347,16 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                                 <small class="placa-cell text-muted ms-2">${escapar(u.placas)}</small>
                             </div>
                             <div>
-                                <span class="capacidad-pill" title="TMB">TMB: ${u.capacidad_tmb}</span>
-                                <span class="capacidad-pill" title="TOTE">TOTE: ${u.capacidad_tote}</span>
-                                <span class="capacidad-pill" title="GFA">GFA: ${u.capacidad_gfa}</span>
-                                <span class="capacidad-pill" title="JAULA">JAULA: ${u.capacidad_jaula}</span>
+                                <span class="capacidad-pill">TMB: ${u.capacidad_tmb}</span>
+                                <span class="capacidad-pill">TOTE: ${u.capacidad_tote}</span>
+                                <span class="capacidad-pill">GFA: ${u.capacidad_gfa}</span>
+                                <span class="capacidad-pill">JAULA: ${u.capacidad_jaula}</span>
                             </div>
                         </div>
                         <div>
-                            ${slotsLibres.length === 0
+                            ${r.slots.length === 0
                                 ? '<small class="text-muted"><i class="bi bi-x-circle"></i> Sin horarios disponibles en esta fecha.</small>'
-                                : slotsLibres.map(s =>
+                                : r.slots.map(s =>
                                     `<span class="slot-libre-pill" onclick="seleccionarSlot(${lineaIdx}, ${s.id}, '${escapar(u.nombre)}', '${escapar(u.placas)}', '${s.hora_inicio.substring(0,5)} - ${s.hora_fin.substring(0,5)}')">
                                         <i class="bi bi-clock"></i> ${s.hora_inicio.substring(0,5)} - ${s.hora_fin.substring(0,5)}
                                     </span>`
@@ -419,9 +367,6 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                 `;
             });
             cont.innerHTML = html;
-            new bootstrap.Modal(document.getElementById('modalUnidadSlot')).show();
-        }).catch(err => {
-            cont.innerHTML = '<div class="alert alert-danger">Error cargando unidades: ' + err.message + '</div>';
             new bootstrap.Modal(document.getElementById('modalUnidadSlot')).show();
         });
     }
@@ -434,34 +379,16 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
         renderLineas();
     }
 
-    function limpiarFirma() {
-        $('#firmaCanvas').jSignature('reset');
-    }
-
     function enviarFormulario() {
-        // Validar líneas
-        if (lineas.length === 0) {
-            alert('Debes agregar al menos una línea.');
-            return;
-        }
+        if (lineas.length === 0) { alert('Debes mantener al menos una línea.'); return; }
         for (let i = 0; i < lineas.length; i++) {
             const l = lineas[i];
             if (!l.cantidad || l.cantidad <= 0) { alert(`Línea ${i+1}: cantidad inválida.`); return; }
-            if (!l.tipo_envase) { alert(`Línea ${i+1}: selecciona el tipo de envase.`); return; }
+            if (!l.tipo_envase) { alert(`Línea ${i+1}: selecciona tipo de envase.`); return; }
             if (!l.slot_id)     { alert(`Línea ${i+1}: selecciona unidad y horario.`); return; }
         }
-        // Validar firma
-        const data = $('#firmaCanvas').jSignature('getData', 'image');
-        if (!data || data[1].length < 100) {
-            alert('Debes firmar antes de enviar.');
-            return;
-        }
-        const firmaBase64 = 'data:' + data[0] + ',' + data[1];
-        document.getElementById('solicitaFirma').value = firmaBase64;
 
-        // Agregar líneas al form como inputs ocultos
-        const form = document.getElementById('formNuevaSec');
-        // Limpiar inputs previos de líneas
+        const form = document.getElementById('formEditarSec');
         form.querySelectorAll('input[name^="linea_"]').forEach(el => el.remove());
 
         lineas.forEach((l, idx) => {
@@ -474,24 +401,19 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
             });
         });
         const total = document.createElement('input');
-        total.type = 'hidden';
-        total.name = 'total_lineas';
-        total.value = lineas.length;
+        total.type = 'hidden'; total.name = 'total_lineas'; total.value = lineas.length;
         form.appendChild(total);
 
-        document.getElementById('btnGuardarSec').disabled = true;
-        document.getElementById('btnGuardarSec').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+        document.getElementById('btnGuardar').disabled = true;
+        document.getElementById('btnGuardar').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Guardando...';
         form.submit();
     }
 
     function escapar(s) {
         if (s === null || s === undefined) return '';
         return String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, "\\'");
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, "\\'");
     }
     </script>
 </body>

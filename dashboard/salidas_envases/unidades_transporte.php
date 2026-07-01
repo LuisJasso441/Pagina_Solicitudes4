@@ -116,8 +116,7 @@ unset($_SESSION['unidad_errores']);
     <div class="dashboard-container">
 
         <?php
-        // Logística usa sidebar normal por ahora (se reemplazará por sidebar_logistica_almacen.php en el Bloque 5)
-        include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
+        include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
         ?>
 
         <main class="main-content">

@@ -338,6 +338,8 @@ if (file_exists($logo_path_fs)) {
             include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
         } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
             include __DIR__ . '/../../../includes/sidebar/sidebar_colaborativo.php';
+        } elseif (in_array(strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''), ['logistica', 'almacen_residuos'])) {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_sec.php';
         } else {
             include __DIR__ . '/../../../includes/sidebar/sidebar_normal.php';
         }

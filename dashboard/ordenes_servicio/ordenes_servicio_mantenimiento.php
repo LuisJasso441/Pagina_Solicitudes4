@@ -363,6 +363,8 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
         } elseif (es_usuario_gth()) {
             include __DIR__ . '/../../includes/sidebar/sidebar_gth.php';
+        } elseif (in_array(strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''), ['logistica', 'almacen_residuos'])) {
+            include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
         } else {
             include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
         }

@@ -156,7 +156,7 @@ unset($_SESSION['sec_errores']);
 
         <?php
         if (in_array($dept, ['logistica', 'almacen_residuos'])) {
-            include __DIR__ . '/../../includes/sidebar/sidebar_normal.php';
+            include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
         } elseif ($dept === 'ventas') {
             include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
         } else {
@@ -254,7 +254,7 @@ unset($_SESSION['sec_errores']);
                                             <td class="col-tipo"><?php echo $linea['tipo_envase']==='TOTE'  ? '<span class="marca">✕</span>' : ''; ?></td>
                                             <td class="col-tipo"><?php echo $linea['tipo_envase']==='GFA'   ? '<span class="marca">✕</span>' : ''; ?></td>
                                             <td class="col-tipo"><?php echo $linea['tipo_envase']==='JAULA' ? '<span class="marca">✕</span>' : ''; ?></td>
-                                            <td>
+                                            <td class="text-center">
                                                 <?php if ($linea['unidad_nombre']): ?>
                                                     <strong><?php echo htmlspecialchars($linea['unidad_nombre']); ?></strong>
                                                     <small class="placa-cell text-muted d-block"><?php echo htmlspecialchars($linea['unidad_placas']); ?></small>
@@ -262,7 +262,7 @@ unset($_SESSION['sec_errores']);
                                                     <span class="text-muted">—</span>
                                                 <?php endif; ?>
                                             </td>
-                                            <td>
+                                            <td class="text-center">
                                                 <?php if ($linea['slot_hora_inicio']): ?>
                                                     <span class="badge bg-light text-dark" style="font-family: monospace;">
                                                         <?php echo substr($linea['slot_hora_inicio'],0,5); ?> - <?php echo substr($linea['slot_hora_fin'],0,5); ?>

@@ -64,8 +64,8 @@ $departamento_usuario = $_SESSION['departamento'] ?? '';
         $depto = strtolower(trim($_SESSION['departamento'] ?? ''));
         if ($depto === 'sistemas') { include __DIR__ . '/../../includes/sidebar/sidebar_ti.php'; }
         elseif ($depto === 'mantenimiento') { include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php'; }
-        elseif (function_exists('es_usuario_gth') && es_usuario_gth()) { include __DIR__ . '/../../includes/sidebar/sidebar_gth.php'; }
         elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) { include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; }
+        elseif (in_array($depto, ['logistica', 'almacen_residuos'])) { include __DIR__ . '/../../includes/sidebar/sidebar_sec.php'; }
         else { include __DIR__ . '/../../includes/sidebar/sidebar_normal.php'; }
         ?>
         

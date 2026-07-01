@@ -111,7 +111,14 @@ try {
     <div class="dashboard-container">
         
         <!-- SIDEBAR -->
-        <?php include __DIR__ . '/../includes/sidebar/sidebar_normal.php'; ?>
+        <?php
+        $dept_dashboard = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        if (in_array($dept_dashboard, ['logistica', 'almacen_residuos'])) {
+            include __DIR__ . '/../includes/sidebar/sidebar_sec.php';
+        } else {
+            include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
+        }
+        ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">

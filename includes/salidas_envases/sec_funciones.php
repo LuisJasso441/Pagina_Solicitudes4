@@ -12,6 +12,9 @@
  */
 
 require_once __DIR__ . '/../../config/database.php';
+if (!defined('URL_BASE')) {
+    require_once __DIR__ . '/../../config/config.php';
+}
 
 // ====================================================================
 // FOLIO
@@ -439,6 +442,11 @@ function crear_sec($datos, $lineas, $usuario_id) {
         }
 
         $pdo->commit();
+
+        // Notificación (fuera de la transacción; falla silenciosa si hay error)
+        $sec_creada = obtener_sec_por_id($sec_id);
+        if ($sec_creada) notificar_sec_creada($sec_creada);
+
         return ['success' => true, 'id' => $sec_id, 'folio' => $folio, 'errores' => []];
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -518,6 +526,11 @@ function firmar_entrega_sec($sec_id, $nombre, $firma_base64, $usuario_id) {
         if ($stmt->rowCount() === 0) {
             return ['success' => false, 'errores' => ['La SEC cambió de estado mientras firmabas. Recarga.']];
         }
+
+        // Notificación a Logística + Ventas
+        $sec_actualizada = obtener_sec_por_id($sec_id);
+        if ($sec_actualizada) notificar_sec_firmada_entrega($sec_actualizada);
+
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
         error_log("Error firmar_entrega_sec: " . $e->getMessage());
@@ -565,6 +578,11 @@ function firmar_recibe_sec($sec_id, $nombre, $firma_base64, $usuario_id, $condic
         if ($stmt->rowCount() === 0) {
             return ['success' => false, 'errores' => ['La SEC cambió de estado mientras firmabas. Recarga.']];
         }
+
+        // Notificación a Logística + Ventas
+        $sec_actualizada = obtener_sec_por_id($sec_id);
+        if ($sec_actualizada) notificar_sec_firmada_recibe($sec_actualizada);
+
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
         error_log("Error firmar_recibe_sec: " . $e->getMessage());
@@ -789,6 +807,11 @@ function cancelar_sec($sec_id, $motivo, $usuario_id) {
         $stmt->execute([(int)$usuario_id, trim($motivo), (int)$sec_id]);
 
         $pdo->commit();
+
+        // Notificación a Almacén + Ventas
+        $sec_cancelada = obtener_sec_por_id($sec_id);
+        if ($sec_cancelada) notificar_sec_cancelada($sec_cancelada);
+
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -819,9 +842,168 @@ function cerrar_sec($sec_id, $usuario_id) {
         if ($stmt->rowCount() === 0) {
             return ['success' => false, 'errores' => ['La SEC cambió de estado mientras tanto. Recarga.']];
         }
+
+        // Notificación a Almacén + Ventas
+        $sec_cerrada = obtener_sec_por_id($sec_id);
+        if ($sec_cerrada) notificar_sec_cerrada($sec_cerrada);
+
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
         error_log("Error cerrar_sec: " . $e->getMessage());
         return ['success' => false, 'errores' => ['Error al cerrar: ' . $e->getMessage()]];
+    }
+}
+
+// ====================================================================
+// NOTIFICACIONES SSE
+// Insertan en la tabla `notificaciones`; el stream.php ya las propaga.
+// Fallan silenciosamente (log) para no revertir la operación principal.
+// ====================================================================
+
+/**
+ * Obtener IDs de usuarios activos de los códigos de departamento dados
+ */
+function _sec_usuarios_destino($pdo, $codigos_depto) {
+    if (empty($codigos_depto)) return [];
+    $placeholders = implode(',', array_fill(0, count($codigos_depto), '?'));
+    $stmt = $pdo->prepare("
+        SELECT u.id
+        FROM usuarios u
+        INNER JOIN departamentos d ON u.departamento_id = d.id
+        WHERE d.codigo IN ($placeholders) AND u.activo = 1
+    ");
+    $stmt->execute($codigos_depto);
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+/**
+ * Insertar notificación a un conjunto de usuarios
+ */
+function _sec_insertar_notificaciones($pdo, $usuarios_ids, $tipo, $titulo, $mensaje, $sec_id, $folio) {
+    if (empty($usuarios_ids)) return;
+
+    $url_base = defined('URL_BASE') ? URL_BASE : '/Pagina_Solicitudes4/';
+    $datos_json = json_encode([
+        'sec_id' => (int)$sec_id,
+        'folio'  => $folio,
+        'url'    => $url_base . 'dashboard/salidas_envases/ver_sec.php?id=' . (int)$sec_id
+    ], JSON_UNESCAPED_UNICODE);
+
+    $stmt = $pdo->prepare("
+        INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion)
+        VALUES (?, ?, ?, ?, ?, NOW())
+    ");
+    foreach ($usuarios_ids as $uid) {
+        try {
+            $stmt->execute([$tipo, $titulo, $mensaje, (int)$uid, $datos_json]);
+        } catch (Exception $e) {
+            error_log("Error notif SEC a usuario $uid: " . $e->getMessage());
+        }
+    }
+}
+
+/**
+ * Notificar creación de SEC.
+ * Destinatarios: Almacén de Residuos + (Logística o Ventas, el que NO la creó).
+ */
+function notificar_sec_creada($sec) {
+    try {
+        $pdo = conectarDB();
+        $dept_creador = strtolower($sec['departamento_creador']);
+        $codigos = ['almacen_residuos'];
+        if     ($dept_creador === 'logistica') $codigos[] = 'ventas';
+        elseif ($dept_creador === 'ventas')    $codigos[] = 'logistica';
+
+        $usuarios = _sec_usuarios_destino($pdo, $codigos);
+        _sec_insertar_notificaciones(
+            $pdo, $usuarios,
+            'sec_creada',
+            '📦 Nueva Salida de Envases',
+            "Se creó la SEC {$sec['folio']} por " . ucfirst($dept_creador) . ". Pendiente entrega de Almacén.",
+            $sec['id'], $sec['folio']
+        );
+    } catch (Exception $e) {
+        error_log("Error notificar_sec_creada: " . $e->getMessage());
+    }
+}
+
+/**
+ * Notificar firma de Entrega.
+ * Destinatarios: Logística + Ventas.
+ */
+function notificar_sec_firmada_entrega($sec) {
+    try {
+        $pdo = conectarDB();
+        $usuarios = _sec_usuarios_destino($pdo, ['logistica', 'ventas']);
+        _sec_insertar_notificaciones(
+            $pdo, $usuarios,
+            'sec_entrega_firmada',
+            '✍️ Entrega firmada',
+            "Almacén firmó 'Entrega' en la SEC {$sec['folio']}. Pendiente firma de Recibe.",
+            $sec['id'], $sec['folio']
+        );
+    } catch (Exception $e) {
+        error_log("Error notificar_sec_firmada_entrega: " . $e->getMessage());
+    }
+}
+
+/**
+ * Notificar firma de Recibe.
+ * Destinatarios: Logística + Ventas.
+ */
+function notificar_sec_firmada_recibe($sec) {
+    try {
+        $pdo = conectarDB();
+        $usuarios = _sec_usuarios_destino($pdo, ['logistica', 'ventas']);
+        _sec_insertar_notificaciones(
+            $pdo, $usuarios,
+            'sec_recibe_firmada',
+            '✅ Recibe firmado',
+            "Almacén firmó 'Recibe' en la SEC {$sec['folio']}. Lista para que Logística la cierre.",
+            $sec['id'], $sec['folio']
+        );
+    } catch (Exception $e) {
+        error_log("Error notificar_sec_firmada_recibe: " . $e->getMessage());
+    }
+}
+
+/**
+ * Notificar cierre de SEC.
+ * Destinatarios: Almacén + Ventas.
+ */
+function notificar_sec_cerrada($sec) {
+    try {
+        $pdo = conectarDB();
+        $usuarios = _sec_usuarios_destino($pdo, ['almacen_residuos', 'ventas']);
+        _sec_insertar_notificaciones(
+            $pdo, $usuarios,
+            'sec_cerrada',
+            '🟢 SEC cerrada',
+            "La SEC {$sec['folio']} fue cerrada exitosamente por Logística.",
+            $sec['id'], $sec['folio']
+        );
+    } catch (Exception $e) {
+        error_log("Error notificar_sec_cerrada: " . $e->getMessage());
+    }
+}
+
+/**
+ * Notificar cancelación de SEC.
+ * Destinatarios: Almacén + Ventas.
+ */
+function notificar_sec_cancelada($sec) {
+    try {
+        $pdo = conectarDB();
+        $usuarios = _sec_usuarios_destino($pdo, ['almacen_residuos', 'ventas']);
+        $motivo = !empty($sec['motivo_cancelacion']) ? ' Motivo: ' . $sec['motivo_cancelacion'] : '';
+        _sec_insertar_notificaciones(
+            $pdo, $usuarios,
+            'sec_cancelada',
+            '🔴 SEC cancelada',
+            "La SEC {$sec['folio']} fue cancelada por Logística.{$motivo}",
+            $sec['id'], $sec['folio']
+        );
+    } catch (Exception $e) {
+        error_log("Error notificar_sec_cancelada: " . $e->getMessage());
     }
 }

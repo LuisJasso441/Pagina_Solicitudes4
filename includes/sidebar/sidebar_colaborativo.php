@@ -67,6 +67,33 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-snow"></i> Control Aire Acondicionado
                 </a>
             </li>
+
+            <?php
+            $dept_sec_col = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+            if ($dept_sec_col === 'ventas'):
+            ?>
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">SALIDAS DE ENVASES</small>
+            
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['salidas_envases.php','ver_sec.php','editar_sec.php']) ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php">
+                    <i class="bi bi-box-arrow-right"></i> Salidas de Envases
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'nueva_sec.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/nueva_sec.php">
+                    <i class="bi bi-plus-circle"></i> Nueva SEC
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'disponibilidad_unidades.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/disponibilidad_unidades.php">
+                    <i class="bi bi-calendar-event"></i> Disponibilidad
+                </a>
+            </li>
+            <?php endif; ?>
             
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">SOLICITUDES DE SERVICIO</small>
@@ -107,24 +134,6 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-calendar-event"></i> Reservar Sala de Juntas
                 </a>
             </li>
-
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">VACACIONES</small>
-
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'mis_vacaciones.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/vacaciones/mis_vacaciones.php">
-                    <i class="bi bi-calendar-check"></i> Mis Vacaciones
-                </a>
-            </li>
-            <?php if (function_exists('es_admin_area') && es_admin_area()): ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'vacaciones_admin.php' ? 'active' : ''; ?>" 
-                   href="<?php echo URL_BASE; ?>dashboard/vacaciones/vacaciones_admin.php">
-                    <i class="bi bi-person-check"></i> Panel Admin Area
-                </a>
-            </li>
-            <?php endif; ?>
             
             <hr class="text-white-50 my-3">
             <li class="nav-item">

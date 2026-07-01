@@ -1,37 +1,53 @@
 <?php
 /**
- * Sidebar para usuarios normales (no colaborativos, no TI)
- * includes/sidebar/sidebar_normal.php
+ * Sidebar para usuarios de Logística y Almacén de Residuos (módulo SEC)
+ * includes/sidebar/sidebar_sec.php
+ *
+ * Logística ve: Salidas, Nueva SEC, Disponibilidad, Unidades de Transporte
+ * Almacén ve:   Salidas, Disponibilidad
+ *
+ * No incluye sección de Vacaciones.
  */
+
+// Protección de sesión
+if (!isset($_SESSION['usuario_id'])) {
+    if (function_exists('destruir_sesion')) {
+        destruir_sesion();
+    }
+    $url_login = defined('URL_BASE') ? URL_BASE . 'auth/InicioSesion.php' : '/auth/InicioSesion.php';
+    header('Location: ' . $url_login);
+    exit;
+}
+
 $current_page = basename($_SERVER['PHP_SELF']);
 
-// Determinar si está en sección de órdenes de servicio
-$en_mis_ordenes = in_array($current_page, [
-    'mis_ordenes_servicio.php',
-    'mis_ordenes_servicio_finalizadas.php',
-    'ver_orden_servicio.php'
-]);
-
-// ⭐ IMPORTANTE: Incluir database.php ANTES de usar conectarDB()
 require_once __DIR__ . '/../../config/database.php';
 
-// Obtener contador de órdenes pendientes de validación (solo del usuario actual)
-$pdo = conectarDB();
-$stmt_pendientes = $pdo->prepare("
-    SELECT COUNT(*) as total 
-    FROM ordenes_servicio_mantenimiento 
-    WHERE usuario_id = :usuario_id 
-    AND estado = 'pendiente_usuario'
-");
-$stmt_pendientes->execute([':usuario_id' => $_SESSION['usuario_id']]);
-$ordenes_pendientes_validar = $stmt_pendientes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+$dept_sb     = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+$es_log_sb   = ($dept_sb === 'logistica');
 
-// Contador de mantenimientos pendientes de firma del usuario (nuevo flujo)
+$pdo = conectarDB();
+
+// Contador de órdenes de servicio pendientes del usuario
+try {
+    $stmt_ordenes = $pdo->prepare("
+        SELECT COUNT(*) as total
+        FROM ordenes_servicio_mantenimiento
+        WHERE usuario_id = :usuario_id
+        AND estado = 'pendiente_usuario'
+    ");
+    $stmt_ordenes->execute([':usuario_id' => $_SESSION['usuario_id']]);
+    $ordenes_pendientes_validar = $stmt_ordenes->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+} catch (Exception $e) {
+    $ordenes_pendientes_validar = 0;
+}
+
+// Contador de mantenimientos pendientes de firma del usuario
 try {
     $stmt_mant = $pdo->prepare("
-        SELECT COUNT(*) as total 
-        FROM solicitudes_mantenimiento_ti 
-        WHERE usuario_id = :usuario_id 
+        SELECT COUNT(*) as total
+        FROM solicitudes_mantenimiento_ti
+        WHERE usuario_id = :usuario_id
         AND estado = 'finalizada'
     ");
     $stmt_mant->execute([':usuario_id' => $_SESSION['usuario_id']]);
@@ -42,8 +58,8 @@ try {
 ?>
 
 <!-- Botón Hamburguesa para Sidebar Responsive -->
-<button class="hamburger-btn" 
-        type="button" 
+<button class="hamburger-btn"
+        type="button"
         aria-label="Abrir menú de navegación"
         aria-expanded="false"
         aria-controls="sidebar">
@@ -59,36 +75,36 @@ try {
 
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <i class="bi bi-building text-white fs-1 mb-2"></i>
+        <i class="bi bi-truck text-white fs-1 mb-2"></i>
         <h4><?php echo htmlspecialchars($_SESSION['departamento_nombre']); ?></h4>
         <small class="text-white-50"><?php echo htmlspecialchars($_SESSION['nombre_completo']); ?></small>
     </div>
-    
+
     <nav class="sidebar-nav">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'departamento.php' ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo $current_page == 'departamento.php' ? 'active' : ''; ?>"
                    href="<?php echo URL_BASE; ?>dashboard/departamento.php">
                     <i class="bi bi-house-door"></i> Inicio
                 </a>
             </li>
-            
+
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">SOLICITUDES PARA SISTEMAS</small>
-            
+
             <li class="nav-item">
                 <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#modalNuevaSolicitud">
                     <i class="bi bi-plus-circle"></i> Nueva Solicitud
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo $current_page == 'listar.php' ? 'active' : ''; ?>"
                    href="<?php echo URL_BASE; ?>solicitudes/listar.php">
                     <i class="bi bi-list-ul"></i> Mis Solicitudes
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php', 'solicitar_mantenimiento.php', 'crear_mantenimiento_historico.php', 'ver_mantenimiento_historico.php', 'editar_mantenimiento_historico.php']) ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php', 'solicitar_mantenimiento.php', 'crear_mantenimiento_historico.php', 'ver_mantenimiento_historico.php', 'editar_mantenimiento_historico.php']) ? 'active' : ''; ?>"
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php">
                     <i class="bi bi-wrench"></i> Mis Mantenimientos
                     <?php if ($mant_pendientes_firma > 0): ?>
@@ -102,12 +118,47 @@ try {
                     <i class="bi bi-snow"></i> Control Aire Acondicionado
                 </a>
             </li>
-            
+
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">SALIDAS DE ENVASES</small>
+
+            <li class="nav-item">
+                <a class="nav-link <?php echo in_array($current_page, ['salidas_envases.php', 'ver_sec.php', 'editar_sec.php']) ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php">
+                    <i class="bi bi-box-arrow-right"></i> Salidas de Envases
+                </a>
+            </li>
+
+            <?php if ($es_log_sb): ?>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'nueva_sec.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/nueva_sec.php">
+                    <i class="bi bi-plus-circle"></i> Nueva SEC
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'disponibilidad_unidades.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/disponibilidad_unidades.php">
+                    <i class="bi bi-calendar-event"></i> Disponibilidad
+                </a>
+            </li>
+
+            <?php if ($es_log_sb): ?>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'unidades_transporte.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades_transporte.php">
+                    <i class="bi bi-truck-front"></i> Unidades de Transporte
+                </a>
+            </li>
+            <?php endif; ?>
+
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
-            
+
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>"
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
                     <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
                     <?php if ($ordenes_pendientes_validar > 0): ?>
@@ -115,12 +166,12 @@ try {
                     <?php endif; ?>
                 </a>
             </li>
-            
+
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">SALA DE JUNTAS</small>
-            
+
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'reservaciones_sala.php' ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo $current_page == 'reservaciones_sala.php' ? 'active' : ''; ?>"
                    href="<?php echo URL_BASE; ?>dashboard/reservaciones/reservaciones_sala.php">
                     <i class="bi bi-calendar-event"></i> Reservar Sala de Juntas
                 </a>
