@@ -31,6 +31,12 @@ if (es_usuario_colaborativo()) {
     redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
 }
 
+// Logística y Almacén de Residuos tienen su propio dashboard SEC
+$dept_dashboard = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+if (in_array($dept_dashboard, ['logistica', 'almacen_residuos'])) {
+    redirigir(URL_BASE . 'dashboard/salidas_envases/inicio_sec.php');
+}
+
 $nombre_usuario = $_SESSION['nombre_completo'];
 $departamento = $_SESSION['departamento_nombre'];
 $usuario_id = $_SESSION['usuario_id'];

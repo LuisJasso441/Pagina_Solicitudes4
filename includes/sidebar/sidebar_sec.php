@@ -83,8 +83,8 @@ try {
     <nav class="sidebar-nav">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'departamento.php' ? 'active' : ''; ?>"
-                   href="<?php echo URL_BASE; ?>dashboard/departamento.php">
+                <a class="nav-link <?php echo $current_page == 'inicio_sec.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/inicio_sec.php">
                     <i class="bi bi-house-door"></i> Inicio
                 </a>
             </li>

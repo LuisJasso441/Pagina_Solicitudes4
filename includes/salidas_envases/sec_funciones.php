@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../config/database.php';
 if (!defined('URL_BASE')) {
     require_once __DIR__ . '/../../config/config.php';
 }
+require_once __DIR__ . '/sec_historial_funciones.php';
 
 // ====================================================================
 // FOLIO
@@ -443,9 +444,16 @@ function crear_sec($datos, $lineas, $usuario_id) {
 
         $pdo->commit();
 
-        // Notificación (fuera de la transacción; falla silenciosa si hay error)
+        // Notificación y registro de historial (fuera de la transacción; fallan silenciosos si hay error)
         $sec_creada = obtener_sec_por_id($sec_id);
-        if ($sec_creada) notificar_sec_creada($sec_creada);
+        if ($sec_creada) {
+            registrar_historial_sec(
+                $sec_id, $usuario_id, 'sec_creada',
+                "Creó la SEC {$folio}",
+                null
+            );
+            notificar_sec_creada($sec_creada);
+        }
 
         return ['success' => true, 'id' => $sec_id, 'folio' => $folio, 'errores' => []];
     } catch (Exception $e) {
@@ -527,9 +535,16 @@ function firmar_entrega_sec($sec_id, $nombre, $firma_base64, $usuario_id) {
             return ['success' => false, 'errores' => ['La SEC cambió de estado mientras firmabas. Recarga.']];
         }
 
-        // Notificación a Logística + Ventas
+        // Historial + notificación
         $sec_actualizada = obtener_sec_por_id($sec_id);
-        if ($sec_actualizada) notificar_sec_firmada_entrega($sec_actualizada);
+        if ($sec_actualizada) {
+            registrar_historial_sec(
+                $sec_id, $usuario_id, 'entrega_firmada',
+                "Firmó 'Entrega' como " . trim($nombre),
+                null
+            );
+            notificar_sec_firmada_entrega($sec_actualizada);
+        }
 
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
@@ -579,9 +594,22 @@ function firmar_recibe_sec($sec_id, $nombre, $firma_base64, $usuario_id, $condic
             return ['success' => false, 'errores' => ['La SEC cambió de estado mientras firmabas. Recarga.']];
         }
 
-        // Notificación a Logística + Ventas
+        // Historial (con condiciones marcadas) + notificación
         $sec_actualizada = obtener_sec_por_id($sec_id);
-        if ($sec_actualizada) notificar_sec_firmada_recibe($sec_actualizada);
+        if ($sec_actualizada) {
+            $condiciones_marcadas = [];
+            if ($b1) $condiciones_marcadas[] = 'B1 Buenas';
+            if ($r2) $condiciones_marcadas[] = 'R2 Regulares';
+            if ($a3) $condiciones_marcadas[] = 'A3 Abierto';
+            if ($c4) $condiciones_marcadas[] = 'C4 Cerrado';
+
+            registrar_historial_sec(
+                $sec_id, $usuario_id, 'recibe_firmada',
+                "Firmó 'Recibe' como " . trim($nombre),
+                ['condiciones' => $condiciones_marcadas]
+            );
+            notificar_sec_firmada_recibe($sec_actualizada);
+        }
 
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
@@ -671,7 +699,16 @@ function subir_evidencia_sec($sec_id, $file, $usuario_id) {
             (int)$file['size'],
             (int)$usuario_id
         ]);
-        return ['success' => true, 'errores' => [], 'id' => (int)$pdo->lastInsertId()];
+        $evidencia_id = (int)$pdo->lastInsertId();
+
+        // Historial
+        registrar_historial_sec(
+            $sec_id, $usuario_id, 'evidencia_subida',
+            "Subió evidencia: " . basename($file['name']),
+            ['nombre_archivo' => basename($file['name']), 'evidencia_id' => $evidencia_id]
+        );
+
+        return ['success' => true, 'errores' => [], 'id' => $evidencia_id];
     } catch (Exception $e) {
         @unlink($ruta_fisica);
         error_log("Error subir_evidencia_sec: " . $e->getMessage());
@@ -679,19 +716,26 @@ function subir_evidencia_sec($sec_id, $file, $usuario_id) {
     }
 }
 
-function eliminar_evidencia_sec($evidencia_id) {
+function eliminar_evidencia_sec($evidencia_id, $usuario_id = null) {
     try {
         $pdo = conectarDB();
-        $stmt = $pdo->prepare("SELECT ruta FROM sec_evidencias WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT sec_id, ruta, nombre_archivo FROM sec_evidencias WHERE id = ?");
         $stmt->execute([(int)$evidencia_id]);
-        $ruta = $stmt->fetchColumn();
-        if (!$ruta) return ['success' => false, 'errores' => ['La evidencia no existe.']];
+        $ev = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$ev) return ['success' => false, 'errores' => ['La evidencia no existe.']];
 
         $stmt = $pdo->prepare("DELETE FROM sec_evidencias WHERE id = ?");
         $stmt->execute([(int)$evidencia_id]);
 
-        $ruta_fisica = __DIR__ . '/../../' . $ruta;
+        $ruta_fisica = __DIR__ . '/../../' . $ev['ruta'];
         if (is_file($ruta_fisica)) @unlink($ruta_fisica);
+
+        // Historial
+        registrar_historial_sec(
+            (int)$ev['sec_id'], $usuario_id, 'evidencia_eliminada',
+            "Eliminó evidencia: {$ev['nombre_archivo']}",
+            ['nombre_archivo' => $ev['nombre_archivo']]
+        );
 
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
@@ -712,6 +756,9 @@ function actualizar_lineas_sec($sec_id, $lineas_nuevas, $usuario_id) {
     // Validar excluyendo slots de esta misma SEC (que estén marcados ocupados por ella)
     $errores = validar_lineas_sec($lineas_nuevas, $sec_id);
     if (!empty($errores)) return ['success' => false, 'errores' => $errores];
+
+    // Snapshot de las líneas ANTES de editar (para el diff del historial)
+    $snapshot_antes = snapshot_lineas_sec($sec['lineas']);
 
     $pdo = conectarDB();
     $pdo->beginTransaction();
@@ -767,6 +814,18 @@ function actualizar_lineas_sec($sec_id, $lineas_nuevas, $usuario_id) {
         }
 
         $pdo->commit();
+
+        // Historial: snapshot después + diff
+        $sec_despues = obtener_sec_por_id($sec_id);
+        if ($sec_despues) {
+            $snapshot_despues = snapshot_lineas_sec($sec_despues['lineas']);
+            registrar_historial_sec(
+                $sec_id, $usuario_id, 'lineas_editadas',
+                'Editó las líneas de la SEC',
+                ['antes' => $snapshot_antes, 'despues' => $snapshot_despues]
+            );
+        }
+
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -808,9 +867,16 @@ function cancelar_sec($sec_id, $motivo, $usuario_id) {
 
         $pdo->commit();
 
-        // Notificación a Almacén + Ventas
+        // Historial + notificación
         $sec_cancelada = obtener_sec_por_id($sec_id);
-        if ($sec_cancelada) notificar_sec_cancelada($sec_cancelada);
+        if ($sec_cancelada) {
+            registrar_historial_sec(
+                $sec_id, $usuario_id, 'sec_cancelada',
+                'Canceló la SEC',
+                ['motivo' => trim($motivo)]
+            );
+            notificar_sec_cancelada($sec_cancelada);
+        }
 
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
@@ -843,9 +909,16 @@ function cerrar_sec($sec_id, $usuario_id) {
             return ['success' => false, 'errores' => ['La SEC cambió de estado mientras tanto. Recarga.']];
         }
 
-        // Notificación a Almacén + Ventas
+        // Historial + notificación
         $sec_cerrada = obtener_sec_por_id($sec_id);
-        if ($sec_cerrada) notificar_sec_cerrada($sec_cerrada);
+        if ($sec_cerrada) {
+            registrar_historial_sec(
+                $sec_id, $usuario_id, 'sec_cerrada',
+                'Cerró la SEC exitosamente',
+                null
+            );
+            notificar_sec_cerrada($sec_cerrada);
+        }
 
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {

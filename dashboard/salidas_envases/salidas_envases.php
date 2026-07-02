@@ -73,14 +73,49 @@ $folio_flash = $_GET['folio'] ?? null;
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
 
     <style>
+        /* Paleta base para el header de cada día */
         .dia-header {
             background: linear-gradient(90deg, #f8f9fa 0%, #fff 100%);
-            border-left: 4px solid #14b8a6;
+            border-left: 6px solid var(--dia-color, #14b8a6);
+        }
+        .dia-header .accordion-button {
+            color: #212529;
+        }
+        .dia-header .accordion-button i.bi-calendar3 {
+            color: var(--dia-color, #14b8a6);
+            font-size: 1.05rem;
         }
         .dia-header .accordion-button:not(.collapsed) {
-            background: linear-gradient(90deg, #d1fae5 0%, #fff 100%);
-            color: #065f46;
+            background: var(--dia-bg-open, #f0fdfa);
+            color: var(--dia-color-dark, #0f766e);
         }
+        .dia-header .accordion-button:focus { box-shadow: none; }
+
+        /* Colores por día */
+        .dia-lun { --dia-color: #3b82f6; --dia-color-dark: #1e40af; --dia-bg-open: #eff6ff; }
+        .dia-mar { --dia-color: #f97316; --dia-color-dark: #9a3412; --dia-bg-open: #fff7ed; }
+        .dia-mie { --dia-color: #22c55e; --dia-color-dark: #166534; --dia-bg-open: #f0fdf4; }
+        .dia-jue { --dia-color: #a855f7; --dia-color-dark: #6b21a8; --dia-bg-open: #faf5ff; }
+        .dia-vie { --dia-color: #ec4899; --dia-color-dark: #9d174d; --dia-bg-open: #fdf2f8; }
+        .dia-sab { --dia-color: #eab308; --dia-color-dark: #854d0e; --dia-bg-open: #fefce8; }
+        .dia-dom { --dia-color: #ef4444; --dia-color-dark: #991b1b; --dia-bg-open: #fef2f2; }
+
+        /* Modo oscuro: aclarar 15% aprox */
+        [data-theme="dark"] .dia-header {
+            background: linear-gradient(90deg, #2d3339 0%, #262c31 100%);
+        }
+        [data-theme="dark"] .dia-header .accordion-button { color: #e0e6ed; }
+        [data-theme="dark"] .dia-header .accordion-button:not(.collapsed) {
+            background: var(--dia-bg-open-dark, rgba(20,184,166,0.12));
+            color: var(--dia-color-light, #14b8a6);
+        }
+        [data-theme="dark"] .dia-lun { --dia-color-light: #60a5fa; --dia-bg-open-dark: rgba(59,130,246,0.15); }
+        [data-theme="dark"] .dia-mar { --dia-color-light: #fb923c; --dia-bg-open-dark: rgba(249,115,22,0.15); }
+        [data-theme="dark"] .dia-mie { --dia-color-light: #4ade80; --dia-bg-open-dark: rgba(34,197,94,0.15); }
+        [data-theme="dark"] .dia-jue { --dia-color-light: #c084fc; --dia-bg-open-dark: rgba(168,85,247,0.15); }
+        [data-theme="dark"] .dia-vie { --dia-color-light: #f472b6; --dia-bg-open-dark: rgba(236,72,153,0.15); }
+        [data-theme="dark"] .dia-sab { --dia-color-light: #facc15; --dia-bg-open-dark: rgba(234,179,8,0.15); }
+        [data-theme="dark"] .dia-dom { --dia-color-light: #f87171; --dia-bg-open-dark: rgba(239,68,68,0.15); }
         .tabla-sec {
             font-size: 0.82rem;
         }
@@ -116,6 +151,11 @@ $folio_flash = $_GET['folio'] ?? null;
         .sec-row-first td { border-top: 2px solid #dee2e6; }
         .filtros-card .form-control,
         .filtros-card .form-select { font-size: 0.85rem; }
+
+        /* Alinear celdas centradas con sus headers */
+        .tabla-sec tbody td { vertical-align: middle; text-align: center; }
+        .tabla-sec tbody td.text-start,
+        .tabla-sec tbody td:first-child { text-align: left; }
     </style>
 </head>
 <body>
@@ -220,22 +260,26 @@ $folio_flash = $_GET['folio'] ?? null;
                     </div>
                 <?php else: ?>
                     <div class="accordion" id="accordionDias">
+                        <?php
+                        // Mapeo día de la semana (0=Dom, 1=Lun, ..., 6=Sab) a clase CSS
+                        $dia_clases = [0 => 'dia-dom', 1 => 'dia-lun', 2 => 'dia-mar', 3 => 'dia-mie', 4 => 'dia-jue', 5 => 'dia-vie', 6 => 'dia-sab'];
+                        ?>
                         <?php $dia_idx = 0; foreach ($agrupadas as $fecha => $secs_del_dia): $dia_idx++; ?>
                             <?php
                                 $fecha_formato = sec_fecha_larga_es($fecha);
-                                $colapsado = $dia_idx > 1 ? 'collapsed' : '';
-                                $expandido = $dia_idx === 1 ? 'show' : '';
+                                $dia_semana    = (int) date('w', strtotime($fecha));
+                                $dia_clase     = $dia_clases[$dia_semana] ?? 'dia-lun';
                             ?>
-                            <div class="accordion-item mb-2">
+                            <div class="accordion-item mb-2 <?php echo $dia_clase; ?>">
                                 <h2 class="accordion-header dia-header">
-                                    <button class="accordion-button <?php echo $colapsado; ?>" type="button"
+                                    <button class="accordion-button collapsed" type="button"
                                             data-bs-toggle="collapse" data-bs-target="#diaCollapse<?php echo $dia_idx; ?>">
                                         <i class="bi bi-calendar3 me-2"></i>
                                         <strong><?php echo $fecha_formato; ?></strong>
                                         <span class="ms-3 badge bg-secondary"><?php echo count($secs_del_dia); ?> SEC</span>
                                     </button>
                                 </h2>
-                                <div id="diaCollapse<?php echo $dia_idx; ?>" class="accordion-collapse collapse <?php echo $expandido; ?>">
+                                <div id="diaCollapse<?php echo $dia_idx; ?>" class="accordion-collapse collapse">
                                     <div class="accordion-body p-0">
                                         <div class="table-responsive">
                                             <table class="table table-hover tabla-sec mb-0">

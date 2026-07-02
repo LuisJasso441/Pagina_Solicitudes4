@@ -17,6 +17,8 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../auth/verificar_sesion.php';
 require_once __DIR__ . '/../../includes/permisos_helper.php';
 require_once __DIR__ . '/../../includes/salidas_envases/sec_funciones.php';
+require_once __DIR__ . '/../../includes/salidas_envases/sec_comentarios_funciones.php';
+require_once __DIR__ . '/../../includes/salidas_envases/sec_historial_funciones.php';
 
 verificar_sesion();
 
@@ -45,7 +47,9 @@ if (!$sec) {
     redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
 }
 
-$evidencias = obtener_evidencias_sec($id_sec);
+$evidencias  = obtener_evidencias_sec($id_sec);
+$comentarios = obtener_comentarios_sec($id_sec);
+$historial   = obtener_historial_sec($id_sec);
 
 $usuario_id     = (int)$_SESSION['usuario_id'];
 $nombre_usuario = $_SESSION['nombre_completo'];
@@ -74,12 +78,18 @@ $info_estado = info_estado_sec($sec['estado']);
 
 // Mensajes flash
 $mensajes = [
-    'entrega_firmada' => ['success', 'Firma de Entrega registrada correctamente.'],
-    'recibe_firmada'  => ['success', 'Firma de Recibe y condiciones registradas correctamente.'],
-    'evidencia_subida' => ['success', 'Evidencia subida correctamente.'],
-    'evidencia_eliminada' => ['warning', 'Evidencia eliminada.'],
-    'error' => ['danger', 'Ocurrió un error.'],
-    'error_validacion' => ['danger', 'Hay errores de validación.'],
+    'entrega_firmada'      => ['success', 'Firma de Entrega registrada correctamente.'],
+    'recibe_firmada'       => ['success', 'Firma de Recibe y condiciones registradas correctamente.'],
+    'evidencia_subida'     => ['success', 'Evidencia subida correctamente.'],
+    'evidencia_eliminada'  => ['warning', 'Evidencia eliminada.'],
+    'actualizada'          => ['success', 'SEC actualizada correctamente.'],
+    'cancelada'            => ['warning', 'SEC cancelada. Los slots fueron liberados.'],
+    'cerrada'              => ['success', 'SEC cerrada exitosamente.'],
+    'comentario_agregado'  => ['success', 'Comentario agregado.'],
+    'comentario_editado'   => ['success', 'Comentario actualizado.'],
+    'comentario_eliminado' => ['warning', 'Comentario eliminado.'],
+    'error'                => ['danger', 'Ocurrió un error.'],
+    'error_validacion'     => ['danger', 'Hay errores de validación.'],
 ];
 $msg_flash = $_GET['msg'] ?? null;
 $errores_flash = $_SESSION['sec_errores'] ?? [];
@@ -149,6 +159,81 @@ unset($_SESSION['sec_errores']);
             font-size: 0.8rem; color: #6c757d;
         }
         .info-meta strong { color: #495057; }
+
+        .info-meta {
+            font-size: 0.8rem; color: #6c757d;
+        }
+        .info-meta strong { color: #495057; }
+
+        /* ===== COMENTARIOS ===== */
+        .comentario-item {
+            background: #f8f9fa; border-radius: 8px; padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem; border-left: 3px solid #14b8a6;
+        }
+        .comentario-item.propio { border-left-color: #0d6efd; background: #f0f7ff; }
+        .comentario-header {
+            display: flex; justify-content: space-between; align-items: start;
+            margin-bottom: 0.4rem; font-size: 0.82rem;
+        }
+        .comentario-autor { font-weight: 600; color: #212529; }
+        .comentario-dept { color: #6c757d; font-size: 0.75rem; }
+        .comentario-fecha { color: #6c757d; font-size: 0.72rem; white-space: nowrap; }
+        .comentario-texto { color: #212529; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9rem; }
+        .comentario-editado { color: #6c757d; font-style: italic; font-size: 0.7rem; }
+        .comentario-acciones { display: flex; gap: 4px; margin-top: 0.4rem; }
+        .comentario-acciones .btn { padding: 2px 8px; font-size: 0.72rem; }
+        .comentarios-lista { max-height: 500px; overflow-y: auto; padding-right: 4px; }
+        .comentarios-vacio {
+            text-align: center; color: #6c757d; font-style: italic; padding: 2rem 0;
+        }
+
+        /* ===== TIMELINE HISTORIAL ===== */
+        .timeline {
+            position: relative; padding-left: 42px; max-height: 600px; overflow-y: auto;
+            padding-right: 4px;
+        }
+        .timeline::before {
+            content: ''; position: absolute; left: 15px; top: 0; bottom: 0;
+            width: 2px; background: #e9ecef;
+        }
+        .timeline-item { position: relative; padding-bottom: 1.25rem; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-icon {
+            position: absolute; left: -42px; width: 32px; height: 32px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            background: white; border: 2px solid; z-index: 1; font-size: 0.9rem;
+        }
+        .timeline-icon.text-primary   { border-color: #0d6efd; color: #0d6efd; }
+        .timeline-icon.text-info      { border-color: #0dcaf0; color: #0dcaf0; }
+        .timeline-icon.text-success   { border-color: #198754; color: #198754; }
+        .timeline-icon.text-warning   { border-color: #ffc107; color: #ffc107; }
+        .timeline-icon.text-danger    { border-color: #dc3545; color: #dc3545; }
+        .timeline-icon.text-secondary { border-color: #6c757d; color: #6c757d; }
+        .timeline-content {
+            background: #fff; border: 1px solid #e9ecef; border-radius: 8px;
+            padding: 0.6rem 0.9rem;
+        }
+        .timeline-title {
+            font-weight: 600; font-size: 0.85rem; color: #212529; margin-bottom: 2px;
+        }
+        .timeline-meta {
+            font-size: 0.72rem; color: #6c757d;
+        }
+        .timeline-detalles {
+            margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed #e9ecef;
+            font-size: 0.78rem;
+        }
+        .diff-agrego { color: #0f5132; background: #d1e7dd; padding: 2px 8px; border-radius: 4px; display: inline-block; margin: 2px 0; font-family: monospace; font-size: 0.72rem; }
+        .diff-quito  { color: #842029; background: #f8d7da; padding: 2px 8px; border-radius: 4px; display: inline-block; margin: 2px 0; font-family: monospace; font-size: 0.72rem; }
+        .diff-lista { display: flex; flex-direction: column; gap: 3px; }
+        .condicion-mini {
+            display: inline-block; padding: 2px 6px; border-radius: 8px;
+            background: #d1fae5; color: #065f46; font-size: 0.7rem; margin: 2px 2px 0 0;
+        }
+        .timeline-vacio {
+            text-align: center; color: #6c757d; font-style: italic; padding: 2rem 0;
+        }
+    </style>
     </style>
 </head>
 <body>
@@ -493,6 +578,162 @@ unset($_SESSION['sec_errores']);
                         <?php endif; ?>
                     </div>
                 </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- COMENTARIOS + HISTORIAL (dos columnas)           -->
+                <!-- ============================================== -->
+                <div class="row" id="comentarios">
+                    <!-- COMENTARIOS -->
+                    <div class="col-lg-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-chat-dots"></i> Comentarios (<?php echo count($comentarios); ?>)</h6>
+                            </div>
+                            <div class="card-body d-flex flex-column">
+                                <?php if (empty($comentarios)): ?>
+                                    <div class="comentarios-vacio mb-3">
+                                        <i class="bi bi-chat-square-text" style="font-size: 1.5rem;"></i>
+                                        <p class="mb-0">Aún no hay comentarios.</p>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="comentarios-lista mb-3">
+                                        <?php foreach ($comentarios as $c): ?>
+                                            <?php $es_propio = ((int)$c['usuario_id'] === $usuario_id); ?>
+                                            <div class="comentario-item <?php echo $es_propio ? 'propio' : ''; ?>">
+                                                <div class="comentario-header">
+                                                    <div>
+                                                        <div class="comentario-autor"><?php echo htmlspecialchars($c['autor_nombre'] ?? '—'); ?></div>
+                                                        <div class="comentario-dept"><?php echo htmlspecialchars($c['autor_departamento'] ?? ''); ?></div>
+                                                    </div>
+                                                    <div class="comentario-fecha">
+                                                        <?php echo date('d/m/Y H:i', strtotime($c['fecha_creacion'])); ?>
+                                                        <?php if (!empty($c['fecha_edicion'])): ?>
+                                                            <br><span class="comentario-editado"><i class="bi bi-pencil"></i> editado</span>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                                <div class="comentario-texto"><?php echo htmlspecialchars($c['comentario']); ?></div>
+                                                <?php if ($es_propio): ?>
+                                                    <div class="comentario-acciones">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                                onclick="abrirEditarComentario(<?php echo (int)$c['id']; ?>, this)">
+                                                            <i class="bi bi-pencil"></i> Editar
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                onclick="confirmarEliminarComentario(<?php echo (int)$c['id']; ?>)">
+                                                            <i class="bi bi-trash"></i> Eliminar
+                                                        </button>
+                                                        <textarea class="d-none" data-texto-original><?php echo htmlspecialchars($c['comentario']); ?></textarea>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Formulario abajo (patrón chat) -->
+                                <form action="<?php echo URL_BASE; ?>dashboard/salidas_envases/agregar_comentario_sec.php" method="POST" class="mt-auto">
+                                    <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
+                                    <div class="mb-2">
+                                        <textarea name="comentario" class="form-control" rows="3"
+                                                  placeholder="Escribe un comentario..." maxlength="5000" required></textarea>
+                                    </div>
+                                    <div class="d-flex justify-content-end">
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <i class="bi bi-send"></i> Enviar comentario
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HISTORIAL -->
+                    <div class="col-lg-6 mb-3" id="historial">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Historial (<?php echo count($historial); ?>)</h6>
+                            </div>
+                            <div class="card-body">
+                                <?php if (empty($historial)): ?>
+                                    <div class="timeline-vacio">
+                                        <i class="bi bi-clock" style="font-size: 1.5rem;"></i>
+                                        <p class="mb-0">Sin eventos registrados aún.</p>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="timeline">
+                                        <?php foreach ($historial as $evt): ?>
+                                            <?php
+                                                $ic = historial_icono_evento($evt['tipo_evento']);
+                                                $datos = !empty($evt['datos_json']) ? json_decode($evt['datos_json'], true) : null;
+                                            ?>
+                                            <div class="timeline-item">
+                                                <div class="timeline-icon text-<?php echo $ic['color']; ?>">
+                                                    <i class="bi <?php echo $ic['icono']; ?>"></i>
+                                                </div>
+                                                <div class="timeline-content">
+                                                    <div class="timeline-title"><?php echo htmlspecialchars($evt['descripcion']); ?></div>
+                                                    <div class="timeline-meta">
+                                                        <i class="bi bi-person"></i> <?php echo htmlspecialchars($evt['autor_nombre'] ?? 'Sistema'); ?>
+                                                        <?php if (!empty($evt['autor_departamento'])): ?>
+                                                            (<?php echo htmlspecialchars($evt['autor_departamento']); ?>)
+                                                        <?php endif; ?>
+                                                        · <?php echo date('d/m/Y H:i', strtotime($evt['fecha_creacion'])); ?>
+                                                    </div>
+
+                                                    <?php // Detalles por tipo de evento ?>
+                                                    <?php if ($evt['tipo_evento'] === 'lineas_editadas' && $datos && isset($datos['antes']) && isset($datos['despues'])): ?>
+                                                        <?php $cambios = comparar_lineas_sec($datos['antes'], $datos['despues']); ?>
+                                                        <div class="timeline-detalles">
+                                                            <div class="diff-lista">
+                                                                <?php foreach ($cambios as $ch): ?>
+                                                                    <?php $es_agrego = strpos($ch, 'Agrego') === 0 || strpos($ch, 'Agregó') === 0; ?>
+                                                                    <?php $es_quito = strpos($ch, 'Quito') === 0 || strpos($ch, 'Quitó') === 0; ?>
+                                                                    <?php if ($es_agrego): ?>
+                                                                        <span class="diff-agrego"><i class="bi bi-plus-circle"></i> <?php echo htmlspecialchars($ch); ?></span>
+                                                                    <?php elseif ($es_quito): ?>
+                                                                        <span class="diff-quito"><i class="bi bi-dash-circle"></i> <?php echo htmlspecialchars($ch); ?></span>
+                                                                    <?php else: ?>
+                                                                        <span class="text-muted"><?php echo htmlspecialchars($ch); ?></span>
+                                                                    <?php endif; ?>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        </div>
+                                                    <?php elseif ($evt['tipo_evento'] === 'sec_cancelada' && $datos && !empty($datos['motivo'])): ?>
+                                                        <div class="timeline-detalles">
+                                                            <strong>Motivo:</strong> <?php echo htmlspecialchars($datos['motivo']); ?>
+                                                        </div>
+                                                    <?php elseif ($evt['tipo_evento'] === 'recibe_firmada' && $datos && !empty($datos['condiciones'])): ?>
+                                                        <div class="timeline-detalles">
+                                                            <strong>Condiciones:</strong>
+                                                            <?php foreach ($datos['condiciones'] as $cond): ?>
+                                                                <span class="condicion-mini"><?php echo htmlspecialchars($cond); ?></span>
+                                                            <?php endforeach; ?>
+                                                        </div>
+                                                    <?php elseif (in_array($evt['tipo_evento'], ['evidencia_subida', 'evidencia_eliminada']) && $datos && !empty($datos['nombre_archivo'])): ?>
+                                                        <div class="timeline-detalles">
+                                                            <i class="bi bi-paperclip"></i> <?php echo htmlspecialchars($datos['nombre_archivo']); ?>
+                                                        </div>
+                                                    <?php elseif ($evt['tipo_evento'] === 'comentario_eliminado' && $datos && !empty($datos['texto_original'])): ?>
+                                                        <div class="timeline-detalles text-muted">
+                                                            <i class="bi bi-quote"></i> <em><?php echo htmlspecialchars(mb_substr($datos['texto_original'], 0, 120)) . (mb_strlen($datos['texto_original']) > 120 ? '...' : ''); ?></em>
+                                                        </div>
+                                                    <?php elseif ($evt['tipo_evento'] === 'comentario_editado' && $datos && !empty($datos['texto_original'])): ?>
+                                                        <div class="timeline-detalles">
+                                                            <div class="text-muted mb-1"><small><strong>Antes:</strong> <em><?php echo htmlspecialchars(mb_substr($datos['texto_original'], 0, 80)) . (mb_strlen($datos['texto_original']) > 80 ? '...' : ''); ?></em></small></div>
+                                                            <div class="text-muted"><small><strong>Después:</strong> <em><?php echo htmlspecialchars(mb_substr($datos['texto_nuevo'] ?? '', 0, 80)) . (mb_strlen($datos['texto_nuevo'] ?? '') > 80 ? '...' : ''); ?></em></small></div>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </main>
@@ -564,6 +805,39 @@ unset($_SESSION['sec_errores']);
     </form>
     <?php endif; ?>
 
+    <!-- Form oculto para eliminar comentario propio -->
+    <form id="formEliminarComentario" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/eliminar_comentario_sec.php" method="POST" style="display:none;">
+        <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
+        <input type="hidden" name="comentario_id" id="comentarioIdEliminar">
+    </form>
+
+    <!-- Modal editar comentario -->
+    <div class="modal fade" id="modalEditarComentario" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="<?php echo URL_BASE; ?>dashboard/salidas_envases/editar_comentario_sec.php" method="POST">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar comentario</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
+                        <input type="hidden" name="comentario_id" id="modalComentarioId">
+                        <textarea name="comentario" id="modalComentarioTexto"
+                                  class="form-control" rows="5" maxlength="5000" required></textarea>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle"></i> Solo puedes editar tus propios comentarios.
+                        </small>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Guardar cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jSignature/2.1.3/jSignature.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -623,6 +897,26 @@ unset($_SESSION['sec_errores']);
         }
     }
     <?php endif; ?>
+
+    // ===== Comentarios =====
+    function abrirEditarComentario(comentarioId, btn) {
+        const textoOriginal = btn.parentElement.querySelector('[data-texto-original]').value;
+        document.getElementById('modalComentarioId').value = comentarioId;
+        document.getElementById('modalComentarioTexto').value = textoOriginal;
+        new bootstrap.Modal(document.getElementById('modalEditarComentario')).show();
+    }
+
+    function confirmarEliminarComentario(comentarioId) {
+        if (confirm('¿Eliminar este comentario? Esta acción no se puede deshacer.')) {
+            document.getElementById('comentarioIdEliminar').value = comentarioId;
+            document.getElementById('formEliminarComentario').submit();
+        }
+    }
+
+    // Al cargar, si el URL tiene el hash #comentarios, hacer scroll
+    if (window.location.hash === '#comentarios') {
+        document.getElementById('comentarios')?.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
     </script>
 </body>
 </html>

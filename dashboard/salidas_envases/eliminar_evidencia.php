@@ -44,7 +44,7 @@ if (!$sec || in_array($sec['estado'], ['cerrada', 'cancelada'], true)) {
     redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$sec_id");
 }
 
-$resultado = eliminar_evidencia_sec($evidencia_id);
+$resultado = eliminar_evidencia_sec($evidencia_id, (int)$_SESSION['usuario_id']);
 
 if ($resultado['success']) {
     redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$sec_id&msg=evidencia_eliminada");
