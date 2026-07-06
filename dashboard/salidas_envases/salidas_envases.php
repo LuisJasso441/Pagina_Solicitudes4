@@ -136,10 +136,25 @@ $folio_flash = $_GET['folio'] ?? null;
             text-align: center;
             width: 50px;
         }
+        /* Row (SEC) clickeable */
+        .sec-clickable {
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+        .sec-clickable:hover tr {
+            background-color: #f0fdfa !important;
+        }
+        .sec-clickable:hover .indicador-btn {
+            border-color: #14b8a6;
+            background: #14b8a6;
+            color: #fff;
+        }
+        [data-theme="dark"] .sec-clickable:hover tr {
+            background-color: rgba(20, 184, 166, 0.10) !important;
+        }
+
         .tabla-sec .marca {
             color: #14b8a6;
-            font-weight: 700;
-            font-size: 1rem;
         }
         .tabla-sec .pendiente {
             color: #6c757d;
@@ -307,13 +322,14 @@ $folio_flash = $_GET['folio'] ?? null;
                                                         <th class="col-cond" title="Cerrado">C4</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody>
-                                                    <?php foreach ($secs_del_dia as $sec):
-                                                        $lineas = $sec['lineas'];
-                                                        $n_lineas = max(1, count($lineas));
-                                                        $info_estado = info_estado_sec($sec['estado']);
-                                                        $primera = true;
-                                                    ?>
+                                                <?php foreach ($secs_del_dia as $sec):
+                                                    $lineas = $sec['lineas'];
+                                                    $n_lineas = max(1, count($lineas));
+                                                    $info_estado = info_estado_sec($sec['estado']);
+                                                    $primera = true;
+                                                    $ver_url = URL_BASE . 'dashboard/salidas_envases/ver_sec.php?id=' . (int)$sec['id'];
+                                                ?>
+                                                <tbody class="sec-clickable" data-href="<?php echo htmlspecialchars($ver_url); ?>">
                                                         <?php foreach ($lineas as $idx => $linea): ?>
                                                             <tr class="<?php echo $primera ? 'sec-row-first' : ''; ?>">
                                                                 <?php if ($primera): ?>
@@ -369,17 +385,17 @@ $folio_flash = $_GET['folio'] ?? null;
                                                                         <span class="badge estado-badge <?php echo $info_estado[0]; ?>"><?php echo $info_estado[1]; ?></span>
                                                                     </td>
                                                                     <td rowspan="<?php echo $n_lineas; ?>" class="text-center">
-                                                                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/ver_sec.php?id=<?php echo (int)$sec['id']; ?>"
-                                                                           class="btn btn-sm btn-outline-primary" title="Ver detalle">
-                                                                            <i class="bi bi-eye"></i>
+                                                                        <a href="<?php echo $ver_url; ?>"
+                                                                           class="btn btn-sm btn-outline-primary indicador-btn" title="Ver detalle">
+                                                                            <i class="bi bi-chevron-right"></i>
                                                                         </a>
                                                                     </td>
                                                                 <?php endif; ?>
                                                             </tr>
                                                             <?php $primera = false; ?>
                                                         <?php endforeach; ?>
-                                                    <?php endforeach; ?>
                                                 </tbody>
+                                                <?php endforeach; ?>
                                             </table>
                                         </div>
                                     </div>
@@ -395,5 +411,19 @@ $folio_flash = $_GET['folio'] ?? null;
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+
+    <script>
+        // Navegación por click en cualquier parte de la SEC
+        document.querySelectorAll('.sec-clickable').forEach(tbody => {
+            tbody.addEventListener('click', (e) => {
+                // No interferir con clicks sobre links, botones o el botón indicador
+                if (e.target.closest('a, button')) return;
+                // Ignorar clicks originados por selección de texto
+                if (window.getSelection().toString()) return;
+                const url = tbody.dataset.href;
+                if (url) window.location = url;
+            });
+        });
+    </script>
 </body>
 </html>
