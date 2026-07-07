@@ -12,6 +12,8 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/inventario_epp/inventario_epp_funciones.php';
 
 $permisos = verificar_permisos_epp($_SESSION['usuario_id']);
+$depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+$puede_eliminar = $permisos['puede_editar'] && $depto_codigo !== 'almacen_refacciones';
 if (!$permisos['tiene_acceso']) {
     establecer_alerta('error', 'No tienes acceso al módulo de Inventario de EPP.');
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -275,10 +277,12 @@ $stats = obtener_estadisticas_epp();
                                 <td class="text-center">
                                     <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/ver_epp.php?id=<?php echo $item['id']; ?>" 
                                        class="btn btn-outline-info btn-accion" title="Ver detalle"><i class="bi bi-eye"></i></a>
+                                    <?php if ($puede_eliminar): ?>
                                     <button type="button" class="btn btn-outline-danger btn-accion" title="Eliminar" 
                                             onclick="eliminarEPP(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['articulo'], ENT_QUOTES); ?>')">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    <?php endif; ?>
                                 </td>
                                 <?php endif; ?>
                             </tr>

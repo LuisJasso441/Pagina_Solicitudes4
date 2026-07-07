@@ -12,6 +12,19 @@ require_once __DIR__ . '/../../includes/reservaciones/reservaciones_funciones.ph
 if (!sesion_activa()) { header('Location: ' . URL_BASE . 'auth/InicioSesion.php'); exit; }
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: ' . URL_BASE . 'dashboard/reservaciones/nueva_reservacion.php'); exit; }
 
+// Protección contra doble envío: verificar y consumir token
+$token_enviado = $_POST['token_reservacion'] ?? '';
+$token_sesion = $_SESSION['token_reservacion'] ?? '';
+
+if (empty($token_enviado) || $token_enviado !== $token_sesion) {
+    // Token inválido o ya consumido = doble envío, redirigir sin crear
+    $_SESSION['success'] = 'Reservación creada exitosamente';
+    header('Location: ' . URL_BASE . 'dashboard/reservaciones/reservaciones_sala.php');
+    exit;
+}
+// Consumir el token inmediatamente para que el segundo POST no pase
+unset($_SESSION['token_reservacion']);
+
 $solicitante     = trim($_POST['solicitante_nombre'] ?? '');
 $departamento_id = (int)($_POST['departamento_id'] ?? 0);
 $lugar           = $_POST['lugar'] ?? 'sala_juntas';

@@ -37,7 +37,11 @@ $es_direccion = in_array($dept_lower, ['direccion', 'dirección']);
 // Obtener filtros
 $filtro_ubicacion = $_GET['ubicacion'] ?? 'local';
 $filtro_estado = $_GET['estado'] ?? '';
-$filtro_cliente = $_GET['cliente'] ?? '';
+// Cliente ahora soporta selección múltiple (array)
+$filtro_cliente = $_GET['cliente'] ?? [];
+if (is_string($filtro_cliente)) {
+    $filtro_cliente = !empty($filtro_cliente) ? [$filtro_cliente] : [];
+}
 $filtro_departamento = $_GET['departamento'] ?? '';
 $filtro_fecha_desde = $_GET['fecha_desde'] ?? '';
 $filtro_fecha_hasta = $_GET['fecha_hasta'] ?? '';
@@ -50,7 +54,7 @@ if (!empty($filtro_estado)) {
 }
 
 if (!empty($filtro_cliente)) {
-    $filtros['cliente'] = $filtro_cliente;
+    $filtros['cliente'] = $filtro_cliente; // Ahora es un array
 }
 
 if (!empty($filtro_departamento) && $filtro_ubicacion == 'global') {
@@ -302,6 +306,46 @@ try {
             background: rgba(13, 202, 240, 0.15);
             color: #0dcaf0;
         }
+
+        /* ⭐ Multi-select dropdown para filtro de clientes */
+        .multi-select-dropdown .dropdown-toggle-multi {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-right: 2rem;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 16px 12px;
+        }
+        
+        .multi-select-dropdown .dropdown-toggle-multi::after {
+            display: none; /* Ocultar flecha default de Bootstrap */
+        }
+        
+        .multi-select-menu {
+            min-width: 100%;
+            max-width: 350px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .multi-select-menu .multi-option {
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        .multi-select-menu .multi-option:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .multi-select-menu .form-check-input {
+            cursor: pointer;
+        }
+        
+        .multi-select-menu .form-check-input:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
     </style>
 </head>
 <body>
@@ -514,14 +558,37 @@ try {
                         
                         <div class="col-md-3">
                             <label class="form-label">Cliente</label>
-                            <select name="cliente" class="form-select">
-                                <option value="">Todos</option>
-                                <?php foreach ($clientes_lista as $cliente): ?>
-                                <option value="<?= htmlspecialchars($cliente) ?>" <?= $filtro_cliente == $cliente ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($cliente) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="dropdown multi-select-dropdown">
+                                <button class="form-select text-start dropdown-toggle-multi" type="button" 
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    <?php if (empty($filtro_cliente)): ?>
+                                        Todos
+                                    <?php elseif (count($filtro_cliente) === 1): ?>
+                                        <?= htmlspecialchars($filtro_cliente[0]) ?>
+                                    <?php else: ?>
+                                        <?= count($filtro_cliente) ?> clientes
+                                    <?php endif; ?>
+                                </button>
+                                <div class="dropdown-menu multi-select-menu p-2 w-100">
+                                    <div class="d-flex justify-content-between mb-2 px-1">
+                                        <a href="#" class="small text-primary multi-select-all" data-target="local">Todos</a>
+                                        <a href="#" class="small text-danger multi-clear-all" data-target="local">Limpiar</a>
+                                    </div>
+                                    <div class="multi-select-search mb-2">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Buscar cliente..." data-target="local">
+                                    </div>
+                                    <div class="multi-select-options" style="max-height: 200px; overflow-y: auto;">
+                                        <?php foreach ($clientes_lista as $cliente): ?>
+                                        <label class="dropdown-item d-flex align-items-center py-1 multi-option" data-group="local">
+                                            <input type="checkbox" name="cliente[]" value="<?= htmlspecialchars($cliente) ?>" 
+                                                   class="form-check-input me-2 mt-0" 
+                                                   <?= in_array($cliente, $filtro_cliente) ? 'checked' : '' ?>>
+                                            <span class="small text-truncate"><?= htmlspecialchars($cliente) ?></span>
+                                        </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="col-md-2">
@@ -548,14 +615,37 @@ try {
                         
                         <div class="col-md-3">
                             <label class="form-label">Cliente</label>
-                            <select name="cliente" class="form-select">
-                                <option value="">Todos</option>
-                                <?php foreach ($clientes_lista as $cliente): ?>
-                                <option value="<?= htmlspecialchars($cliente) ?>" <?= $filtro_cliente == $cliente ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($cliente) ?>
-                                </option>
-                                <?php endforeach; ?>
-                            </select>
+                            <div class="dropdown multi-select-dropdown">
+                                <button class="form-select text-start dropdown-toggle-multi" type="button" 
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    <?php if (empty($filtro_cliente)): ?>
+                                        Todos
+                                    <?php elseif (count($filtro_cliente) === 1): ?>
+                                        <?= htmlspecialchars($filtro_cliente[0]) ?>
+                                    <?php else: ?>
+                                        <?= count($filtro_cliente) ?> clientes
+                                    <?php endif; ?>
+                                </button>
+                                <div class="dropdown-menu multi-select-menu p-2 w-100">
+                                    <div class="d-flex justify-content-between mb-2 px-1">
+                                        <a href="#" class="small text-primary multi-select-all" data-target="global">Todos</a>
+                                        <a href="#" class="small text-danger multi-clear-all" data-target="global">Limpiar</a>
+                                    </div>
+                                    <div class="multi-select-search mb-2">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Buscar cliente..." data-target="global">
+                                    </div>
+                                    <div class="multi-select-options" style="max-height: 200px; overflow-y: auto;">
+                                        <?php foreach ($clientes_lista as $cliente): ?>
+                                        <label class="dropdown-item d-flex align-items-center py-1 multi-option" data-group="global">
+                                            <input type="checkbox" name="cliente[]" value="<?= htmlspecialchars($cliente) ?>" 
+                                                   class="form-check-input me-2 mt-0" 
+                                                   <?= in_array($cliente, $filtro_cliente) ? 'checked' : '' ?>>
+                                            <span class="small text-truncate"><?= htmlspecialchars($cliente) ?></span>
+                                        </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="col-md-2">
@@ -711,5 +801,71 @@ try {
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+
+    <!-- ⭐ Multi-select dropdown JS -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Buscar dentro del dropdown
+        document.querySelectorAll('.multi-select-search input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                const busqueda = this.value.toLowerCase();
+                const grupo = this.dataset.target;
+                document.querySelectorAll('.multi-option[data-group="' + grupo + '"]').forEach(function(option) {
+                    const texto = option.querySelector('span').textContent.toLowerCase();
+                    option.style.display = texto.includes(busqueda) ? '' : 'none';
+                });
+            });
+        });
+
+        // Seleccionar todos
+        document.querySelectorAll('.multi-select-all').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const grupo = this.dataset.target;
+                document.querySelectorAll('.multi-option[data-group="' + grupo + '"] input[type="checkbox"]').forEach(function(cb) {
+                    if (cb.closest('.multi-option').style.display !== 'none') {
+                        cb.checked = true;
+                    }
+                });
+                actualizarTextoBoton(grupo);
+            });
+        });
+
+        // Limpiar todos
+        document.querySelectorAll('.multi-clear-all').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const grupo = this.dataset.target;
+                document.querySelectorAll('.multi-option[data-group="' + grupo + '"] input[type="checkbox"]').forEach(function(cb) {
+                    cb.checked = false;
+                });
+                actualizarTextoBoton(grupo);
+            });
+        });
+
+        // Actualizar texto del botón al cambiar checkbox
+        document.querySelectorAll('.multi-option input[type="checkbox"]').forEach(function(cb) {
+            cb.addEventListener('change', function() {
+                const grupo = this.closest('.multi-option').dataset.group;
+                actualizarTextoBoton(grupo);
+            });
+        });
+
+        function actualizarTextoBoton(grupo) {
+            const checkboxes = document.querySelectorAll('.multi-option[data-group="' + grupo + '"] input[type="checkbox"]:checked');
+            const boton = document.querySelector('.multi-option[data-group="' + grupo + '"]')
+                          .closest('.multi-select-dropdown').querySelector('.dropdown-toggle-multi');
+            
+            if (checkboxes.length === 0) {
+                boton.textContent = 'Todos';
+            } else if (checkboxes.length === 1) {
+                boton.textContent = checkboxes[0].closest('.multi-option').querySelector('span').textContent;
+            } else {
+                boton.textContent = checkboxes.length + ' clientes';
+            }
+        }
+    });
+    </script>
+
 </body>
 </html>

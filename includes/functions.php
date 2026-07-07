@@ -2,14 +2,17 @@
 /**
  * Funciones auxiliares generales del sistema
  * Portal de Solicitudes TI
- * 
- * ⭐ ACTUALIZADO: Campos de Vacaciones (es_admin_area, es_usuario_gth)
  */
 
 // ====================================
 // FUNCIONES DE SEGURIDAD Y VALIDACIÓN
 // ====================================
 
+/**
+ * Limpiar datos de entrada para prevenir XSS
+ * @param string $dato - Dato a limpiar
+ * @return string - Dato limpio
+ */
 function limpiar_dato($dato) {
     $dato = trim($dato);
     $dato = stripslashes($dato);
@@ -17,22 +20,48 @@ function limpiar_dato($dato) {
     return $dato;
 }
 
+/**
+ * Validar email
+ * @param string $email - Email a validar
+ * @return bool
+ */
 function validar_email($email) {
     return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
 }
 
+/**
+ * Validar longitud de contraseña
+ * @param string $password - Contraseña a validar
+ * @return bool
+ */
 function validar_password($password) {
     return strlen($password) >= PASSWORD_MIN_LENGTH;
 }
 
+/**
+ * Generar hash seguro de contraseña
+ * @param string $password - Contraseña en texto plano
+ * @return string - Hash de la contraseña
+ */
 function hash_password($password) {
     return password_hash($password, PASSWORD_DEFAULT);
 }
 
+/**
+ * Verificar contraseña contra hash
+ * @param string $password - Contraseña en texto plano
+ * @param string $hash - Hash almacenado
+ * @return bool
+ */
 function verificar_password($password, $hash) {
     return password_verify($password, $hash);
 }
 
+/**
+ * Generar token aleatorio seguro
+ * @param int $length - Longitud del token
+ * @return string
+ */
 function generar_token($length = 32) {
     return bin2hex(random_bytes($length));
 }
@@ -43,99 +72,128 @@ function generar_token($length = 32) {
 
 /**
  * Iniciar sesión de usuario
- * ⭐ ACTUALIZADO: Incluye campos de vacaciones
+ * @param array $usuario - Datos del usuario
  */
 function iniciar_sesion_usuario($usuario) {
     $_SESSION['usuario_id'] = $usuario['id'];
     $_SESSION['usuario'] = $usuario['usuario'];
     $_SESSION['nombre_completo'] = $usuario['nombre_completo'];
-    $_SESSION['departamento'] = $usuario['departamento'];
+    $_SESSION['departamento'] = $usuario['departamento']; // Texto original (legacy)
     $_SESSION['departamento_codigo'] = $usuario['departamento_codigo'] ?? strtolower(trim($usuario['departamento']));
     $_SESSION['departamento_nombre'] = $usuario['departamento_nombre'] ?? ucfirst($usuario['departamento']);
-    $_SESSION['departamento_id'] = $usuario['departamento_id'] ?? null;
     $_SESSION['es_ti'] = (strtolower($_SESSION['departamento_codigo']) === 'sistemas');
     $_SESSION['es_colaborativo'] = es_departamento_colaborativo($_SESSION['departamento_codigo']);
-    
-    // ⭐ Campos de vacaciones
-    $_SESSION['no_nomina'] = $usuario['no_nomina'] ?? null;
-    $_SESSION['puesto'] = $usuario['puesto'] ?? null;
-    $_SESSION['fecha_ingreso'] = $usuario['fecha_ingreso'] ?? null;
-    $_SESSION['es_admin_area'] = intval($usuario['es_admin_area'] ?? 0);
-    
     $_SESSION['ultimo_acceso'] = time();
     $_SESSION['ip'] = $_SERVER['REMOTE_ADDR'];
 }
 
+/**
+ * Verificar si hay sesión activa
+ * @return bool
+ */
 function sesion_activa() {
     return isset($_SESSION['usuario_id']) && isset($_SESSION['usuario']);
 }
 
+/**
+ * Verificar si la sesión ha expirado
+ * @return bool
+ */
 function sesion_expirada() {
     if (!isset($_SESSION['ultimo_acceso'])) {
         return true;
     }
+    
     $tiempo_transcurrido = time() - $_SESSION['ultimo_acceso'];
     return $tiempo_transcurrido > SESION_TIEMPO_EXPIRACION;
 }
 
+/**
+ * Actualizar tiempo de última actividad
+ */
 function actualizar_sesion() {
     $_SESSION['ultimo_acceso'] = time();
 }
 
+/**
+ * Destruir sesión completamente
+ */
 function destruir_sesion() {
     $_SESSION = array();
+    
     if (isset($_COOKIE[session_name()])) {
         setcookie(session_name(), '', time() - 3600, '/');
     }
+    
     session_destroy();
 }
 
+/**
+ * Verificar si el usuario es de TI/Sistemas
+ * @return bool
+ */
 function es_usuario_ti() {
     return isset($_SESSION['es_ti']) && $_SESSION['es_ti'] === true;
 }
 
+/**
+ * Verificar si el usuario pertenece a departamento colaborativo
+ * @return bool
+ */
 function es_usuario_colaborativo() {
     return isset($_SESSION['es_colaborativo']) && $_SESSION['es_colaborativo'] === true;
 }
 
 /**
- * ⭐ Verificar si el usuario es administrador de área (módulo Vacaciones)
- * Para determinar si puede aprobar solicitudes de vacaciones
+ * Verificar si el usuario pertenece a departamento con acceso a Inventario EPP
+ * @return bool
  */
-function es_admin_area() {
-    return isset($_SESSION['es_admin_area']) && $_SESSION['es_admin_area'] == 1;
+function es_usuario_epp() {
+    $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+    return in_array($depto, ['almacen_refacciones', 'seguridad', 'contabilidad']);
 }
 
 /**
- * ⭐ Verificar si el usuario es de GTH o Contabilidad (módulo Vacaciones)
- * Estos departamentos tienen acceso al Panel GTH para aprobar vacaciones
+ * Verificar si el usuario pertenece al departamento de Mantenimiento
+ * @return bool
+ */
+function es_mantenimiento() {
+    $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+    return ($departamento === 'mantenimiento');
+}
+
+/**
+ * Verificar si el usuario es de GTH o Contabilidad
+ * Usado por ver.php para determinar sidebar y permisos
+ * @return bool
  */
 function es_usuario_gth() {
     $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
     return in_array($depto, ['gestion_talento', 'contabilidad']);
 }
 
-function es_mantenimiento() {
-    $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
-    return ($departamento === 'mantenimiento');
-}
-
 // ====================================
 // FUNCIONES DE REDIRECCIÓN
 // ====================================
 
+/**
+ * Redirigir a una URL
+ * @param string $url - URL de destino
+ */
 function redirigir($url) {
     header("Location: " . $url);
     exit();
 }
 
+/**
+ * Redirigir al login
+ */
 function redirigir_login() {
     redirigir(URL_BASE . 'auth/InicioSesion.php');
 }
 
 /**
  * Redirigir al dashboard según tipo de usuario
- * ⭐ Contabilidad y GTH redirigen a vacaciones_gth
  */
 function redirigir_dashboard() {
     $depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']));
@@ -144,12 +202,12 @@ function redirigir_dashboard() {
         redirigir(URL_BASE . 'dashboard/sistemas/ti_sistemas.php');
     } elseif ($depto_codigo === 'mantenimiento') {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
-    } elseif (in_array($depto_codigo, ['gestion_talento', 'contabilidad'])) {
-        redirigir(URL_BASE . 'dashboard/gth/dashboard_gth.php');
     } elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
+    } elseif (in_array($depto_codigo, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
+        redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
     } else {
-        redirigir(URL_BASE . 'dashboard/departamento.php');
+        redirigir(URL_BASE . 'dashboard/mis_ordenes_servicio.php');
     }
 }
 
@@ -157,6 +215,11 @@ function redirigir_dashboard() {
 // FUNCIONES DE MENSAJES Y ALERTAS
 // ====================================
 
+/**
+ * Establecer mensaje de alerta en sesión
+ * @param string $tipo - Tipo: 'success', 'error', 'warning', 'info'
+ * @param string $mensaje - Mensaje a mostrar
+ */
 function establecer_alerta($tipo, $mensaje) {
     $_SESSION['alerta'] = [
         'tipo' => $tipo,
@@ -164,6 +227,10 @@ function establecer_alerta($tipo, $mensaje) {
     ];
 }
 
+/**
+ * Obtener y limpiar mensaje de alerta
+ * @return array|null - Array con tipo y mensaje, o null
+ */
 function obtener_alerta() {
     if (isset($_SESSION['alerta'])) {
         $alerta = $_SESSION['alerta'];
@@ -173,6 +240,10 @@ function obtener_alerta() {
     return null;
 }
 
+/**
+ * Mostrar alerta HTML (Bootstrap)
+ * @return string - HTML de la alerta
+ */
 function mostrar_alerta() {
     $alerta = obtener_alerta();
     if ($alerta === null) {
@@ -198,25 +269,48 @@ function mostrar_alerta() {
 // FUNCIONES DE VALIDACIÓN DE ARCHIVOS
 // ====================================
 
+/**
+ * Validar archivo subido
+ * @param array $archivo - Archivo de $_FILES
+ * @return array - ['valido' => bool, 'error' => string]
+ */
 function validar_archivo($archivo) {
+    // Verificar si hay error en la subida
     if ($archivo['error'] !== UPLOAD_ERR_OK) {
         return ['valido' => false, 'error' => 'Error al subir el archivo'];
     }
     
+    // Verificar tamaño
     if ($archivo['size'] > MAX_FILE_SIZE) {
         $max_mb = MAX_FILE_SIZE / (1024 * 1024);
         return ['valido' => false, 'error' => 'El archivo excede el tamaño máximo permitido (' . $max_mb . 'MB)'];
     }
     
+    // Verificar extensión
     $extension = strtolower(pathinfo($archivo['name'], PATHINFO_EXTENSION));
     if (!in_array($extension, ALLOWED_FILE_TYPES)) {
-        return ['valido' => false, 'error' => 'Tipo de archivo no permitido: ' . $extension];
+        return ['valido' => false, 'error' => 'Tipo de archivo no permitido'];
+    }
+    
+    // Verificar MIME type (seguridad adicional)
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $archivo['tmp_name']);
+    finfo_close($finfo);
+    
+    if (!in_array($mime, ALLOWED_MIME_TYPES)) {
+        return ['valido' => false, 'error' => 'Tipo de archivo no válido'];
     }
     
     return ['valido' => true, 'error' => ''];
 }
 
-function subir_archivo($archivo, $carpeta = 'solicitudes') {
+/**
+ * Subir archivo y retornar nombre único
+ * @param array $archivo - Archivo de $_FILES
+ * @param string $carpeta - Carpeta de destino dentro de uploads/
+ * @return string|false - Nombre del archivo o false si falla
+ */
+function subir_archivo($archivo, $carpeta) {
     $validacion = validar_archivo($archivo);
     
     if (!$validacion['valido']) {
@@ -231,6 +325,7 @@ function subir_archivo($archivo, $carpeta = 'solicitudes') {
     
     $ruta_destino = DIR_UPLOADS . $carpeta . '/';
     
+    // Crear carpeta si no existe
     if (!file_exists($ruta_destino)) {
         mkdir($ruta_destino, 0755, true);
     }
@@ -242,16 +337,34 @@ function subir_archivo($archivo, $carpeta = 'solicitudes') {
     return false;
 }
 
+/**
+ * Verificar si un archivo existe en el sistema
+ * @param string $nombre_archivo - Nombre del archivo
+ * @param string $carpeta - Carpeta donde buscar
+ * @return bool
+ */
 function archivo_existe($nombre_archivo, $carpeta) {
     $ruta = DIR_UPLOADS . $carpeta . '/' . $nombre_archivo;
     return file_exists($ruta);
 }
 
+/**
+ * Obtener ruta completa del archivo
+ * @param string $nombre_archivo - Nombre del archivo
+ * @param string $carpeta - Carpeta donde está el archivo
+ * @return string|false - Ruta completa o false si no existe
+ */
 function obtener_ruta_archivo($nombre_archivo, $carpeta) {
     $ruta = DIR_UPLOADS . $carpeta . '/' . $nombre_archivo;
     return file_exists($ruta) ? $ruta : false;
 }
 
+/**
+ * Obtener tamaño del archivo en formato legible
+ * @param string $nombre_archivo - Nombre del archivo
+ * @param string $carpeta - Carpeta donde está el archivo
+ * @return string - Tamaño formateado
+ */
 function obtener_tamano_archivo($nombre_archivo, $carpeta) {
     $ruta = obtener_ruta_archivo($nombre_archivo, $carpeta);
     
@@ -272,6 +385,12 @@ function obtener_tamano_archivo($nombre_archivo, $carpeta) {
     }
 }
 
+/**
+ * Eliminar archivo del sistema
+ * @param string $nombre_archivo - Nombre del archivo
+ * @param string $carpeta - Carpeta donde está el archivo
+ * @return bool
+ */
 function eliminar_archivo($nombre_archivo, $carpeta) {
     $ruta = obtener_ruta_archivo($nombre_archivo, $carpeta);
     
@@ -282,6 +401,11 @@ function eliminar_archivo($nombre_archivo, $carpeta) {
     return unlink($ruta);
 }
 
+/**
+ * Obtener icono según tipo de archivo
+ * @param string $nombre_archivo - Nombre del archivo
+ * @return string - Clase de icono Bootstrap
+ */
 function obtener_icono_archivo($nombre_archivo) {
     $extension = strtolower(pathinfo($nombre_archivo, PATHINFO_EXTENSION));
     
@@ -305,15 +429,25 @@ function obtener_icono_archivo($nombre_archivo) {
     return isset($iconos[$extension]) ? $iconos[$extension] : 'bi-file-earmark text-muted';
 }
 
+/**
+ * Verificar si el usuario tiene permiso para descargar el archivo
+ * @param int $archivo_id - ID del archivo (para consultar BD en futuro)
+ * @param string $tipo_archivo - 'solicitud' o 'colaborativo'
+ * @return bool
+ */
 function puede_descargar_archivo($archivo_id, $tipo_archivo = 'solicitud') {
+    // Por ahora, permitir descarga si hay sesión activa
     if (!sesion_activa()) {
         return false;
     }
     
+    // Si es archivo colaborativo, solo departamentos colaborativos pueden descargar
     if ($tipo_archivo === 'colaborativo') {
         return es_usuario_colaborativo() || es_usuario_ti();
     }
     
+    // Para solicitudes, el usuario puede descargar sus propios archivos
+    // TODO: Cuando tengamos BD, verificar que el archivo pertenezca al usuario o a TI
     return true;
 }
 
@@ -321,6 +455,12 @@ function puede_descargar_archivo($archivo_id, $tipo_archivo = 'solicitud') {
 // FUNCIONES DE FORMATO Y UTILIDADES
 // ====================================
 
+/**
+ * Formatear fecha en español
+ * @param string $fecha - Fecha en formato MySQL
+ * @param bool $incluir_hora - Incluir hora
+ * @return string
+ */
 function formatear_fecha($fecha, $incluir_hora = false) {
     $timestamp = strtotime($fecha);
     
@@ -331,6 +471,11 @@ function formatear_fecha($fecha, $incluir_hora = false) {
     return date('d/m/Y', $timestamp);
 }
 
+/**
+ * Obtener clase de badge según estado
+ * @param string $estado - Estado de la solicitud
+ * @return string - Clase CSS
+ */
 function obtener_clase_estado($estado) {
     $clases = [
         ESTADO_PENDIENTE => 'bg-warning text-dark',
@@ -342,6 +487,11 @@ function obtener_clase_estado($estado) {
     return isset($clases[$estado]) ? $clases[$estado] : 'bg-secondary';
 }
 
+/**
+ * Obtener texto legible del estado
+ * @param string $estado - Estado de la solicitud
+ * @return string
+ */
 function obtener_texto_estado($estado) {
     $textos = [
         ESTADO_PENDIENTE => 'Pendiente',
@@ -353,13 +503,26 @@ function obtener_texto_estado($estado) {
     return isset($textos[$estado]) ? $textos[$estado] : 'Desconocido';
 }
 
+/**
+ * Generar número de folio único
+ * @param string $prefijo - Prefijo del folio
+ * @return string
+ */
 function generar_folio($prefijo = 'SOL') {
     return $prefijo . '-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 }
 
+/**
+ * Sanitizar nombre de archivo
+ * @param string $nombre - Nombre del archivo
+ * @return string
+ */
 function sanitizar_nombre_archivo($nombre) {
+    // Eliminar caracteres especiales y espacios
     $nombre = preg_replace('/[^a-zA-Z0-9._-]/', '_', $nombre);
+    // Eliminar guiones bajos múltiples
     $nombre = preg_replace('/_+/', '_', $nombre);
+    // Limitar longitud
     return substr($nombre, 0, 100);
 }
 
@@ -367,14 +530,31 @@ function sanitizar_nombre_archivo($nombre) {
 // FUNCIONES DE PAGINACIÓN
 // ====================================
 
+/**
+ * Calcular offset para paginación
+ * @param int $pagina - Página actual
+ * @param int $por_pagina - Registros por página
+ * @return int - Offset
+ */
 function calcular_offset($pagina, $por_pagina) {
     return ($pagina - 1) * $por_pagina;
 }
 
+/**
+ * Calcular total de páginas
+ * @param int $total_registros - Total de registros
+ * @param int $por_pagina - Registros por página
+ * @return int - Total de páginas
+ */
 function calcular_total_paginas($total_registros, $por_pagina) {
     return ceil($total_registros / $por_pagina);
 }
 
+/**
+ * Obtener fecha actual en español (formato completo)
+ * Reemplazo moderno de strftime()
+ * @return string - Fecha en formato: "Jueves, 02 de Octubre de 2025"
+ */
 function obtener_fecha_actual_espanol() {
     $dias = [
         'Monday' => 'Lunes',

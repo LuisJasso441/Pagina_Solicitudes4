@@ -14,108 +14,102 @@ $departamentos = [
         'nombre' => 'Almacén de refacciones',
         'codigo' => 'ALM_REF',
         'icono' => 'bi-box-seam',
-        'color' => '#6366f1'
+        'color' => '#795548'
     ],
     'almacen_residuos' => [
         'nombre' => 'Almacén de residuos',
         'codigo' => 'ALM_RES',
         'icono' => 'bi-recycle',
-        'color' => '#10b981'
+        'color' => '#558B2F'
     ],
     'atencion_clientes' => [
         'nombre' => 'Atención a clientes',
         'codigo' => 'ATC',
         'icono' => 'bi-headset',
-        'color' => '#f59e0b'
+        'color' => '#1E88E5'
     ],
     'calidad' => [
         'nombre' => 'Calidad',
         'codigo' => 'CAL',
         'icono' => 'bi-award',
-        'color' => '#8b5cf6'
-    ],
-    'construccion' => [
-        'nombre' => 'Construcción',
-        'codigo' => 'CON',
-        'icono' => 'bi-tools',
-        'color' => '#ef4444'
+        'color' => '#00897B'
     ],
     'contabilidad' => [
         'nombre' => 'Contabilidad',
         'codigo' => 'CTB',
         'icono' => 'bi-calculator',
-        'color' => '#06b6d4'
+        'color' => '#2E7D32'
     ],
     'gestion_talento' => [
         'nombre' => 'Gestión de talento humano',
         'codigo' => 'GTH',
         'icono' => 'bi-people',
-        'color' => '#ec4899'
+        'color' => '#C2185B'
     ],
     'laboratorio' => [
         'nombre' => 'Laboratorio',
         'codigo' => 'LAB',
         'icono' => 'bi-prescription2',
-        'color' => '#3b82f6',
+        'color' => '#1565C0',
         'colaborativo' => true
     ],
     'logistica' => [
         'nombre' => 'Logística',
         'codigo' => 'LOG',
         'icono' => 'bi-truck',
-        'color' => '#14b8a6'
+        'color' => '#EF6C00'
     ],
     'mantenimiento' => [
         'nombre' => 'Mantenimiento',
         'codigo' => 'MAN',
         'icono' => 'bi-wrench',
-        'color' => '#f97316'
+        'color' => '#616161'
     ],
     'normatividad' => [
         'nombre' => 'Normatividad',
         'codigo' => 'NOR',
         'icono' => 'bi-file-earmark-text',
-        'color' => '#6366f1',
+        'color' => '#3949AB',
         'colaborativo' => true
     ],
     'ptar' => [
         'nombre' => 'PTAR',
         'codigo' => 'PTAR',
         'icono' => 'bi-droplet',
-        'color' => '#0ea5e9',
+        'color' => '#00796B',
         'colaborativo' => true
     ],
     'seguridad' => [
         'nombre' => 'Seguridad',
         'codigo' => 'SEG',
         'icono' => 'bi-shield-check',
-        'color' => '#dc2626'
+        'color' => '#C62828'
     ],
     'sistemas' => [
         'nombre' => 'Sistemas',
         'codigo' => 'SIS',
         'icono' => 'bi-laptop',
-        'color' => '#4f46e5',
+        'color' => '#283593',
         'es_ti' => true
     ],
     'tesoreria' => [
         'nombre' => 'Tesorería',
         'codigo' => 'TES',
         'icono' => 'bi-cash-stack',
-        'color' => '#059669'
+        'color' => '#B28704'
     ],
     'ventas' => [
         'nombre' => 'Ventas',
         'codigo' => 'VEN',
         'icono' => 'bi-cart',
-        'color' => '#d946ef',
+        'color' => '#D84315',
         'colaborativo' => true
     ],
     'direccion' => [
         'nombre' => 'Dirección',
         'codigo' => 'DIR',
         'icono' => 'bi-building',
-        'color' => '#1e40af',
+        'color' => '#6A1B9A',
         'colaborativo' => true
     ]
 ];

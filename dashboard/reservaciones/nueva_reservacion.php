@@ -73,7 +73,12 @@ $hora_pre = $_GET['hora'] ?? '';
                 
                 <div class="card shadow-sm">
                     <div class="card-body">
+                        <?php 
+                        $token_reservacion = bin2hex(random_bytes(16));
+                        $_SESSION['token_reservacion'] = $token_reservacion;
+                        ?>
                         <form action="<?php echo URL_BASE; ?>api/reservaciones/crear_reservacion.php" method="POST" id="form-reservacion">
+                            <input type="hidden" name="token_reservacion" value="<?php echo $token_reservacion; ?>">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label for="solicitante_nombre" class="form-label fw-semibold">Nombre del Solicitante <span class="text-danger">*</span></label>
@@ -224,7 +229,12 @@ $hora_pre = $_GET['hora'] ?? '';
         });
         
         document.getElementById('form-reservacion').addEventListener('submit', function(e) {
-            if (hayConflicto) { e.preventDefault(); alertaConflicto.classList.remove('d-none'); }
+            if (hayConflicto) { e.preventDefault(); alertaConflicto.classList.remove('d-none'); return; }
+            
+            // Prevenir doble envío
+            var btnReservar = document.getElementById('btn-reservar');
+            btnReservar.disabled = true;
+            btnReservar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Reservando...';
         });
     });
     </script>

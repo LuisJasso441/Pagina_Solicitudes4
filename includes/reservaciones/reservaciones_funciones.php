@@ -11,6 +11,26 @@
 // HELPERS
 // =====================================================
 
+/**
+ * Calcula automáticamente el color de texto (blanco o negro)
+ * según la luminosidad del color de fondo.
+ * Usa la fórmula de luminancia relativa del W3C (WCAG 2.0)
+ */
+function calcular_color_texto($hex_fondo) {
+    $hex = ltrim($hex_fondo, '#');
+    if (strlen($hex) === 3) {
+        $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+    }
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    
+    // Luminancia relativa (percepción humana: verde > rojo > azul)
+    $luminancia = ($r * 0.299 + $g * 0.587 + $b * 0.114);
+    
+    return $luminancia > 150 ? '#000000' : '#FFFFFF';
+}
+
 function obtener_nombre_lugar($codigo) {
     $lugares = [
         'sala_juntas'         => 'Sala de Juntas',
@@ -88,7 +108,7 @@ function obtener_eventos_calendario($inicio, $fin) {
             'start'     => $r['fecha_reservacion'] . 'T' . $r['hora_inicio'],
             'end'       => $r['fecha_reservacion'] . 'T' . $r['hora_fin'],
             'color'     => $r['color_hex'],
-            'textColor' => $r['color_texto'],
+            'textColor' => calcular_color_texto($r['color_hex']),
             'extendedProps' => [
                 'solicitante'    => $r['solicitante_nombre'],
                 'departamento'   => $depto,
@@ -220,6 +240,30 @@ function crear_reservacion($datos) {
     $pdo = conectarDB();
     try {
         $lugar = $datos['lugar'] ?? 'sala_juntas';
+        
+        // Protección anti-duplicado: rechazar si ya existe una reservación
+        // del mismo usuario, misma fecha, misma hora y mismo lugar
+        $stmt_dup = $pdo->prepare("
+            SELECT id FROM reservaciones_sala 
+            WHERE usuario_id = :uid 
+              AND fecha_reservacion = :fecha 
+              AND hora_inicio = :hora_inicio 
+              AND hora_fin = :hora_fin 
+              AND lugar = :lugar
+              AND estado = 'activa'
+            LIMIT 1
+        ");
+        $stmt_dup->execute([
+            ':uid' => $datos['usuario_id'],
+            ':fecha' => $datos['fecha_reservacion'],
+            ':hora_inicio' => $datos['hora_inicio'],
+            ':hora_fin' => $datos['hora_fin'],
+            ':lugar' => $lugar
+        ]);
+        if ($stmt_dup->fetch()) {
+            return ['success' => true, 'id' => 0];
+        }
+        
         $disponibilidad = verificar_disponibilidad(
             $datos['fecha_reservacion'], $datos['hora_inicio'], $datos['hora_fin'], $lugar
         );
@@ -324,12 +368,15 @@ function puede_modificar_reservacion($reservacion, $usuario_id, $departamento) {
 function obtener_colores_departamentos() {
     $pdo = conectarDB();
     $stmt = $pdo->query("
-        SELECT d.id, d.codigo, d.nombre, COALESCE(c.color_hex, '#95A5A6') AS color_hex,
-               COALESCE(c.color_texto, '#FFFFFF') AS color_texto
+        SELECT d.id, d.codigo, d.nombre, COALESCE(c.color_hex, '#95A5A6') AS color_hex
         FROM departamentos d LEFT JOIN colores_departamento c ON d.id = c.departamento_id
         WHERE d.activo = 1 ORDER BY d.nombre
     ");
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $deptos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($deptos as &$d) {
+        $d['color_texto'] = calcular_color_texto($d['color_hex']);
+    }
+    return $deptos;
 }
 
 function obtener_departamentos_activos() {

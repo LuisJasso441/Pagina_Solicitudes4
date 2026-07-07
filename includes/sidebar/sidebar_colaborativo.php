@@ -105,6 +105,7 @@ require_once __DIR__ . '/../../config/database.php';
                 </a>
             </li>
             
+            <?php if (in_array($dept_sec_col, ['ventas', 'laboratorio', 'normatividad', 'direccion'])): ?>
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">COTIZACIONES QUIMICOS</small>
             
@@ -114,6 +115,7 @@ require_once __DIR__ . '/../../config/database.php';
                     <i class="bi bi-file-earmark-medical"></i> Cotizaciones QR
                 </a>
             </li>
+            <?php endif; ?>
             
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ORDENES DE SERVICIO</small>

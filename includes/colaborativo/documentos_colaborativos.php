@@ -293,10 +293,16 @@ function listar_documentos($filtros = [], $usuario_id = null, $departamento = nu
             $params[] = $filtros['estado'];
         }
         
-        // ⭐ Filtro por cliente
+        // ⭐ Filtro por cliente (soporta múltiples)
         if (!empty($filtros['cliente'])) {
-            $sql .= " AND nombre_cliente = ?";
-            $params[] = $filtros['cliente'];
+            if (is_array($filtros['cliente'])) {
+                $placeholders = implode(',', array_fill(0, count($filtros['cliente']), '?'));
+                $sql .= " AND nombre_cliente IN ($placeholders)";
+                $params = array_merge($params, $filtros['cliente']);
+            } else {
+                $sql .= " AND nombre_cliente = ?";
+                $params[] = $filtros['cliente'];
+            }
         }
         
         // Filtro por departamento

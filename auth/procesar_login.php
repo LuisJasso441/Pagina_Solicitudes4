@@ -1,9 +1,9 @@
 <?php
 /**
  * Procesar inicio de sesión
- * VERSIÓN CON BASE DE DATOS - CON REDIRECCIÓN ESPECÍFICA PARA MANTENIMIENTO
+ * VERSIÓN CON BASE DE DATOS - CON REDIRECCIÓN ESPECÍFICA PARA MANTENIMIENTO Y EPP
  * 
- * ⭐ ACTUALIZADO: Contabilidad separada de EPP → redirige a Vacaciones GTH
+ * Almacén de Refacciones, Seguridad y Contabilidad → dashboard EPP
  */
 
 session_start();
@@ -127,9 +127,11 @@ try {
     elseif ($departamento_lower === 'mantenimiento') {
         redirigir(URL_BASE . 'dashboard/ordenes_servicio/mantenimiento.php');
     }
-    // ⭐ VACACIONES: Contabilidad separada de EPP → ahora va con GTH
-    elseif (in_array($departamento_lower, ['gestion_talento', 'contabilidad'])) {
+    elseif ($departamento_lower === 'gestion_talento') {
         redirigir(URL_BASE . 'dashboard/gth/dashboard_gth.php');
+    }
+    elseif (in_array($departamento_lower, ['almacen_refacciones', 'seguridad', 'contabilidad'])) {
+        redirigir(URL_BASE . 'dashboard/inventario_epp/dashboard_epp.php');
     }
     elseif (es_usuario_colaborativo()) {
         redirigir(URL_BASE . 'dashboard/colaborativo/colaborativo.php');
