@@ -282,7 +282,9 @@ function obtener_icono_tipo($tipo) {
             include __DIR__ . '/../includes/sidebar/sidebar_gth.php';
         } elseif (es_usuario_colaborativo()) {
             include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
-        }elseif (es_usuario_gth()) {
+        } elseif (es_usuario_epp()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_inventario.php';
+        } elseif (es_usuario_gth()) {
             include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
         } elseif (es_mantenimiento()) {
             include __DIR__ . '/../includes/sidebar/sidebar_mantenimiento.php';

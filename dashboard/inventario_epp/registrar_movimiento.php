@@ -211,6 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     <script>
     // Datos de artículos con tallas (desde PHP)
     const articulosData = <?php echo json_encode(array_values($articulos_agrupados), JSON_UNESCAPED_UNICODE); ?>;

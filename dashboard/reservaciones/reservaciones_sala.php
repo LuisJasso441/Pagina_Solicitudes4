@@ -65,6 +65,7 @@ $departamento_usuario = $_SESSION['departamento'] ?? '';
         if ($depto === 'sistemas') { include __DIR__ . '/../../includes/sidebar/sidebar_ti.php'; }
         elseif ($depto === 'mantenimiento') { include __DIR__ . '/../../includes/sidebar/sidebar_mantenimiento.php'; }
         elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) { include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php'; }
+        elseif (es_usuario_epp()) { include __DIR__ . '/../../includes/sidebar/sidebar_inventario.php'; }
         elseif (in_array($depto, ['logistica', 'almacen_residuos'])) { include __DIR__ . '/../../includes/sidebar/sidebar_sec.php'; }
         else { include __DIR__ . '/../../includes/sidebar/sidebar_normal.php'; }
         ?>

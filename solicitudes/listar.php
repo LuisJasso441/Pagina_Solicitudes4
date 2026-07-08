@@ -145,6 +145,8 @@ function obtener_texto_prioridad($prioridad) {
             include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
         } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
             include __DIR__ . '/../includes/sidebar/sidebar_gth.php';
+        } elseif (es_usuario_epp()) {
+            include __DIR__ . '/../includes/sidebar/sidebar_inventario.php';
         } elseif (es_usuario_colaborativo()) {
             include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
         } elseif (es_mantenimiento()) {
