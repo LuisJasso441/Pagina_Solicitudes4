@@ -108,8 +108,3 @@ $en_empleados = in_array($current_page, ['listar_empleados.php', 'crear_empleado
         </ul>
     </nav>
 </aside>
-
-<?php 
-$modal_path = __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php';
-if (file_exists($modal_path)) { include $modal_path; }
-?>

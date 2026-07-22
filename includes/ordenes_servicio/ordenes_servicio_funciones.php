@@ -526,4 +526,35 @@ function contar_ordenes_por_estado($departamento = null, $usuario_id = null) {
     
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+
+/**
+ * Genera el próximo folio LOG-### para órdenes de servicio de Logística.
+ * 
+ * IMPORTANTE: Debe llamarse DENTRO de una transacción activa.
+ * Usa FOR UPDATE para bloquear la lectura del máximo actual y evitar
+ * que dos altas simultáneas obtengan el mismo número.
+ * 
+ * El correlativo es continuo (no reinicia por año) y solo considera
+ * folios con prefijo LOG-, ignorando los OM-... viejos capturados a mano.
+ * 
+ * Como última defensa contra race conditions, la columna 'folio' tiene
+ * UNIQUE KEY y el caller debe reintentar si el INSERT falla con SQLSTATE 23000.
+ * 
+ * @param PDO $pdo Conexión con transacción ya iniciada
+ * @return string Folio con formato LOG-### (3 dígitos con ceros a la izquierda)
+ */
+function generar_folio_logistica_osm(PDO $pdo): string {
+    $stmt = $pdo->prepare("
+        SELECT COALESCE(MAX(CAST(SUBSTRING(folio, 5) AS UNSIGNED)), 0) AS max_num
+        FROM ordenes_servicio_mantenimiento
+        WHERE folio LIKE 'LOG-%'
+        FOR UPDATE
+    ");
+    $stmt->execute();
+    $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $siguiente_numero = ((int)($resultado['max_num'] ?? 0)) + 1;
+    
+    return sprintf('LOG-%03d', $siguiente_numero);
+}
 ?>

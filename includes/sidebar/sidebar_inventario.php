@@ -185,7 +185,7 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
             <li class="nav-item">
                 <a class="nav-link <?php echo $en_registrar_mov ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/inventario_epp/registrar_movimiento.php">
-                    <i class="bi bi-pencil-square"></i> Registrar Movimiento
+                    <i class="bi bi-pencil-square"></i> Registrar Entrada
                 </a>
             </li>
             
@@ -264,5 +264,3 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
 
 <!-- Modal para crear nueva solicitud de TI -->
 <?php include __DIR__ . '/../../solicitudes/modal_crear.php'; ?>
-<!-- Modal para crear nueva orden de servicio -->
-<?php include __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php'; ?>

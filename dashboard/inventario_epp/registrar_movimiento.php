@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
                         <h2 class="mb-0" style="font-size: 1.3rem;"><i class="bi bi-arrow-left-right text-primary"></i> <?php echo $page_title; ?></h2>
-                        <small class="text-muted">Registrar entrada o salida de EPP</small>
+                        <small class="text-muted">Registrar entrada de EPP al inventario</small>
                     </div>
                     <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php?vista=movimientos" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-arrow-left"></i> Volver a Movimientos
@@ -143,10 +143,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         <div class="mb-3">
                             <label class="form-label">Tipo de Movimiento <span class="text-danger">*</span></label>
-                            <select name="tipo_movimiento" id="selectTipo" class="form-select" required>
+                            <select name="tipo_movimiento" class="form-select" required>
                                 <option value="">Seleccione</option>
-                                <option value="Entrada" <?php echo ($datos['tipo_movimiento'] ?? '') === 'Entrada' ? 'selected' : ''; ?>>Entrada</option>
-                                <option value="Salida" <?php echo ($datos['tipo_movimiento'] ?? '') === 'Salida' ? 'selected' : ''; ?>>Salida</option>
+                                <option value="Entrada">Entrada</option>
                             </select>
                         </div>
                         
@@ -185,13 +184,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    value="<?php echo $datos['cantidad'] ?? ''; ?>">
                         </div>
                         
-                        <div class="mb-3 campo-trabajador" id="campoTrabajador">
-                            <label class="form-label">Nombre del trabajador</label>
-                            <input type="text" name="nombre_trabajador" class="form-control"
-                                   placeholder="Nombre del trabajador que recibe el EPP"
-                                   value="<?php echo htmlspecialchars($datos['nombre_trabajador'] ?? ''); ?>">
-                        </div>
-                        
                         <div class="mb-3">
                             <label class="form-label">Observaciones</label>
                             <textarea name="observaciones" class="form-control" rows="3"
@@ -213,22 +205,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     <script>
-    // Datos de artículos con tallas (desde PHP)
     const articulosData = <?php echo json_encode(array_values($articulos_agrupados), JSON_UNESCAPED_UNICODE); ?>;
     
     const selectArticulo = document.getElementById('selectArticulo');
     const selectTalla = document.getElementById('selectTalla');
     const tallaWrapper = document.getElementById('tallaWrapper');
     const stockInfo = document.getElementById('stockInfo');
-    const selectTipo = document.getElementById('selectTipo');
-    const campoTrabajador = document.getElementById('campoTrabajador');
     
-    // Mostrar campo trabajador solo para Salida
-    selectTipo.addEventListener('change', function() {
-        campoTrabajador.style.display = this.value === 'Salida' ? 'block' : 'none';
-    });
-    
-    // Al seleccionar artículo → cargar tallas
     selectArticulo.addEventListener('change', function() {
         selectTalla.innerHTML = '<option value="">Seleccione una talla</option>';
         stockInfo.classList.remove('visible');
@@ -252,14 +235,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         tallaWrapper.classList.add('visible');
         
-        // Si solo hay una talla (Única), seleccionarla automáticamente
         if (art.tallas.length === 1) {
             selectTalla.selectedIndex = 1;
             selectTalla.dispatchEvent(new Event('change'));
         }
     });
     
-    // Al seleccionar talla → mostrar stock
     selectTalla.addEventListener('change', function() {
         const opt = this.options[this.selectedIndex];
         if (this.value && opt.dataset.stock !== undefined) {
@@ -272,9 +253,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     });
     
-    // Trigger si hay preselección
     if (selectArticulo.value) selectArticulo.dispatchEvent(new Event('change'));
-    if (selectTipo.value) selectTipo.dispatchEvent(new Event('change'));
     </script>
 </body>
 </html>

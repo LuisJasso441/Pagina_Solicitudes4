@@ -39,6 +39,9 @@ if ($departamento_codigo === 'mantenimiento') {
     exit;
 }
 
+// Detectar si es usuario de Logística (folio autogenerado LOG-###)
+$es_logistica = in_array($departamento_codigo, ['logistica', 'almacen_residuos']);
+
 // ========================================
 // VALIDACIÓN DE PERMISOS OSM - CREADOR
 // ========================================
@@ -81,7 +84,10 @@ if (!$datos) {
 }
 
 // Validar campos obligatorios
-$campos_requeridos = ['empresa', 'folio', 'unidad_equipo', 'prioridad', 'descripcion_falla'];
+// Para Logística, 'folio' NO viene del cliente (se autogenera en backend)
+$campos_requeridos = $es_logistica
+    ? ['empresa', 'unidad_equipo', 'prioridad', 'descripcion_falla']
+    : ['empresa', 'folio', 'unidad_equipo', 'prioridad', 'descripcion_falla'];
 foreach ($campos_requeridos as $campo) {
     if (empty($datos[$campo])) {
         echo json_encode([
@@ -92,136 +98,168 @@ foreach ($campos_requeridos as $campo) {
     }
 }
 
-// VALIDACIÓN MEJORADA DEL FOLIO
-$folio = trim($datos['folio']);
+// VALIDACIÓN DEL FOLIO
+// Logística: se autogenera en backend dentro de la transacción (se asigna en $folio más abajo)
+// Otros roles: se valida el folio capturado por el usuario
+if ($es_logistica) {
+    $folio = null; // Se asignará con generar_folio_logistica_osm() dentro de la transacción
+} else {
+    $folio = trim($datos['folio']);
 
-// Verificar que el folio no esté vacío DESPUÉS del trim
-if (empty($folio)) {
-    echo json_encode([
-        'success' => false,
-        'error' => 'El folio no puede estar vacío. Por favor, genera un folio válido.'
-    ]);
-    exit;
-}
-
-// Validar formato del folio (no debe contener caracteres especiales peligrosos)
-if (!preg_match('/^[a-zA-Z0-9\-_\/]+$/', $folio)) {
-    echo json_encode([
-        'success' => false,
-        'error' => 'El folio solo puede contener letras, números, guiones, guiones bajos y barras'
-    ]);
-    exit;
-}
-
-try {
-    $pdo = conectarDB();
-    $pdo->beginTransaction();
-    
-    // Verificar que el folio no exista
-    $stmt = $pdo->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento WHERE folio = :folio");
-    $stmt->execute([':folio' => $folio]);
-    $existe = $stmt->fetch();
-    
-    if ($existe) {
-        error_log("⚠️ FOLIO DUPLICADO - Folio: '$folio', ID existente: {$existe['id']}, Nuevo intento por: {$_SESSION['nombre_completo']}");
-        throw new Exception("El folio '{$folio}' ya existe. Por favor, use otro folio o regenere uno nuevo.");
+    // Verificar que el folio no esté vacío DESPUÉS del trim
+    if (empty($folio)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'El folio no puede estar vacío. Por favor, genera un folio válido.'
+        ]);
+        exit;
     }
-    
-    // Preparar datos del Apartado 1
-    $apartado1_data = [
-        'empresa' => $datos['empresa'],
-        'folio' => $folio,
-        'area_solicitante' => $datos['area_solicitante'] ?? $_SESSION['departamento_nombre'],
-        'fecha_entrada' => $datos['fecha_entrada'] ?? date('Y-m-d'),
-        'hora_entrada' => $datos['hora_entrada'] ?? date('H:i:s'),
-        'unidad_equipo' => trim($datos['unidad_equipo']),
-        'nombre_solicitante' => $datos['nombre_solicitante'] ?? $_SESSION['nombre_completo'],
-        'prioridad' => $datos['prioridad'],
-        'descripcion_falla' => trim($datos['descripcion_falla']),
-        'evidencia_archivos' => $datos['evidencia_archivos'] ?? []
-    ];
-    
-    // Insertar orden
-    $stmt = $pdo->prepare("
-        INSERT INTO ordenes_servicio_mantenimiento (
-            folio,
-            usuario_id,
-            usuario_nombre,
-            departamento,
-            empresa,
-            estado,
-            apartado1_data,
-            fecha_creacion
-        ) VALUES (
-            :folio,
-            :usuario_id,
-            :usuario_nombre,
-            :departamento,
-            :empresa,
-            'pendiente_mantenimiento',
-            :apartado1_data,
-            NOW()
-        )
-    ");
-    
-    $stmt->execute([
-        ':folio' => $folio,
-        ':usuario_id' => $_SESSION['usuario_id'],
-        ':usuario_nombre' => $_SESSION['nombre_completo'],
-        ':departamento' => $_SESSION['departamento_nombre'],
-        ':empresa' => $datos['empresa'],
-        ':apartado1_data' => json_encode($apartado1_data, JSON_UNESCAPED_UNICODE)
-    ]);
-    
-    $orden_id = $pdo->lastInsertId();
-    
-    // ========================================
-    // NOTIFICACIÓN: Nueva orden → Mantenimiento
-    // ========================================
-    $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
-    
-    foreach ($usuarios_mantenimiento as $usuario_mant_id) {
-        $stmt_notif = $pdo->prepare("
-            INSERT INTO notificaciones 
-            (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
-            VALUES (?, ?, ?, ?, ?, 0, NOW())
+
+    // Validar formato del folio (no debe contener caracteres especiales peligrosos)
+    if (!preg_match('/^[a-zA-Z0-9\-_\/]+$/', $folio)) {
+        echo json_encode([
+            'success' => false,
+            'error' => 'El folio solo puede contener letras, números, guiones, guiones bajos y barras'
+        ]);
+        exit;
+    }
+}
+
+$pdo = conectarDB();
+$max_intentos = $es_logistica ? 5 : 1; // Solo Logística reintenta ante race conditions
+$orden_id = null;
+
+for ($intento = 1; $intento <= $max_intentos; $intento++) {
+    try {
+        $pdo->beginTransaction();
+
+        // Logística: generar el folio autoincrement DENTRO de la transacción con FOR UPDATE
+        if ($es_logistica) {
+            $folio = generar_folio_logistica_osm($pdo);
+        } else {
+            // Otros roles: verificar que el folio manual no exista
+            $stmt = $pdo->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento WHERE folio = :folio");
+            $stmt->execute([':folio' => $folio]);
+            $existe = $stmt->fetch();
+
+            if ($existe) {
+                error_log("⚠️ FOLIO DUPLICADO - Folio: '$folio', ID existente: {$existe['id']}, Nuevo intento por: {$_SESSION['nombre_completo']}");
+                throw new Exception("El folio '{$folio}' ya existe. Por favor, use otro folio o regenere uno nuevo.");
+            }
+        }
+
+        // Preparar datos del Apartado 1
+        $apartado1_data = [
+            'empresa' => $datos['empresa'],
+            'folio' => $folio,
+            'area_solicitante' => $datos['area_solicitante'] ?? $_SESSION['departamento_nombre'],
+            'fecha_entrada' => $datos['fecha_entrada'] ?? date('Y-m-d'),
+            'hora_entrada' => $datos['hora_entrada'] ?? date('H:i:s'),
+            'unidad_equipo' => trim($datos['unidad_equipo']),
+            'nombre_solicitante' => $datos['nombre_solicitante'] ?? $_SESSION['nombre_completo'],
+            'prioridad' => $datos['prioridad'],
+            'descripcion_falla' => trim($datos['descripcion_falla']),
+            'evidencia_archivos' => $datos['evidencia_archivos'] ?? []
+        ];
+
+        // Insertar orden
+        $stmt = $pdo->prepare("
+            INSERT INTO ordenes_servicio_mantenimiento (
+                folio, usuario_id, usuario_nombre, departamento, empresa,
+                estado, apartado1_data, fecha_creacion
+            ) VALUES (
+                :folio, :usuario_id, :usuario_nombre, :departamento, :empresa,
+                'pendiente_mantenimiento', :apartado1_data, NOW()
+            )
         ");
-        
-        $datos_json = json_encode([
+
+        $stmt->execute([
+            ':folio' => $folio,
+            ':usuario_id' => $_SESSION['usuario_id'],
+            ':usuario_nombre' => $_SESSION['nombre_completo'],
+            ':departamento' => $_SESSION['departamento_nombre'],
+            ':empresa' => $datos['empresa'],
+            ':apartado1_data' => json_encode($apartado1_data, JSON_UNESCAPED_UNICODE)
+        ]);
+
+        $orden_id = $pdo->lastInsertId();
+
+        // ========================================
+        // NOTIFICACIÓN: Nueva orden → Mantenimiento
+        // ========================================
+        $usuarios_mantenimiento = obtener_usuarios_mantenimiento();
+
+        foreach ($usuarios_mantenimiento as $usuario_mant_id) {
+            $stmt_notif = $pdo->prepare("
+                INSERT INTO notificaciones 
+                (tipo, titulo, mensaje, usuario_destino, datos_json, leida, fecha_creacion)
+                VALUES (?, ?, ?, ?, ?, 0, NOW())
+            ");
+
+            $datos_json = json_encode([
+                'orden_id' => $orden_id,
+                'folio' => $folio,
+                'url' => URL_BASE . 'dashboard/ordenes_servicio/ver_orden_servicio.php?id=' . $orden_id
+            ]);
+
+            $stmt_notif->execute([
+                'nueva_orden_mantenimiento',
+                '🔧 Nueva Orden de Servicio',
+                "{$_SESSION['nombre_completo']} ha creado la orden $folio",
+                $usuario_mant_id,
+                $datos_json
+            ]);
+        }
+
+        $pdo->commit();
+
+        error_log("✅ Nueva orden creada - ID: {$orden_id}, Folio: {$folio}, Usuario: {$_SESSION['nombre_completo']}, Depto: {$_SESSION['departamento_nombre']}" . ($es_logistica ? " (intento {$intento})" : ""));
+
+        echo json_encode([
+            'success' => true,
             'orden_id' => $orden_id,
             'folio' => $folio,
-            'url' => URL_BASE . 'dashboard/ordenes_servicio/ver_orden_servicio.php?id=' . $orden_id
+            'folio_generado' => $folio, // El JS del modal lo lee para mostrar el folio real (Logística)
+            'message' => 'Orden creada exitosamente'
         ]);
-        
-        $stmt_notif->execute([
-            'nueva_orden_mantenimiento',
-            '🔧 Nueva Orden de Servicio',
-            "{$_SESSION['nombre_completo']} ha creado la orden $folio",
-            $usuario_mant_id,
-            $datos_json
+        exit; // Éxito, salir del script
+
+    } catch (PDOException $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        // Choque de UNIQUE KEY en Logística → reintentar hasta max_intentos veces con jitter
+        if ($es_logistica && $e->getCode() === '23000' && $intento < $max_intentos) {
+            error_log("⚠️ Choque UNIQUE en folio LOG- (intento {$intento}/{$max_intentos}) - reintentando...");
+            usleep(random_int(50000, 150000)); // 50-150ms jitter
+            continue;
+        }
+
+        error_log("❌ Error PDO al crear orden: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'error' => 'Error al guardar la orden: ' . $e->getMessage()
         ]);
+        exit;
+
+    } catch (Exception $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        error_log("❌ Error al crear orden: " . $e->getMessage());
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+        exit;
     }
-    
-    $pdo->commit();
-    
-    error_log("✅ Nueva orden creada - ID: {$orden_id}, Folio: {$folio}, Usuario: {$_SESSION['nombre_completo']}, Depto: {$_SESSION['departamento_nombre']}");
-    
-    echo json_encode([
-        'success' => true,
-        'orden_id' => $orden_id,
-        'folio' => $folio,
-        'message' => 'Orden creada exitosamente'
-    ]);
-    
-} catch (Exception $e) {
-    if (isset($pdo) && $pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-    
-    error_log("❌ Error al crear orden: " . $e->getMessage());
-    
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage()
-    ]);
 }
+
+// Si llegamos aquí (solo posible en Logística) es porque agotamos todos los intentos
+error_log("❌ Se agotaron los {$max_intentos} intentos de generación de folio LOG-");
+echo json_encode([
+    'success' => false,
+    'error' => 'No se pudo asignar un folio único después de varios intentos. Intente nuevamente.'
+]);

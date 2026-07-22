@@ -135,6 +135,3 @@ try {
         </ul>
     </nav>
 </aside>
-
-<!-- Modal para crear nueva orden de servicio -->
-<?php include __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php'; ?>

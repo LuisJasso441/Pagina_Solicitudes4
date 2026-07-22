@@ -459,6 +459,11 @@ function registrar_movimiento_epp($datos) {
     try {
         $pdo->beginTransaction();
         
+        // Las salidas se gestionan exclusivamente mediante Vales de Entrega
+        if (($datos['tipo_movimiento'] ?? '') === 'Salida') {
+            return ['success' => false, 'message' => 'Las salidas se registran mediante Vales de Entrega de EPP.'];
+        }
+        
         $talla_id = (int) ($datos['talla_id'] ?? 0);
         if (!$talla_id) return ['success' => false, 'message' => 'Debe seleccionar una talla.'];
         

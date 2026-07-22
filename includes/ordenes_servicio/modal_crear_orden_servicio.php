@@ -41,6 +41,12 @@ if ($departamento_codigo_modal !== 'mantenimiento') {
 
 // Solo mostrar el modal si tiene permisos
 if ($puede_crear_osm_modal):
+
+// Detectar si es usuario de Logística (folio autogenerado LOG-###)
+$es_logistica_osm = in_array(
+    strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''),
+    ['logistica', 'almacen_residuos']
+);
 ?>
 
 <!-- Modal Crear Orden de Servicio -->
@@ -96,9 +102,18 @@ if ($puede_crear_osm_modal):
                                 <!-- Folio -->
                                 <div class="col-md-6">
                                     <label for="folio" class="form-label">Folio de Mantenimiento *</label>
-                                    <input type="text" class="form-control" id="folio" name="folio" 
-                                           placeholder="Ej: OM-2024-001" required>
-                                    <div class="form-text">Ingrese un folio único para esta orden</div>
+                                    <?php if ($es_logistica_osm): ?>
+                                        <input type="text" class="form-control bg-light" id="folio" name="folio" 
+                                               value="(se generará automáticamente)" readonly>
+                                        <div class="form-text text-primary">
+                                            <i class="bi bi-magic"></i>
+                                            El folio <strong>LOG-###</strong> se asignará al guardar la orden
+                                        </div>
+                                    <?php else: ?>
+                                        <input type="text" class="form-control" id="folio" name="folio" 
+                                               placeholder="Ej: OM-2024-001" required>
+                                        <div class="form-text">Ingrese un folio único para esta orden</div>
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <!-- Área Solicitante (auto-completado) -->
@@ -215,6 +230,17 @@ if ($puede_crear_osm_modal):
 // ========================================
 (function() {
     'use strict';
+    
+    // ========================================
+    // GUARD ANTI-DOBLE-INIT
+    // Si el modal se incluye más de una vez (algún sidebar aún lo incluye),
+    // el segundo IIFE sale sin registrar listeners → evita doble POST.
+    // ========================================
+    if (window.__osmModalInit) {
+        console.warn('Modal OSM ya inicializado — se omite segundo binding');
+        return;
+    }
+    window.__osmModalInit = true;
     
     // ========================================
     // CONSTANTES DE TIEMPO (LOCALES AL SCOPE)
@@ -413,9 +439,16 @@ if ($puede_crear_osm_modal):
     // ========================================
     // ENVIAR FORMULARIO
     // ========================================
+    var enviandoOSM = false; // Flag anti-doble-submit (cinturón + tirantes con el guard global)
     if (formElement && btnEnviar) {
         formElement.addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            if (enviandoOSM) {
+                console.warn('Submit OSM ya en curso — ignorando duplicado');
+                return;
+            }
+            enviandoOSM = true;
             
             btnEnviar.disabled = true;
             btnEnviar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
@@ -474,7 +507,9 @@ if ($puede_crear_osm_modal):
                         limpiarTimers();
                         
                         if (mensajeDiv) {
-                            mensajeDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> ¡Orden creada exitosamente! Folio: <strong>' + datos.folio + '</strong></div>';
+                            // Usar el folio devuelto por el backend (Logística) o el capturado (otros roles)
+                            var folioFinal = data.folio_generado || datos.folio;
+                            mensajeDiv.innerHTML = '<div class="alert alert-success"><i class="bi bi-check-circle"></i> ¡Orden creada exitosamente! Folio: <strong>' + folioFinal + '</strong></div>';
                         }
                         
                         formElement.reset();
@@ -495,6 +530,7 @@ if ($puede_crear_osm_modal):
                         mensajeDiv.innerHTML = '<div class="alert alert-danger"><i class="bi bi-exclamation-triangle"></i> Error: ' + error.message + '</div>';
                     }
                 } finally {
+                    enviandoOSM = false;
                     btnEnviar.disabled = false;
                     btnEnviar.innerHTML = '<i class="bi bi-send"></i> Enviar Orden';
                 }

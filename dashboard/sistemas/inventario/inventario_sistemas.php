@@ -95,9 +95,14 @@ $page_title = "Inventario de Sistemas";
                         <h4 class="fw-bold mb-1"><i class="bi bi-box-seam me-2"></i><?php echo $page_title; ?></h4>
                         <small class="text-muted">Gesti&oacute;n de art&iacute;culos e insumos del &aacute;rea de Sistemas</small>
                     </div>
-                    <button class="btn btn-primary" onclick="abrirModal()">
-                        <i class="bi bi-plus-circle me-1"></i> Nuevo Art&iacute;culo
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-warning" onclick="abrirListaPrestamos()">
+                            <i class="bi bi-arrow-left-right me-1"></i> Pr&eacute;stamos
+                        </button>
+                        <button class="btn btn-primary" onclick="abrirModal()">
+                            <i class="bi bi-plus-circle me-1"></i> Nuevo Art&iacute;culo
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Tarjetas -->
@@ -215,6 +220,9 @@ $page_title = "Inventario de Sistemas";
                                 <td class="text-center"><?php echo $item['umbral_minimo']; ?></td>
                                 <td class="text-muted" style="font-size: 0.78rem;"><?php echo date('d/m/Y H:i', strtotime($item['updated_at'])); ?></td>
                                 <td class="text-center">
+                                    <button class="btn btn-outline-warning btn-accion" title="Registrar pr&eacute;stamo"
+                                            onclick="abrirPrestamo(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>', <?php echo (int)$item['cantidad_disponible']; ?>)"
+                                            <?php echo ((int)$item['cantidad_disponible'] <= 0) ? 'disabled' : ''; ?>><i class="bi bi-box-arrow-up"></i></button>
                                     <button class="btn btn-outline-primary btn-accion" title="Editar" onclick="editarArticulo(<?php echo $item['id']; ?>)"><i class="bi bi-pencil"></i></button>
                                     <button class="btn btn-outline-danger btn-accion" title="Eliminar" onclick="eliminarArticulo(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['nombre'], ENT_QUOTES); ?>')"><i class="bi bi-trash"></i></button>
                                 </td>
@@ -281,6 +289,94 @@ $page_title = "Inventario de Sistemas";
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" onclick="guardarArticulo()" id="btnGuardar"><i class="bi bi-check-lg me-1"></i> Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================== -->
+    <!-- MODAL: Registrar Préstamo              -->
+    <!-- ====================================== -->
+    <div class="modal fade" id="modalPrestamo" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-box-arrow-up me-2"></i>Registrar Pr&eacute;stamo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="prestArticuloId" value="0">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Art&iacute;culo</label>
+                        <input type="text" id="prestArticuloNombre" class="form-control" readonly>
+                        <small class="text-muted">Disponibles: <span id="prestDisponible" class="fw-semibold">0</span></small>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">&iquest;A qui&eacute;n se presta? <span class="text-danger">*</span></label>
+                            <input type="text" id="prestPersona" class="form-control" placeholder="Nombre de la persona">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Cantidad <span class="text-danger">*</span></label>
+                            <input type="number" id="prestCantidad" class="form-control" min="1" value="1">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Departamento / &Aacute;rea</label>
+                        <input type="text" id="prestDepartamento" class="form-control" placeholder="Opcional">
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold">Observaciones</label>
+                        <textarea id="prestObservaciones" class="form-control" rows="2" placeholder="Opcional (motivo, fecha estimada de devoluci&oacute;n, etc.)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" id="btnGuardarPrestamo" onclick="guardarPrestamo()"><i class="bi bi-check-lg me-1"></i> Registrar pr&eacute;stamo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================== -->
+    <!-- MODAL: Registro de Préstamos           -->
+    <!-- ====================================== -->
+    <div class="modal fade" id="modalListaPrestamos" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Registro de Pr&eacute;stamos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex gap-2 mb-3 flex-wrap">
+                        <select id="filtroEstadoPrestamo" class="form-select form-select-sm" style="max-width: 220px;" onchange="cargarPrestamos()">
+                            <option value="">Todos los estados</option>
+                            <option value="prestado">Prestados</option>
+                            <option value="parcial">Devoluci&oacute;n parcial</option>
+                            <option value="devuelto">Devueltos</option>
+                        </select>
+                        <input type="text" id="buscarPrestamo" class="form-control form-control-sm" style="max-width: 280px;" placeholder="Buscar persona, art&iacute;culo o &aacute;rea..." oninput="debounceBuscarPrestamos()">
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Art&iacute;culo</th>
+                                    <th>Persona</th>
+                                    <th>&Aacute;rea</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th class="text-center">Pend.</th>
+                                    <th>Fecha pr&eacute;stamo</th>
+                                    <th>Estado</th>
+                                    <th class="text-center">Acci&oacute;n</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyPrestamos">
+                                <tr><td colspan="8" class="text-center text-muted py-3">Cargando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -378,6 +474,139 @@ $page_title = "Inventario de Sistemas";
                 else location.reload();
             } else alert(res.message);
         }).catch(() => alert('Error de conexi\u00f3n.'));
+    }
+
+    // ==========================================================
+    // PRÉSTAMOS DE ARTÍCULOS
+    // ==========================================================
+    const PRESTAMOS_API_URL = '<?php echo URL_BASE; ?>dashboard/sistemas/inventario/api_prestamos_sistemas.php';
+    let modalPrestamoInstance = null;
+    let modalListaPrestamosInstance = null;
+    let timerBuscarPrestamos = null;
+    let prestamosCambiaron = false;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        modalPrestamoInstance = new bootstrap.Modal(document.getElementById('modalPrestamo'));
+        modalListaPrestamosInstance = new bootstrap.Modal(document.getElementById('modalListaPrestamos'));
+
+        // Si hubo devoluciones, refrescar la tabla de inventario al cerrar la lista
+        document.getElementById('modalListaPrestamos').addEventListener('hidden.bs.modal', function() {
+            if (prestamosCambiaron) location.reload();
+        });
+    });
+
+    function abrirPrestamo(id, nombre, disponible) {
+        document.getElementById('prestArticuloId').value = id;
+        document.getElementById('prestArticuloNombre').value = nombre;
+        document.getElementById('prestDisponible').textContent = disponible;
+        document.getElementById('prestPersona').value = '';
+        document.getElementById('prestDepartamento').value = '';
+        document.getElementById('prestObservaciones').value = '';
+        const cant = document.getElementById('prestCantidad');
+        cant.value = 1;
+        cant.max = disponible;
+        modalPrestamoInstance.show();
+    }
+
+    function guardarPrestamo() {
+        const articulo_id = parseInt(document.getElementById('prestArticuloId').value);
+        const persona = document.getElementById('prestPersona').value.trim();
+        const cantidad = parseInt(document.getElementById('prestCantidad').value) || 0;
+        const disponible = parseInt(document.getElementById('prestDisponible').textContent) || 0;
+
+        if (!persona) { alert('Indica a qui\u00e9n se presta el art\u00edculo.'); return; }
+        if (cantidad < 1) { alert('La cantidad debe ser al menos 1.'); return; }
+        if (cantidad > disponible) { alert('No hay suficientes unidades disponibles (' + disponible + ').'); return; }
+
+        const btn = document.getElementById('btnGuardarPrestamo');
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Registrando...';
+
+        fetch(PRESTAMOS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                accion: 'crear_prestamo',
+                articulo_id: articulo_id,
+                persona: persona,
+                cantidad: cantidad,
+                departamento: document.getElementById('prestDepartamento').value.trim(),
+                observaciones: document.getElementById('prestObservaciones').value.trim()
+            })
+        }).then(r => r.json()).then(res => {
+            if (res.success) { modalPrestamoInstance.hide(); location.reload(); }
+            else { alert(res.message || 'No se pudo registrar el pr\u00e9stamo.'); }
+        }).catch(() => alert('Error de conexi\u00f3n.'))
+        .finally(() => { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Registrar pr\u00e9stamo'; });
+    }
+
+    function abrirListaPrestamos() {
+        prestamosCambiaron = false;
+        modalListaPrestamosInstance.show();
+        cargarPrestamos();
+    }
+
+    function debounceBuscarPrestamos() {
+        clearTimeout(timerBuscarPrestamos);
+        timerBuscarPrestamos = setTimeout(cargarPrestamos, 400);
+    }
+
+    function cargarPrestamos() {
+        const tbody = document.getElementById('tbodyPrestamos');
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Cargando...</td></tr>';
+
+        fetch(PRESTAMOS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                accion: 'listar_prestamos',
+                estado: document.getElementById('filtroEstadoPrestamo').value,
+                busqueda: document.getElementById('buscarPrestamo').value.trim()
+            })
+        }).then(r => r.json()).then(res => {
+            if (!res.success || !res.data || res.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3"><i class="bi bi-inbox me-1"></i>Sin pr\u00e9stamos registrados.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = res.data.map(function(p) {
+                const pend = parseInt(p.pendiente) || 0;
+                const badge = p.estado === 'devuelto' ? 'success' : (p.estado === 'parcial' ? 'info' : 'warning');
+                const estadoTxt = p.estado === 'devuelto' ? 'Devuelto' : (p.estado === 'parcial' ? 'Parcial' : 'Prestado');
+                const fecha = p.fecha_prestamo ? String(p.fecha_prestamo).substring(0, 16).replace('T', ' ') : '';
+                const accion = pend > 0
+                    ? '<button class="btn btn-sm btn-outline-success" onclick="devolverPrestamo(' + p.id + ', ' + pend + ')"><i class="bi bi-arrow-return-left"></i> Devolver</button>'
+                    : '<span class="text-muted small">\u2014</span>';
+                return '<tr>' +
+                    '<td class="fw-semibold">' + escapeHtmlPrestamo(p.nombre_articulo) + '</td>' +
+                    '<td>' + escapeHtmlPrestamo(p.persona) + '</td>' +
+                    '<td>' + escapeHtmlPrestamo(p.departamento || '\u2014') + '</td>' +
+                    '<td class="text-center">' + p.cantidad + '</td>' +
+                    '<td class="text-center fw-bold">' + pend + '</td>' +
+                    '<td class="small text-muted">' + fecha + '</td>' +
+                    '<td><span class="badge bg-' + badge + '">' + estadoTxt + '</span></td>' +
+                    '<td class="text-center">' + accion + '</td>' +
+                    '</tr>';
+            }).join('');
+        }).catch(() => {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-3">Error al cargar.</td></tr>';
+        });
+    }
+
+    function devolverPrestamo(id, pendiente) {
+        let cant = prompt('\u00bfCu\u00e1ntas unidades se devuelven? (pendiente: ' + pendiente + ')', pendiente);
+        if (cant === null) return;
+        cant = parseInt(cant);
+        if (!cant || cant < 1) { alert('Cantidad inv\u00e1lida.'); return; }
+        if (cant > pendiente) { alert('Solo quedan ' + pendiente + ' por devolver.'); return; }
+
+        fetch(PRESTAMOS_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: 'devolver_prestamo', prestamo_id: id, cantidad: cant })
+        }).then(r => r.json()).then(res => {
+            if (res.success) { prestamosCambiaron = true; cargarPrestamos(); }
+            else alert(res.message || 'No se pudo registrar la devoluci\u00f3n.');
+        }).catch(() => alert('Error de conexi\u00f3n.'));
+    }
+
+    function escapeHtmlPrestamo(s) {
+        if (s == null) return '';
+        return String(s).replace(/[&<>"']/g, function(c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
     }
     </script>
     
