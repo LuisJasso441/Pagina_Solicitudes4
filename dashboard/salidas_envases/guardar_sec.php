@@ -34,9 +34,11 @@ $usuario_id = (int)$_SESSION['usuario_id'];
 $dept       = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
 
 $datos = [
-    'fecha_documento'      => $_POST['fecha_documento']  ?? '',
-    'solicita_nombre'      => $_POST['solicita_nombre']  ?? '',
-    'solicita_firma'       => $_POST['solicita_firma']   ?? '',
+    'fecha_documento'      => $_POST['fecha_documento']    ?? '',
+    'solicita_nombre'      => $_POST['solicita_nombre']    ?? '',
+    'solicita_firma'       => $_POST['solicita_firma']     ?? '',
+    'empresa_destino'      => $_POST['empresa_destino']    ?? '',
+    'condiciones_envase'   => $_POST['condiciones_envase'] ?? '',
     'departamento_creador' => $dept,
 ];
 
@@ -60,8 +62,10 @@ if ($resultado['success']) {
     $_SESSION['sec_errores'] = $resultado['errores'];
     // Conservar lo que el usuario tipeó (solo campos seguros, NO la firma)
     $_SESSION['sec_datos_previos'] = [
-        'fecha_documento' => $datos['fecha_documento'],
-        'solicita_nombre' => $datos['solicita_nombre'],
+        'fecha_documento'    => $datos['fecha_documento'],
+        'solicita_nombre'    => $datos['solicita_nombre'],
+        'empresa_destino'    => $datos['empresa_destino'],
+        'condiciones_envase' => $datos['condiciones_envase'],
     ];
     redirigir(URL_BASE . 'dashboard/salidas_envases/nueva_sec.php');
 }

@@ -103,6 +103,103 @@ unset($_SESSION['disponibilidad_errores']);
             display: flex; gap: 0.5rem; flex: 1; min-width: 280px;
         }
         .slot-input-row .slot-times > div { flex: 1; }
+
+        /* ============================================= */
+        /* AJUSTES RESPONSIVE DEL CALENDARIO (móvil)      */
+        /* ============================================= */
+        @media (max-width: 768px) {
+            /* Título del header más compacto */
+            .fc .fc-toolbar-title {
+                font-size: 1.05rem !important;
+                white-space: nowrap;
+            }
+            /* Botones (Mes/Semana/Día/Hoy) más chicos */
+            .fc .fc-button {
+                padding: 4px 8px !important;
+                font-size: 0.72rem !important;
+            }
+            /* Toolbar puede envolverse si no cabe */
+            .fc .fc-toolbar.fc-header-toolbar {
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-bottom: 0.5rem !important;
+            }
+            .fc .fc-toolbar-chunk {
+                display: flex;
+                align-items: center;
+            }
+
+            /* Columna de horas: MUCHO más angosta */
+            .fc .fc-timegrid-axis,
+            .fc .fc-timegrid-slot-label {
+                width: 32px !important;
+                min-width: 32px !important;
+                max-width: 32px !important;
+            }
+            .fc .fc-timegrid-slot-label-cushion,
+            .fc .fc-timegrid-axis-cushion {
+                font-size: 0.65rem !important;
+                padding: 0 2px !important;
+            }
+
+            /* Headers de días más compactos */
+            .fc .fc-col-header-cell-cushion {
+                font-size: 0.7rem !important;
+                padding: 4px 2px !important;
+            }
+
+            /* Vista Mes: números de día más pequeños */
+            .fc .fc-daygrid-day-number {
+                font-size: 0.72rem !important;
+                padding: 2px 4px !important;
+            }
+            .fc .fc-daygrid-day-top {
+                justify-content: center;
+            }
+
+            /* Eventos más compactos */
+            .fc-event {
+                font-size: 0.62rem !important;
+                padding: 1px 3px !important;
+            }
+            .fc-event-title { line-height: 1.1; }
+
+            /* Reducir altura de los slots horarios (ver más de un vistazo) */
+            .fc .fc-timegrid-slot {
+                height: 1.6em !important;
+            }
+
+            /* La leyenda de colores también compacta */
+            .leyenda-color { width: 10px; height: 10px; }
+        }
+
+        @media (max-width: 480px) {
+            /* Extra small: aún más ajustado */
+            .fc .fc-toolbar-title {
+                font-size: 0.9rem !important;
+            }
+            .fc .fc-button {
+                padding: 3px 6px !important;
+                font-size: 0.68rem !important;
+            }
+            .fc .fc-timegrid-axis,
+            .fc .fc-timegrid-slot-label {
+                width: 26px !important;
+                min-width: 26px !important;
+                max-width: 26px !important;
+            }
+            .fc .fc-timegrid-slot-label-cushion,
+            .fc .fc-timegrid-axis-cushion {
+                font-size: 0.58rem !important;
+            }
+            .fc .fc-col-header-cell-cushion {
+                font-size: 0.62rem !important;
+            }
+            .fc-event {
+                font-size: 0.58rem !important;
+                padding: 1px 2px !important;
+            }
+        }
         .slot-input-row .slot-times label {
             font-size: 0.7rem; color: #6c757d; margin-bottom: 2px; display: block;
         }
@@ -341,19 +438,62 @@ unset($_SESSION['disponibilidad_errores']);
                         .then(data => {
                             cacheDisponibilidades = {};
                             data.forEach(d => { cacheDisponibilidades[d.id] = d; });
-                            successCallback(data.map(d => ({
-                                id: d.id,
-                                title: d.unidad_nombre + ' • ' + d.slots_libres + '/' + d.total_slots + ' libres',
-                                start: d.fecha + 'T' + d.hora_inicio_ruta,
-                                end:   d.fecha + 'T' + d.hora_termino_ruta,
-                                backgroundColor: d.color,
-                                borderColor: d.color
-                            })));
+
+                            // Vista actual: en mes → 1 bloque por disponibilidad,
+                            // en semana/día → 1 bloque por slot individual.
+                            const vista = (calendar && calendar.view) ? calendar.view.type : 'dayGridMonth';
+                            const esTimeGrid = (vista === 'timeGridWeek' || vista === 'timeGridDay');
+
+                            let eventos;
+                            if (esTimeGrid) {
+                                eventos = [];
+                                data.forEach(d => {
+                                    (d.slots || []).forEach(s => {
+                                        const ocupado = parseInt(s.ocupado) === 1;
+                                        const bg     = ocupado ? '#9ca3af' : d.color;
+                                        const border = ocupado ? '#6b7280' : d.color;
+                                        const marcaOcupado = ocupado ? ' 🔒' : '';
+                                        eventos.push({
+                                            id: 'disp-' + d.id + '-slot-' + s.id,
+                                            title: d.unidad_nombre + marcaOcupado,
+                                            start: d.fecha + 'T' + s.hora_inicio,
+                                            end:   d.fecha + 'T' + s.hora_fin,
+                                            backgroundColor: bg,
+                                            borderColor: border,
+                                            textColor: '#fff',
+                                            extendedProps: {
+                                                disponibilidad_id: d.id,
+                                                slot_id: s.id,
+                                                ocupado: ocupado
+                                            }
+                                        });
+                                    });
+                                });
+                            } else {
+                                eventos = data.map(d => ({
+                                    id: 'disp-' + d.id,
+                                    title: d.unidad_nombre + ' • ' + d.slots_libres + '/' + d.total_slots + ' libres',
+                                    start: d.fecha + 'T' + d.hora_inicio_ruta,
+                                    end:   d.fecha + 'T' + d.hora_termino_ruta,
+                                    backgroundColor: d.color,
+                                    borderColor: d.color,
+                                    extendedProps: { disponibilidad_id: d.id }
+                                }));
+                            }
+
+                            successCallback(eventos);
                         })
                         .catch(failureCallback);
                 },
+                datesSet: function() {
+                    // Al cambiar entre Mes/Semana/Día, regenerar eventos con el formato correcto
+                    if (calendar && cacheDisponibilidades && Object.keys(cacheDisponibilidades).length) {
+                        calendar.refetchEvents();
+                    }
+                },
                 eventClick: function(info) {
-                    abrirDetalle(parseInt(info.event.id));
+                    const dispId = info.event.extendedProps.disponibilidad_id;
+                    if (dispId) abrirDetalle(parseInt(dispId));
                 }
             });
             calendar.render();

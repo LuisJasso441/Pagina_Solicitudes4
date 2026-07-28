@@ -37,6 +37,9 @@ if ($sec_id <= 0) {
     redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
 }
 
+$empresa_destino    = $_POST['empresa_destino']    ?? '';
+$condiciones_envase = $_POST['condiciones_envase'] ?? '';
+
 // Reconstruir líneas desde POST
 $total_lineas = (int)($_POST['total_lineas'] ?? 0);
 $lineas = [];
@@ -47,6 +50,8 @@ for ($i = 0; $i < $total_lineas; $i++) {
         'slot_id'     => (int)($_POST["linea_{$i}_slot_id"]     ?? 0),
     ];
 }
+
+$resultado = actualizar_lineas_sec($sec_id, $lineas, $usuario_id, $empresa_destino, $condiciones_envase);
 
 $resultado = actualizar_lineas_sec($sec_id, $lineas, $usuario_id);
 

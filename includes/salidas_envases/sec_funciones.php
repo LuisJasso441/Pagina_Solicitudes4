@@ -369,6 +369,14 @@ function crear_sec($datos, $lineas, $usuario_id) {
     if ($departamento_creador === '') {
         $errores[] = 'No se pudo determinar el departamento creador.';
     }
+    $empresa_destino = trim($datos['empresa_destino'] ?? '');
+    if ($empresa_destino === '') {
+        $errores[] = 'La empresa destino es obligatoria.';
+    }
+    $condiciones_envase = trim($datos['condiciones_envase'] ?? '');
+    if ($condiciones_envase === '') {
+        $errores[] = 'Las condiciones del envase son obligatorias.';
+    }
 
     if (!empty($errores)) {
         return ['success' => false, 'id' => null, 'folio' => null, 'errores' => $errores];
@@ -391,13 +399,15 @@ function crear_sec($datos, $lineas, $usuario_id) {
             INSERT INTO salidas_envases_clientes (
                 folio, fecha_documento,
                 usuario_creador_id, departamento_creador,
+                empresa_destino, condiciones_envase,
                 solicita_nombre, solicita_firma, solicita_fecha, solicita_usuario_id,
                 estado
-            ) VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, 'enviada')
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, 'enviada')
         ");
         $stmt->execute([
             $folio, $fecha,
             (int)$usuario_id, $departamento_creador,
+            $empresa_destino, $condiciones_envase,
             $solicita_nombre, $solicita_firma, (int)$usuario_id
         ]);
         $sec_id = (int)$pdo->lastInsertId();
@@ -557,12 +567,14 @@ function firmar_entrega_sec($sec_id, $nombre, $firma_base64, $usuario_id) {
 // FIRMA RECIBE + CONDICIONES (Almacén — segundo usuario, distinto a Entrega)
 // ====================================================================
 
-function firmar_recibe_sec($sec_id, $nombre, $firma_base64, $usuario_id, $condiciones) {
+function firmar_recibe_sec($sec_id, $nombre, $firma_base64, $usuario_id, $condiciones, $es_externo = false) {
     $sec = obtener_sec_por_id($sec_id);
     if (!$sec)                                  return ['success' => false, 'errores' => ['La SEC no existe.']];
     if ($sec['estado'] !== 'entregada')         return ['success' => false, 'errores' => ['La SEC no está en estado "Entregada".']];
-    if ((int)$sec['entrega_usuario_id'] === (int)$usuario_id) {
-        return ['success' => false, 'errores' => ['No puedes firmar "Recibe": tú firmaste "Entrega". Debe firmarlo otro usuario de Almacén.']];
+    // La restricción "distinto usuario que Entrega" NO aplica cuando es firma externa
+    // (persona distinta al operador del dispositivo, firmando manualmente)
+    if (!$es_externo && (int)$sec['entrega_usuario_id'] === (int)$usuario_id) {
+        return ['success' => false, 'errores' => ['No puedes firmar "Recibe": tú firmaste "Entrega". Debe firmarlo otro usuario de Almacén, o usa el botón "Pasar dispositivo para firma externa".']];
     }
     if (trim($nombre) === '')                   return ['success' => false, 'errores' => ['El nombre es obligatorio.']];
     if (strpos($firma_base64, 'data:image') !== 0) return ['success' => false, 'errores' => ['La firma es obligatoria.']];
@@ -603,10 +615,17 @@ function firmar_recibe_sec($sec_id, $nombre, $firma_base64, $usuario_id, $condic
             if ($a3) $condiciones_marcadas[] = 'A3 Abierto';
             if ($c4) $condiciones_marcadas[] = 'C4 Cerrado';
 
+            $descripcion_hist = "Firmó 'Recibe' como " . trim($nombre);
+            if ($es_externo) {
+                $descripcion_hist = "Firma externa: " . trim($nombre) . " firmó 'Recibe' (dispositivo operado por " . ($_SESSION['nombre_completo'] ?? 'usuario ID ' . $usuario_id) . ")";
+            }
             registrar_historial_sec(
                 $sec_id, $usuario_id, 'recibe_firmada',
-                "Firmó 'Recibe' como " . trim($nombre),
-                ['condiciones' => $condiciones_marcadas]
+                $descripcion_hist,
+                [
+                    'condiciones' => $condiciones_marcadas,
+                    'origen'      => $es_externo ? 'firma_externa' : 'firma_directa'
+                ]
             );
             notificar_sec_firmada_recibe($sec_actualizada);
         }
@@ -748,10 +767,19 @@ function eliminar_evidencia_sec($evidencia_id, $usuario_id = null) {
 // EDITAR LÍNEAS DE SEC (sólo si estado = enviada)
 // ====================================================================
 
-function actualizar_lineas_sec($sec_id, $lineas_nuevas, $usuario_id) {
+function actualizar_lineas_sec($sec_id, $lineas_nuevas, $usuario_id, $empresa_destino = '', $condiciones_envase = '') {
     $sec = obtener_sec_por_id($sec_id);
     if (!$sec)                              return ['success' => false, 'errores' => ['La SEC no existe.']];
     if ($sec['estado'] !== 'enviada')       return ['success' => false, 'errores' => ['Sólo se pueden editar líneas mientras la SEC está en estado "Enviada".']];
+
+    $empresa_destino    = trim($empresa_destino);
+    $condiciones_envase = trim($condiciones_envase);
+    if ($empresa_destino === '') {
+        return ['success' => false, 'errores' => ['La empresa destino es obligatoria.']];
+    }
+    if ($condiciones_envase === '') {
+        return ['success' => false, 'errores' => ['Las condiciones del envase son obligatorias.']];
+    }
 
     // Validar excluyendo slots de esta misma SEC (que estén marcados ocupados por ella)
     $errores = validar_lineas_sec($lineas_nuevas, $sec_id);
@@ -763,7 +791,15 @@ function actualizar_lineas_sec($sec_id, $lineas_nuevas, $usuario_id) {
     $pdo = conectarDB();
     $pdo->beginTransaction();
     try {
-        // 1) Liberar todos los slots actuales de esta SEC
+        // 1) Actualizar empresa destino y condiciones del envase
+        $stmt = $pdo->prepare("
+            UPDATE salidas_envases_clientes
+            SET empresa_destino = ?, condiciones_envase = ?
+            WHERE id = ?
+        ");
+        $stmt->execute([$empresa_destino, $condiciones_envase, (int)$sec_id]);
+
+        // 2) Liberar todos los slots actuales de esta SEC
         $stmt = $pdo->prepare("
             UPDATE sec_espacios_disponibles
             SET ocupado = 0, sec_id = NULL

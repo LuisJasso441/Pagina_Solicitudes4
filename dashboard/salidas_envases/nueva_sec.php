@@ -166,6 +166,31 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
                         </div>
                     </div>
 
+                    <!-- Destino: empresa + condiciones -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-building"></i> Destino</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Empresa destino <span class="text-danger">*</span></label>
+                                    <input type="text" name="empresa_destino" id="empresaDestino" class="form-control"
+                                           value="<?php echo htmlspecialchars($datos_previos['empresa_destino'] ?? ''); ?>"
+                                           maxlength="200" required
+                                           placeholder="Ej: CONTITECH, JTEKT, PREFERRED, etc.">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Condiciones del envase <span class="text-danger">*</span></label>
+                                    <textarea name="condiciones_envase" id="condicionesEnvase" class="form-control"
+                                              rows="3" required
+                                              placeholder="Ej: abierto, cerrado, limpio, sin filo..."><?php echo htmlspecialchars($datos_previos['condiciones_envase'] ?? ''); ?></textarea>
+                                    <small class="text-muted">Descripción de cómo debe ir el envase.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Líneas -->
                     <div class="card mb-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
@@ -439,6 +464,20 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
     }
 
     function enviarFormulario() {
+        // Validar destino
+        const empresa = document.getElementById('empresaDestino').value.trim();
+        if (!empresa) {
+            alert('Debes escribir la empresa destino.');
+            document.getElementById('empresaDestino').focus();
+            return;
+        }
+        const condiciones = document.getElementById('condicionesEnvase').value.trim();
+        if (!condiciones) {
+            alert('Debes escribir las condiciones del envase.');
+            document.getElementById('condicionesEnvase').focus();
+            return;
+        }
+
         // Validar líneas
         if (lineas.length === 0) {
             alert('Debes agregar al menos una línea.');

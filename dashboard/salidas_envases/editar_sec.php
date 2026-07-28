@@ -176,6 +176,28 @@ unset($_SESSION['sec_errores']);
                 <form id="formEditarSec" method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/actualizar_sec.php" novalidate>
                     <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
 
+                    <!-- Destino: empresa + condiciones -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-building"></i> Destino</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Empresa destino <span class="text-danger">*</span></label>
+                                    <input type="text" name="empresa_destino" id="empresaDestino" class="form-control"
+                                           value="<?php echo htmlspecialchars($sec['empresa_destino'] ?? ''); ?>"
+                                           maxlength="200" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Condiciones del envase <span class="text-danger">*</span></label>
+                                    <textarea name="condiciones_envase" id="condicionesEnvase" class="form-control"
+                                              rows="3" required><?php echo htmlspecialchars($sec['condiciones_envase'] ?? ''); ?></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="card mb-3">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0"><i class="bi bi-list-ul"></i> Líneas de envases</h5>
@@ -380,6 +402,20 @@ unset($_SESSION['sec_errores']);
     }
 
     function enviarFormulario() {
+        // Validar destino
+        const empresa = document.getElementById('empresaDestino').value.trim();
+        if (!empresa) {
+            alert('Debes escribir la empresa destino.');
+            document.getElementById('empresaDestino').focus();
+            return;
+        }
+        const condiciones = document.getElementById('condicionesEnvase').value.trim();
+        if (!condiciones) {
+            alert('Debes escribir las condiciones del envase.');
+            document.getElementById('condicionesEnvase').focus();
+            return;
+        }
+
         if (lineas.length === 0) { alert('Debes mantener al menos una línea.'); return; }
         for (let i = 0; i < lineas.length; i++) {
             const l = lineas[i];

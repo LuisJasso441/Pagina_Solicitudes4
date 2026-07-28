@@ -313,6 +313,20 @@ unset($_SESSION['sec_errores']);
                         <h5 class="mb-0"><i class="bi bi-list-ul"></i> Líneas de envases</h5>
                     </div>
                     <div class="card-body p-0">
+                        <?php if (!empty($sec['empresa_destino']) || !empty($sec['condiciones_envase'])): ?>
+                            <div class="p-3 border-bottom" style="background:#f8f9fa;">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="info-meta mb-1"><i class="bi bi-building"></i> <strong>Empresa destino</strong></div>
+                                        <div><?php echo htmlspecialchars($sec['empresa_destino'] ?: '—'); ?></div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="info-meta mb-1"><i class="bi bi-clipboard-check"></i> <strong>Condiciones del envase</strong></div>
+                                        <div style="white-space:pre-wrap;"><?php echo htmlspecialchars($sec['condiciones_envase'] ?: '—'); ?></div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                         <div class="table-responsive">
                             <table class="table table-hover tabla-lineas mb-0">
                                 <thead>
@@ -322,12 +336,21 @@ unset($_SESSION['sec_errores']);
                                         <th colspan="4">Tipo de envase</th>
                                         <th rowspan="2">Unidad</th>
                                         <th rowspan="2">Horario</th>
+                                        <?php if (!empty($sec['recibe_firma'])): ?>
+                                            <th colspan="4">Condiciones</th>
+                                        <?php endif; ?>
                                     </tr>
                                     <tr>
                                         <th class="col-tipo">TMB</th>
                                         <th class="col-tipo">TOTE</th>
                                         <th class="col-tipo">GFA</th>
                                         <th class="col-tipo">JAULA</th>
+                                        <?php if (!empty($sec['recibe_firma'])): ?>
+                                            <th class="col-cond" title="B1 Buenas">B1</th>
+                                            <th class="col-cond" title="R2 Regulares">R2</th>
+                                            <th class="col-cond" title="A3 Abierto">A3</th>
+                                            <th class="col-cond" title="C4 Cerrado">C4</th>
+                                        <?php endif; ?>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -356,11 +379,26 @@ unset($_SESSION['sec_errores']);
                                                     <span class="text-muted">—</span>
                                                 <?php endif; ?>
                                             </td>
+                                            <?php if (!empty($sec['recibe_firma'])): ?>
+                                                <td class="col-cond"><?php echo $sec['condicion_b1'] ? '<span class="marca">✕</span>' : ''; ?></td>
+                                                <td class="col-cond"><?php echo $sec['condicion_r2'] ? '<span class="marca">✕</span>' : ''; ?></td>
+                                                <td class="col-cond"><?php echo $sec['condicion_a3'] ? '<span class="marca">✕</span>' : ''; ?></td>
+                                                <td class="col-cond"><?php echo $sec['condicion_c4'] ? '<span class="marca">✕</span>' : ''; ?></td>
+                                            <?php endif; ?>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
+                        <?php if (!empty($sec['recibe_firma'])): ?>
+                            <div class="p-2 border-top text-center" style="background:#f8f9fa; font-size: 0.75rem;">
+                                <span class="fw-bold text-muted me-2">Condiciones:</span>
+                                <span class="me-3"><strong>B1</strong> = Buenas</span>
+                                <span class="me-3"><strong>R2</strong> = Regulares</span>
+                                <span class="me-3"><strong>A3</strong> = Abierto</span>
+                                <span><strong>C4</strong> = Cerrado</span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -458,54 +496,99 @@ unset($_SESSION['sec_errores']);
                                             <?php echo date('d/m/Y H:i', strtotime($sec['recibe_fecha'])); ?>
                                         </small>
                                     </p>
-                                <?php elseif ($puede_firmar_recibe): ?>
-                                    <form action="<?php echo URL_BASE; ?>dashboard/salidas_envases/firmar_recibe.php" method="POST" id="formRecibe">
-                                        <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
-                                        <input type="hidden" name="recibe_firma" id="recibeFirmaInput">
-                                        <div class="mb-2">
-                                            <label class="form-label small">Nombre <span class="text-danger">*</span></label>
-                                            <input type="text" name="recibe_nombre" class="form-control form-control-sm" value="<?php echo htmlspecialchars($nombre_usuario); ?>" required>
+                                <?php elseif ($es_almacen && $sec['estado'] === 'entregada'): ?>
+                                    <!-- VISTA NORMAL (default) -->
+                                    <div id="recibeVistaNormal">
+                                        <?php if ($puede_firmar_recibe): ?>
+                                            <form action="<?php echo URL_BASE; ?>dashboard/salidas_envases/firmar_recibe.php" method="POST" id="formRecibe">
+                                                <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
+                                                <input type="hidden" name="recibe_firma" id="recibeFirmaInput">
+                                                <div class="mb-2">
+                                                    <label class="form-label small">Nombre <span class="text-danger">*</span></label>
+                                                    <input type="text" name="recibe_nombre" class="form-control form-control-sm" value="<?php echo htmlspecialchars($nombre_usuario); ?>" required>
+                                                </div>
+                                                <div class="firma-canvas-wrapper mb-2">
+                                                    <div id="canvasRecibe"></div>
+                                                    <div class="firma-actions">
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('#canvasRecibe').jSignature('reset')">
+                                                            <i class="bi bi-eraser"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <label class="form-label small d-block">Condiciones <span class="text-danger">*</span></label>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        <label class="form-check"><input class="form-check-input" type="checkbox" name="cond_b1" value="1"><span class="form-check-label small">B1 Buenas</span></label>
+                                                        <label class="form-check ms-2"><input class="form-check-input" type="checkbox" name="cond_r2" value="1"><span class="form-check-label small">R2 Regulares</span></label>
+                                                        <label class="form-check ms-2"><input class="form-check-input" type="checkbox" name="cond_a3" value="1"><span class="form-check-label small">A3 Abierto</span></label>
+                                                        <label class="form-check ms-2"><input class="form-check-input" type="checkbox" name="cond_c4" value="1"><span class="form-check-label small">C4 Cerrado</span></label>
+                                                    </div>
+                                                </div>
+                                                <button type="submit" class="btn btn-sm btn-primary w-100" id="btnFirmarRecibe">
+                                                    <i class="bi bi-pen"></i> Firmar Recibe
+                                                </button>
+                                            </form>
+                                        <?php else: ?>
+                                            <div class="firma-box firma-pendiente">Pendiente</div>
+                                            <small class="d-block text-warning text-center mt-2">
+                                                <i class="bi bi-info-circle"></i> Tú firmaste Entrega.<br>Otro usuario de Almacén debe firmar Recibe.
+                                            </small>
+                                        <?php endif; ?>
+
+                                        <!-- Botón firma externa -->
+                                        <div class="border-top pt-2 mt-3">
+                                            <button type="button" class="btn btn-sm btn-outline-warning w-100" onclick="mostrarFirmaExterna()">
+                                                <i class="bi bi-hand-index-thumb"></i> Pasar dispositivo para firma externa
+                                            </button>
+                                            <small class="d-block text-muted text-center mt-1" style="font-size:0.7rem;">
+                                                Si otra persona va a firmar aquí físicamente
+                                            </small>
                                         </div>
-                                        <div class="firma-canvas-wrapper mb-2">
-                                            <div id="canvasRecibe"></div>
-                                            <div class="firma-actions">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('#canvasRecibe').jSignature('reset')">
-                                                    <i class="bi bi-eraser"></i>
+                                    </div>
+
+                                    <!-- VISTA EXTERNA (oculta por default) -->
+                                    <div id="recibeVistaExterna" style="display:none;">
+                                        <div class="alert alert-warning py-2 mb-2" style="font-size: 0.78rem;">
+                                            <i class="bi bi-hand-index-thumb"></i> <strong>Modo firma externa.</strong>
+                                            La persona debe escribir su nombre y firmar directamente.
+                                        </div>
+                                        <form action="<?php echo URL_BASE; ?>dashboard/salidas_envases/firmar_recibe_externo.php" method="POST" id="formRecibeExterno">
+                                            <input type="hidden" name="sec_id" value="<?php echo $id_sec; ?>">
+                                            <input type="hidden" name="recibe_firma" id="recibeFirmaExtInput">
+                                            <div class="mb-2">
+                                                <label class="form-label small">Nombre de quien recibe <span class="text-danger">*</span></label>
+                                                <input type="text" name="recibe_nombre" class="form-control form-control-sm" placeholder="Escribe tu nombre" required>
+                                            </div>
+                                            <div class="firma-canvas-wrapper mb-2">
+                                                <div id="canvasRecibeExt"></div>
+                                                <div class="firma-actions">
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="$('#canvasRecibeExt').jSignature('reset')">
+                                                        <i class="bi bi-eraser"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="form-label small d-block">Condiciones <span class="text-danger">*</span></label>
+                                                <div class="d-flex flex-wrap gap-1">
+                                                    <label class="form-check"><input class="form-check-input" type="checkbox" name="cond_b1" value="1"><span class="form-check-label small">B1 Buenas</span></label>
+                                                    <label class="form-check ms-2"><input class="form-check-input" type="checkbox" name="cond_r2" value="1"><span class="form-check-label small">R2 Regulares</span></label>
+                                                    <label class="form-check ms-2"><input class="form-check-input" type="checkbox" name="cond_a3" value="1"><span class="form-check-label small">A3 Abierto</span></label>
+                                                    <label class="form-check ms-2"><input class="form-check-input" type="checkbox" name="cond_c4" value="1"><span class="form-check-label small">C4 Cerrado</span></label>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="cancelarFirmaExterna()">
+                                                    <i class="bi bi-x"></i> Cancelar
+                                                </button>
+                                                <button type="submit" class="btn btn-sm btn-primary flex-grow-1" id="btnFirmarRecibeExt">
+                                                    <i class="bi bi-pen"></i> Confirmar firma
                                                 </button>
                                             </div>
-                                        </div>
-                                        <div class="mb-2">
-                                            <label class="form-label small d-block">Condiciones <span class="text-danger">*</span></label>
-                                            <div class="d-flex flex-wrap gap-1">
-                                                <label class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="cond_b1" value="1">
-                                                    <span class="form-check-label small">B1 Buenas</span>
-                                                </label>
-                                                <label class="form-check ms-2">
-                                                    <input class="form-check-input" type="checkbox" name="cond_r2" value="1">
-                                                    <span class="form-check-label small">R2 Regulares</span>
-                                                </label>
-                                                <label class="form-check ms-2">
-                                                    <input class="form-check-input" type="checkbox" name="cond_a3" value="1">
-                                                    <span class="form-check-label small">A3 Abierto</span>
-                                                </label>
-                                                <label class="form-check ms-2">
-                                                    <input class="form-check-input" type="checkbox" name="cond_c4" value="1">
-                                                    <span class="form-check-label small">C4 Cerrado</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <button type="submit" class="btn btn-sm btn-primary w-100" id="btnFirmarRecibe">
-                                            <i class="bi bi-pen"></i> Firmar Recibe
-                                        </button>
-                                    </form>
+                                        </form>
+                                    </div>
                                 <?php else: ?>
                                     <div class="firma-box firma-pendiente">Pendiente</div>
-                                    <?php if ($es_almacen && $sec['estado'] === 'entregada' && (int)$sec['entrega_usuario_id'] === $usuario_id): ?>
-                                        <small class="d-block text-warning text-center mt-2">
-                                            <i class="bi bi-info-circle"></i> Tú firmaste Entrega.<br>Otro usuario de Almacén debe firmar Recibe.
-                                        </small>
-                                    <?php elseif (!$es_almacen && $sec['estado'] === 'entregada'): ?>
+                                    <?php if (!$es_almacen && $sec['estado'] === 'entregada'): ?>
                                         <small class="d-block text-muted text-center mt-2">
                                             Almacén debe firmar.
                                         </small>
@@ -515,31 +598,6 @@ unset($_SESSION['sec_errores']);
                         </div>
                     </div>
                 </div>
-
-                <!-- ============================================== -->
-                <!-- CONDICIONES (resumen)                           -->
-                <!-- ============================================== -->
-                <?php if (!empty($sec['recibe_firma'])): ?>
-                    <div class="card seccion-card">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="bi bi-clipboard-check"></i> Condiciones registradas</h6>
-                        </div>
-                        <div class="card-body">
-                            <span class="condicion-pill <?php echo $sec['condicion_b1'] ? 'activa' : ''; ?>">
-                                <?php echo $sec['condicion_b1'] ? '✓' : '○'; ?> B1 Buenas
-                            </span>
-                            <span class="condicion-pill <?php echo $sec['condicion_r2'] ? 'activa' : ''; ?>">
-                                <?php echo $sec['condicion_r2'] ? '✓' : '○'; ?> R2 Regulares
-                            </span>
-                            <span class="condicion-pill <?php echo $sec['condicion_a3'] ? 'activa' : ''; ?>">
-                                <?php echo $sec['condicion_a3'] ? '✓' : '○'; ?> A3 Abierto
-                            </span>
-                            <span class="condicion-pill <?php echo $sec['condicion_c4'] ? 'activa' : ''; ?>">
-                                <?php echo $sec['condicion_c4'] ? '✓' : '○'; ?> C4 Cerrado
-                            </span>
-                        </div>
-                    </div>
-                <?php endif; ?>
 
                 <!-- ============================================== -->
                 <!-- EVIDENCIAS                                      -->
@@ -857,13 +915,45 @@ unset($_SESSION['sec_errores']);
     <?php if ($puede_firmar_recibe): ?>
     $('#canvasRecibe').jSignature({ width: '100%', height: 180, lineWidth: 2 });
     document.getElementById('formRecibe').addEventListener('submit', function(e) {
+        const form = this;
         const data = $('#canvasRecibe').jSignature('getData', 'image');
         if (!data || data[1].length < 100) { e.preventDefault(); alert('Debes firmar antes de enviar.'); return; }
-        const conds = ['cond_b1','cond_r2','cond_a3','cond_c4'];
-        const hayCond = conds.some(c => document.querySelector(`[name="${c}"]`).checked);
+        const hayCond = ['cond_b1','cond_r2','cond_a3','cond_c4'].some(c => form.querySelector(`[name="${c}"]`)?.checked);
         if (!hayCond) { e.preventDefault(); alert('Debes marcar al menos una condición.'); return; }
         document.getElementById('recibeFirmaInput').value = 'data:' + data[0] + ',' + data[1];
         document.getElementById('btnFirmarRecibe').disabled = true;
+    });
+    <?php endif; ?>
+
+    <?php if ($es_almacen && $sec['estado'] === 'entregada' && empty($sec['recibe_firma'])): ?>
+    // ==== Firma externa ====
+    let canvasRecibeExtInicializado = false;
+
+    function mostrarFirmaExterna() {
+        if (!confirm('¿Vas a pasar el dispositivo a otra persona para que firme?')) return;
+        document.getElementById('recibeVistaNormal').style.display  = 'none';
+        document.getElementById('recibeVistaExterna').style.display = 'block';
+        if (!canvasRecibeExtInicializado) {
+            $('#canvasRecibeExt').jSignature({ width: '100%', height: 180, lineWidth: 2 });
+            canvasRecibeExtInicializado = true;
+        }
+    }
+
+    function cancelarFirmaExterna() {
+        document.getElementById('recibeVistaExterna').style.display = 'none';
+        document.getElementById('recibeVistaNormal').style.display  = 'block';
+    }
+
+    document.getElementById('formRecibeExterno').addEventListener('submit', function(e) {
+        const form = this;
+        const nombre = form.querySelector('[name="recibe_nombre"]').value.trim();
+        if (!nombre) { e.preventDefault(); alert('La persona debe escribir su nombre.'); return; }
+        const data = $('#canvasRecibeExt').jSignature('getData', 'image');
+        if (!data || data[1].length < 100) { e.preventDefault(); alert('La persona debe firmar antes de enviar.'); return; }
+        const hayCond = ['cond_b1','cond_r2','cond_a3','cond_c4'].some(c => form.querySelector(`[name="${c}"]`)?.checked);
+        if (!hayCond) { e.preventDefault(); alert('Debes marcar al menos una condición.'); return; }
+        document.getElementById('recibeFirmaExtInput').value = 'data:' + data[0] + ',' + data[1];
+        document.getElementById('btnFirmarRecibeExt').disabled = true;
     });
     <?php endif; ?>
 
