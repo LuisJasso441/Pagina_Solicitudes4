@@ -49,10 +49,10 @@ function enviar_evento_sse($evento, $datos) {
 
 // Función para obtener conexión PDO FRESCA (sin cache)
 function obtener_conexion_fresca() {
-    $host = 'localhost';
-    $dbname = 'solicitudes_ti';
-    $username = 'root';
-    $password = '';
+    $host = getenv('DB_HOST') ?: 'localhost';
+    $dbname = getenv('DB_NAME') ?: 'solicitudes_ti';
+    $username = getenv('DB_USER') ?: 'root';
+    $password = getenv('DB_PASS') ?: '';
     
     try {
         $pdo = new PDO(

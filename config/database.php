@@ -1,9 +1,9 @@
 <?php
 // Configuración de base de datos (crear cuando sea necesario)
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'solicitudes_ti');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_NAME', getenv('DB_NAME') ?: 'solicitudes_ti');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') ?: '');
 define('DB_CHARSET', 'utf8mb4');
 
 // Función de conexión (para cuando la necesites)

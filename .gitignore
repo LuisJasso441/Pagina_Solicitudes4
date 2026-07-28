@@ -13,3 +13,6 @@
 .env
 .DS_Store
 Thumbs.db
+# Docker local
+.env
+docker/db/init/*.sql
