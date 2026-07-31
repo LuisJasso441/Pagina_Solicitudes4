@@ -565,7 +565,7 @@ try {
                         </div>
                     </div>
 
-                    <?php mostrar_alerta(); // Se consume el flash de bienvenida del login SIN renderizarlo (elimina el recuadro negro) ?>
+                    <?php echo mostrar_alerta(); ?>
 
                     <!-- Tarjetas de estadísticas de solicitudes -->
                     <div class="epp-grid">

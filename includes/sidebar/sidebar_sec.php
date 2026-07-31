@@ -154,6 +154,24 @@ try {
             </li>
             <?php endif; ?>
 
+            <?php if (!$es_log_sb): // Almacen de Residuos ?>
+            <hr class="text-white-50 my-2">
+            <small class="text-white-50 px-3 fw-bold">VALE TRAJE TYVEK</small>
+
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'vales_epp.php' || $current_page == 'ver_vale_epp.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/inventario_epp/vales_epp.php">
+                    <i class="bi bi-file-earmark-text"></i> Ver Vales
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'crear_vale_epp.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/inventario_epp/crear_vale_epp.php">
+                    <i class="bi bi-file-earmark-plus text-warning"></i> Crear Vale Tyvek
+                </a>
+            </li>
+            <?php endif; ?>
+
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
 
@@ -186,3 +204,6 @@ try {
         </ul>
     </nav>
 </aside>
+
+<!-- Modal para crear nueva orden de servicio -->
+<?php include __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php'; ?>

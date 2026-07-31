@@ -14,8 +14,10 @@ require_once __DIR__ . '/../../includes/inventario_epp/vales_epp_funciones.php';
 $permisos = verificar_permisos_epp($_SESSION['usuario_id']);
 $permisos_vale = verificar_permisos_vales();
 
-if (!$permisos['tiene_acceso']) {
-    establecer_alerta('error', 'No tienes acceso al módulo de EPP.');
+$permisos_vale = verificar_permisos_vales();
+
+if (!$permisos['tiene_acceso'] && !$permisos_vale['puede_ver']) {
+    establecer_alerta('error', 'No tienes acceso a esta seccion.');
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
@@ -119,7 +121,15 @@ $estado_icon = match($vale['estado']) {
 </head>
 <body>
     <div class="dashboard-container">
-        <?php include __DIR__ . "/../../includes/sidebar/sidebar_inventario.php"; ?>
+        <?php
+        $depto_sb = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+        if ($depto_sb === 'almacen_residuos') {
+            $sidebar_file = __DIR__ . "/../../includes/sidebar/sidebar_sec.php";
+            if (file_exists($sidebar_file)) include $sidebar_file;
+        } else {
+            include __DIR__ . "/../../includes/sidebar/sidebar_inventario.php";
+        }
+        ?>
 
         <main class="main-content">
             <div class="content-wrapper">
@@ -154,6 +164,11 @@ $estado_icon = match($vale['estado']) {
                                     Vale <?php echo htmlspecialchars($vale['folio']); ?>
                                 </h4>
                                 <small style="opacity: 0.85;">Estado: <?php echo $vale['estado']; ?></small>
+                                <?php if ($vale['estado'] === 'Pendiente'):
+                                    $expiracion = verificar_expiracion_vale($vale['fecha_creacion']);
+                                ?>
+                                <br><small style="opacity: 0.9;"><i class="bi bi-clock"></i> Vigencia: <?php echo $expiracion['texto']; ?><?php if ($expiracion['expirado']): ?> <span class="badge bg-danger">EXPIRADO</span><?php endif; ?></small>
+                                <?php endif; ?>
                             </div>
                             <span class="badge bg-light text-dark" style="font-size: 0.85rem;">
                                 <?php echo date('d/m/Y H:i', strtotime($vale['fecha_creacion'])); ?>
@@ -296,17 +311,22 @@ $estado_icon = match($vale['estado']) {
                         <!-- ACCIONES según permisos y estado -->
                         <!-- ============================================ -->
                         <?php if ($vale['estado'] === 'Pendiente'): ?>
+                        <?php
+                        $vale_expirado = false;
+                        $exp_check = verificar_expiracion_vale($vale['fecha_creacion']);
+                        $vale_expirado = $exp_check['expirado'];
+                        ?>
                         
-                            <!-- Almacén: Confirmar entrega -->
-                            <?php if ($permisos_vale['puede_confirmar']): ?>
+                            <!-- Almacen: Confirmar entrega (solo si no expirado) -->
+                            <?php if ($permisos_vale['puede_confirmar'] && !$vale_expirado): ?>
                             <div class="acciones-box">
                                 <h6 style="font-size: 0.85rem; font-weight: 700; color: #155724;">
                                     <i class="bi bi-check-circle"></i> Confirmar Entrega
                                 </h6>
                                 <p style="font-size: 0.8rem; color: #6c757d; margin-bottom: 0.75rem;">
-                                    Al confirmar, el stock se descontará automáticamente del inventario.
+                                    Al confirmar, el stock se descontara automaticamente del inventario.
                                 </p>
-                                <form method="POST" onsubmit="return confirm('¿Confirmar entrega del vale <?php echo $vale['folio']; ?>? Se descontará el stock de cada artículo.');">
+                                <form method="POST" onsubmit="return confirm('Confirmar entrega del vale <?php echo $vale['folio']; ?>? Se descontara el stock de cada articulo.');">
                                     <input type="hidden" name="accion" value="confirmar_entrega">
                                     <div class="mb-2">
                                         <textarea name="observaciones_entrega" class="form-control form-control-sm" rows="2" 
@@ -319,7 +339,14 @@ $estado_icon = match($vale['estado']) {
                             </div>
                             <?php endif; ?>
                             
-                            <!-- Cancelar (Seguridad o Almacén) -->
+                            <?php if ($permisos_vale['puede_confirmar'] && $vale_expirado): ?>
+                            <div class="acciones-box" style="border-color: #f5c6cb;">
+                                <p class="text-danger fw-bold mb-1"><i class="bi bi-exclamation-triangle"></i> Vale Expirado</p>
+                                <p style="font-size: 0.8rem; color: #6c757d; margin-bottom: 0;">Han pasado mas de 72 horas desde la creacion. Este vale debe cancelarse y crear uno nuevo.</p>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <!-- Cancelar (solo Seguridad) -->
                             <?php if ($permisos_vale['puede_cancelar']): ?>
                             <div class="acciones-box mt-2" style="border-color: #f5c6cb;">
                                 <h6 style="font-size: 0.85rem; font-weight: 700; color: #721c24;">

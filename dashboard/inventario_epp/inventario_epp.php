@@ -12,8 +12,6 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/inventario_epp/inventario_epp_funciones.php';
 
 $permisos = verificar_permisos_epp($_SESSION['usuario_id']);
-$depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
-$puede_eliminar = $permisos['puede_editar'] && $depto_codigo !== 'almacen_refacciones';
 if (!$permisos['tiene_acceso']) {
     establecer_alerta('error', 'No tienes acceso al módulo de Inventario de EPP.');
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
@@ -33,6 +31,9 @@ $filtros = [
 if ($vista === 'movimientos') {
     $datos_tabla = obtener_movimientos_epp($filtros);
     $page_title = "Inventario de EPP - Movimientos";
+} elseif ($vista === 'historial') {
+    $datos_tabla = obtener_historial_articulos_epp($filtros);
+    $page_title = "Inventario de EPP - Historial";
 } else {
     $datos_tabla = obtener_inventario_epp_compacto($filtros);
     $page_title = "Inventario de EPP";
@@ -116,6 +117,9 @@ $stats = obtener_estadisticas_epp();
                     </div>
                     <?php if ($permisos['puede_crear']): ?>
                     <div class="d-flex gap-2">
+                        <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/descargar_excel_epp.php" class="btn btn-outline-success btn-sm" title="Descargar Excel">
+                            <i class="bi bi-file-earmark-excel"></i> Descargar BD
+                        </a>
                         <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/agregar_epp.php" class="btn btn-success btn-sm">
                             <i class="bi bi-plus-circle"></i> Agregar EPP
                         </a>
@@ -142,6 +146,7 @@ $stats = obtener_estadisticas_epp();
                 <ul class="nav vista-tabs mb-3">
                     <li class="nav-item"><a class="nav-link <?php echo $vista === 'inventario' ? 'active' : ''; ?>" href="?vista=inventario"><i class="bi bi-box-seam"></i> Inventario</a></li>
                     <li class="nav-item"><a class="nav-link <?php echo $vista === 'movimientos' ? 'active' : ''; ?>" href="?vista=movimientos"><i class="bi bi-arrow-left-right"></i> Movimientos</a></li>
+                    <li class="nav-item"><a class="nav-link <?php echo $vista === 'historial' ? 'active' : ''; ?>" href="?vista=historial"><i class="bi bi-clock-history"></i> Historial</a></li>
                 </ul>
                 
                 <!-- Filtros -->
@@ -216,7 +221,7 @@ $stats = obtener_estadisticas_epp();
                                 <td class="text-center text-muted"><?php echo $index + 1; ?></td>
                                 
                                 <td>
-                                    <?php if ($permisos['puede_editar']): ?>
+                                    <?php if ($permisos['puede_editar_tabla']): ?>
                                     <div class="celda-editable">
                                         <input type="text" value="<?php echo htmlspecialchars($item['articulo']); ?>" 
                                                data-original="<?php echo htmlspecialchars($item['articulo']); ?>"
@@ -245,7 +250,7 @@ $stats = obtener_estadisticas_epp();
                                 </td>
                                 
                                 <td>
-                                    <?php if ($permisos['puede_editar']): ?>
+                                    <?php if ($permisos['puede_editar_tabla']): ?>
                                     <div class="celda-editable">
                                         <select onchange="guardarCampo(<?php echo $item['id']; ?>, 'unidad', this.value, this)" data-original="<?php echo $item['unidad']; ?>">
                                             <option value="Pieza(s)" <?php echo $item['unidad'] === 'Pieza(s)' ? 'selected' : ''; ?>>Pieza(s)</option>
@@ -256,28 +261,20 @@ $stats = obtener_estadisticas_epp();
                                     <?php else: echo htmlspecialchars($item['unidad']); endif; ?>
                                 </td>
                                 
-                                <!-- Stock: editable, se actualiza al cambiar talla -->
-                                <td class="<?php echo $permisos['puede_editar'] ? 'celda-editable' : ''; ?> text-center">
-                                    <?php if ($permisos['puede_editar']): ?>
-                                    <input type="number" min="0" 
-                                           value="<?php echo $stock_inicial; ?>" 
-                                           style="text-align:center;width:70px;"
-                                           data-original="<?php echo $stock_inicial; ?>"
-                                           data-talla-id="<?php echo $primera_talla ? $primera_talla['id'] : 0; ?>"
-                                           id="stock-<?php echo $item['id']; ?>"
-                                           onchange="guardarStockTalla(this, <?php echo $item['id']; ?>)">
-                                    <?php else: ?>
-                                    <span class="stock-badge stock-display <?php echo $sc; ?>" id="stock-<?php echo $item['id']; ?>">
+                                <!-- Stock: solo lectura, se actualiza al cambiar talla -->
+                                <td class="text-center">
+                                    <span class="stock-badge stock-display <?php echo $sc; ?>" 
+                                          id="stock-<?php echo $item['id']; ?>"
+                                          data-talla-id="<?php echo $primera_talla ? $primera_talla['id'] : 0; ?>">
                                         <?php echo $stock_inicial; ?>
                                     </span>
-                                    <?php endif; ?>
                                 </td>
                                 
                                 <?php if ($permisos['puede_editar']): ?>
                                 <td class="text-center">
                                     <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/ver_epp.php?id=<?php echo $item['id']; ?>" 
                                        class="btn btn-outline-info btn-accion" title="Ver detalle"><i class="bi bi-eye"></i></a>
-                                    <?php if ($puede_eliminar): ?>
+                                    <?php if ($permisos['puede_eliminar']): ?>
                                     <button type="button" class="btn btn-outline-danger btn-accion" title="Eliminar" 
                                             onclick="eliminarEPP(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['articulo'], ENT_QUOTES); ?>')">
                                         <i class="bi bi-trash"></i>
@@ -336,6 +333,44 @@ $stats = obtener_estadisticas_epp();
                 <div class="text-muted mt-2" style="font-size: 0.75rem;"><i class="bi bi-info-circle"></i> <?php echo count($datos_tabla); ?> movimiento(s)</div>
                 <?php endif; ?>
                 
+                <!-- ============================================ -->
+                <!-- VISTA: HISTORIAL -->
+                <!-- ============================================ -->
+                <?php if ($vista === 'historial'): ?>
+                <div class="tabla-inventario-wrapper">
+                    <table class="tabla-inventario">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Fecha</th>
+                                <th>Campo</th>
+                                <th>Valor Anterior</th>
+                                <th>Valor Nuevo</th>
+                                <th>Articulo Actual</th>
+                                <th>Modificado por</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($datos_tabla)): ?>
+                            <tr><td colspan="7" class="text-center py-4 text-muted"><i class="bi bi-inbox fs-3 d-block mb-2"></i>No hay cambios registrados.</td></tr>
+                            <?php else: ?>
+                            <?php foreach ($datos_tabla as $i => $h): ?>
+                            <tr>
+                                <td class="text-center text-muted"><?php echo $i + 1; ?></td>
+                                <td><?php echo date('d/m/Y H:i', strtotime($h['fecha_cambio'])); ?></td>
+                                <td><span class="badge bg-secondary"><?php echo ucfirst($h['campo']); ?></span></td>
+                                <td style="color: #dc3545; text-decoration: line-through;"><?php echo htmlspecialchars($h['valor_anterior']); ?></td>
+                                <td style="color: #28a745; font-weight: 600;"><?php echo htmlspecialchars($h['valor_nuevo']); ?></td>
+                                <td style="font-size: 0.8rem;"><?php echo htmlspecialchars($h['articulo_actual'] ?? 'Eliminado'); ?></td>
+                                <td style="font-size: 0.8rem;"><?php echo htmlspecialchars($h['usuario_nombre']); ?></td>
+                            </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="text-muted mt-2" style="font-size: 0.75rem;"><i class="bi bi-info-circle"></i> <?php echo count($datos_tabla); ?> cambio(s) registrado(s)</div>
+                <?php endif; ?>
+                
             </div>
         </main>
     </div>
@@ -348,51 +383,20 @@ $stats = obtener_estadisticas_epp();
     function cambiarTalla(selectEl, articuloId) {
         const opt = selectEl.options[selectEl.selectedIndex];
         const stock = parseInt(opt.dataset.stock) || 0;
-        const tallaId = opt.value;
         const stockEl = document.getElementById('stock-' + articuloId);
         if (!stockEl) return;
         
-        // Si es input (editor), actualizar value y talla_id
-        if (stockEl.tagName === 'INPUT') {
-            stockEl.value = stock;
-            stockEl.dataset.original = stock;
-            stockEl.dataset.tallaId = tallaId;
-        } else {
-            // Si es span (lector)
-            stockEl.textContent = stock;
-            stockEl.className = 'stock-badge stock-display ' + 
-                (stock === 0 ? 'stock-cero' : (stock <= 5 ? 'stock-bajo' : 'stock-ok'));
-        }
-    }
-    
-    function guardarStockTalla(inputEl, articuloId) {
-        const nuevoStock = inputEl.value;
-        const tallaId = inputEl.dataset.tallaId;
-        if (nuevoStock === inputEl.dataset.original || !tallaId || tallaId === '0') return;
-        
-        fetch('<?php echo URL_BASE; ?>dashboard/inventario_epp/api_inventario_epp.php', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({accion: 'actualizar_stock_talla', talla_id: parseInt(tallaId), stock: parseInt(nuevoStock)})
-        }).then(r => r.json()).then(data => {
-            if (data.success) {
-                inputEl.dataset.original = nuevoStock;
-                // Actualizar también el data-stock en el option del select de talla
-                const row = inputEl.closest('tr');
-                const selectTalla = row ? row.querySelector('.select-talla') : null;
-                if (selectTalla) {
-                    const opt = selectTalla.options[selectTalla.selectedIndex];
-                    if (opt) opt.dataset.stock = nuevoStock;
-                }
-                mostrarIndicador('Stock actualizado', 'success');
-            } else {
-                inputEl.value = inputEl.dataset.original;
-                mostrarIndicador(data.message || 'Error al guardar', 'danger');
-            }
-        }).catch(() => { inputEl.value = inputEl.dataset.original; mostrarIndicador('Error de conexión', 'danger'); });
+        stockEl.textContent = stock;
+        stockEl.dataset.tallaId = opt.value;
+        stockEl.className = 'stock-badge stock-display ' + 
+            (stock === 0 ? 'stock-cero' : (stock <= 5 ? 'stock-bajo' : 'stock-ok'));
+        stockEl.style.animation = 'none';
+        stockEl.offsetHeight;
+        stockEl.style.animation = 'fadeIn 0.3s ease';
     }
     </script>
     
-    <?php if ($permisos['puede_editar']): ?>
+    <?php if ($permisos['puede_editar_tabla']): ?>
     <script>
     function guardarCampo(id, campo, valor, el) {
         if (valor === el.dataset.original) return;

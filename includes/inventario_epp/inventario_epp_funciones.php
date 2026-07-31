@@ -34,13 +34,26 @@ function verificar_permisos_epp($user_id) {
     $stmt->execute([':user_id' => $user_id]);
     $permisos = $stmt->fetch(PDO::FETCH_ASSOC);
     
+    $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+    
     if (!$permisos) {
-        return ['tiene_acceso' => false, 'puede_crear' => false, 'puede_editar' => false, 'lector' => 0, 'creador' => 0, 'editor' => 0];
+        return [
+            'tiene_acceso' => false, 'puede_crear' => false, 'puede_editar' => false,
+            'puede_editar_tabla' => false, 'puede_eliminar' => false,
+            'lector' => 0, 'creador' => 0, 'editor' => 0
+        ];
     }
+    
+    $es_editor = (bool) $permisos['editor'];
+    
     return [
         'tiene_acceso' => (bool) $permisos['lector'],
         'puede_crear'  => (bool) $permisos['creador'],
-        'puede_editar' => (bool) $permisos['editor'],
+        'puede_editar' => $es_editor,
+        // Seguridad NO edita tabla general (articulo, unidad, etc.)
+        'puede_editar_tabla' => $es_editor && ($depto !== 'seguridad'),
+        // Solo Almacen de Refacciones puede eliminar
+        'puede_eliminar' => $es_editor && ($depto === 'almacen_refacciones'),
         'lector' => (int) $permisos['lector'],
         'creador' => (int) $permisos['creador'],
         'editor' => (int) $permisos['editor']
@@ -377,15 +390,72 @@ function actualizar_campo_epp($id, $campo, $valor) {
     $pdo = conectarDB();
     $campos_permitidos = ['articulo', 'unidad', 'precio', 'nombre_proveedor', 'lote_identificador', 'observaciones', 'categoria'];
     if (!in_array($campo, $campos_permitidos)) {
-        return ['success' => false, 'message' => 'Campo no permitido para edición.'];
+        return ['success' => false, 'message' => 'Campo no permitido para edicion.'];
     }
     try {
+        // Obtener valor anterior para historial
+        $stmt_prev = $pdo->prepare("SELECT `{$campo}` as valor_anterior FROM inventario_epp WHERE id = :id");
+        $stmt_prev->execute([':id' => $id]);
+        $anterior = $stmt_prev->fetch(PDO::FETCH_ASSOC);
+        $valor_anterior = $anterior ? ($anterior['valor_anterior'] ?? '') : '';
+        
+        // Actualizar
         $stmt = $pdo->prepare("UPDATE inventario_epp SET `{$campo}` = :valor WHERE id = :id AND activo = 1");
         $stmt->execute([':valor' => $valor, ':id' => $id]);
+        
+        // Registrar en historial si el valor cambio
+        if ($valor_anterior !== $valor) {
+            $pdo->prepare("
+                INSERT INTO historial_articulos_epp (inventario_epp_id, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre)
+                VALUES (:epp_id, :campo, :anterior, :nuevo, :uid, :uname)
+            ")->execute([
+                ':epp_id' => $id,
+                ':campo' => $campo,
+                ':anterior' => $valor_anterior,
+                ':nuevo' => $valor,
+                ':uid' => $_SESSION['usuario_id'],
+                ':uname' => $_SESSION['nombre_completo']
+            ]);
+        }
+        
         return ['success' => true, 'message' => 'Campo actualizado correctamente.'];
     } catch (Exception $e) {
         return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
     }
+}
+
+/**
+ * Obtener historial de cambios de articulos EPP
+ */
+function obtener_historial_articulos_epp($filtros = []) {
+    $pdo = conectarDB();
+    $where = ["1=1"];
+    $params = [];
+    
+    if (!empty($filtros['busqueda'])) {
+        $where[] = "(h.valor_anterior LIKE :b1 OR h.valor_nuevo LIKE :b2 OR h.usuario_nombre LIKE :b3)";
+        $params[':b1'] = '%'.$filtros['busqueda'].'%';
+        $params[':b2'] = '%'.$filtros['busqueda'].'%';
+        $params[':b3'] = '%'.$filtros['busqueda'].'%';
+    }
+    if (!empty($filtros['fecha_desde'])) {
+        $where[] = "h.fecha_cambio >= :fd";
+        $params[':fd'] = $filtros['fecha_desde'] . ' 00:00:00';
+    }
+    if (!empty($filtros['fecha_hasta'])) {
+        $where[] = "h.fecha_cambio <= :fh";
+        $params[':fh'] = $filtros['fecha_hasta'] . ' 23:59:59';
+    }
+    
+    $sql = "SELECT h.*, i.articulo as articulo_actual, i.categoria
+            FROM historial_articulos_epp h
+            LEFT JOIN inventario_epp i ON h.inventario_epp_id = i.id
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY h.fecha_cambio DESC";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
 /**

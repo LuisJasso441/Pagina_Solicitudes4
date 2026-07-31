@@ -142,11 +142,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         
                         <div class="mb-3">
-                            <label class="form-label">Tipo de Movimiento <span class="text-danger">*</span></label>
-                            <select name="tipo_movimiento" class="form-select" required>
-                                <option value="">Seleccione</option>
-                                <option value="Entrada">Entrada</option>
-                            </select>
+                            <label class="form-label">Tipo de Movimiento</label>
+                            <input type="hidden" name="tipo_movimiento" value="Entrada">
+                            <div class="form-control bg-light" style="pointer-events:none;">
+                                <i class="bi bi-box-arrow-in-down text-success"></i> <strong>Entrada</strong>
+                            </div>
                         </div>
                         
                         <!-- Artículo (agrupado, sin tallas en el dropdown) -->

@@ -38,16 +38,17 @@ function crear_vale_epp($datos) {
         
         $stmt = $pdo->prepare("
             INSERT INTO vales_epp (
-                folio, nombre_empleado, area, estado,
+                folio, nombre_empleado, empleado_id, area, estado,
                 creado_por_id, creado_por_nombre, observaciones
             ) VALUES (
-                :folio, :nombre_empleado, :area, 'Pendiente',
+                :folio, :nombre_empleado, :empleado_id, :area, 'Pendiente',
                 :creado_por_id, :creado_por_nombre, :observaciones
             )
         ");
         $stmt->execute([
             ':folio' => $folio,
             ':nombre_empleado' => $datos['nombre_empleado'],
+            ':empleado_id' => $datos['empleado_id'] ?? null,
             ':area' => $datos['area'],
             ':creado_por_id' => $datos['usuario_id'],
             ':creado_por_nombre' => $datos['usuario_nombre'],
@@ -125,6 +126,13 @@ function obtener_vales_epp($filtros = []) {
     $where = ["1=1"];
     $params = [];
     
+    // Almacen de Residuos solo ve sus propios vales
+    $depto_val = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+    if ($depto_val === 'almacen_residuos') {
+        $where[] = "v.creado_por_id = :creador_id";
+        $params[':creador_id'] = $_SESSION['usuario_id'];
+    }
+    
     if (!empty($filtros['estado'])) {
         $where[] = "v.estado = :estado";
         $params[':estado'] = $filtros['estado'];
@@ -149,7 +157,7 @@ function obtener_vales_epp($filtros = []) {
                    (SELECT SUM(cantidad) FROM vales_epp_lineas WHERE vale_epp_id = v.id) as total_piezas
             FROM vales_epp v
             WHERE " . implode(' AND ', $where) . "
-            ORDER BY v.fecha_creacion DESC";
+            ORDER BY v.folio DESC";
     
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -174,6 +182,15 @@ function confirmar_entrega_vale($vale_id, $datos) {
         if (!$vale) {
             $pdo->rollBack();
             return ['success' => false, 'message' => 'Vale no encontrado o ya fue procesado.'];
+        }
+        
+        // Verificar expiracion (72 horas)
+        $fecha_creacion = new DateTime($vale['fecha_creacion']);
+        $ahora = new DateTime();
+        $horas_transcurridas = ($ahora->getTimestamp() - $fecha_creacion->getTimestamp()) / 3600;
+        if ($horas_transcurridas > 72) {
+            $pdo->rollBack();
+            return ['success' => false, 'message' => 'Este vale ha expirado (mas de 72 horas). Debe cancelarse y crear uno nuevo.'];
         }
         
         // Obtener líneas
@@ -306,11 +323,33 @@ function obtener_estadisticas_vales() {
     $pdo = conectarDB();
     $stats = [];
     
-    $stats['total'] = $pdo->query("SELECT COUNT(*) FROM vales_epp")->fetchColumn();
-    $stats['pendientes'] = $pdo->query("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Pendiente'")->fetchColumn();
-    $stats['entregados'] = $pdo->query("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Entregado'")->fetchColumn();
-    $stats['cancelados'] = $pdo->query("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Cancelado'")->fetchColumn();
-    $stats['entregados_mes'] = $pdo->query("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Entregado' AND MONTH(fecha_entrega) = MONTH(NOW()) AND YEAR(fecha_entrega) = YEAR(NOW())")->fetchColumn();
+    $depto_st = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+    $filtro_creador = '';
+    $params_st = [];
+    if ($depto_st === 'almacen_residuos') {
+        $filtro_creador = ' AND creado_por_id = :uid';
+        $params_st[':uid'] = $_SESSION['usuario_id'];
+    }
+    
+    $s1 = $pdo->prepare("SELECT COUNT(*) FROM vales_epp WHERE 1=1" . $filtro_creador);
+    $s1->execute($params_st);
+    $stats['total'] = $s1->fetchColumn();
+    
+    $s2 = $pdo->prepare("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Pendiente'" . $filtro_creador);
+    $s2->execute($params_st);
+    $stats['pendientes'] = $s2->fetchColumn();
+    
+    $s3 = $pdo->prepare("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Entregado'" . $filtro_creador);
+    $s3->execute($params_st);
+    $stats['entregados'] = $s3->fetchColumn();
+    
+    $s4 = $pdo->prepare("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Cancelado'" . $filtro_creador);
+    $s4->execute($params_st);
+    $stats['cancelados'] = $s4->fetchColumn();
+    
+    $s5 = $pdo->prepare("SELECT COUNT(*) FROM vales_epp WHERE estado = 'Entregado' AND MONTH(fecha_entrega) = MONTH(NOW()) AND YEAR(fecha_entrega) = YEAR(NOW())" . $filtro_creador);
+    $s5->execute($params_st);
+    $stats['entregados_mes'] = $s5->fetchColumn();
     
     return $stats;
 }
@@ -322,12 +361,72 @@ function verificar_permisos_vales() {
     $depto = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
     
     return [
-        'puede_crear' => ($depto === 'seguridad'),
+        'puede_crear' => in_array($depto, ['seguridad', 'almacen_residuos']),
         'puede_confirmar' => ($depto === 'almacen_refacciones'),
-        'puede_cancelar' => in_array($depto, ['seguridad', 'almacen_refacciones']),
-        'puede_ver' => in_array($depto, ['seguridad', 'almacen_refacciones', 'contabilidad']),
+        'puede_cancelar' => ($depto === 'seguridad'),
+        'puede_ver' => in_array($depto, ['seguridad', 'almacen_refacciones', 'contabilidad', 'almacen_residuos']),
+        'es_modo_tyvek' => ($depto === 'almacen_residuos'),
         'departamento' => $depto
     ];
+}
+
+/**
+ * Obtener empleados agrupados por departamento (para dropdown)
+ */
+function obtener_empleados_por_departamento() {
+    $pdo = conectarDB();
+    $stmt = $pdo->query("
+        SELECT u.id, u.nombre_completo, u.usuario,
+               COALESCE(d.nombre, u.departamento) as departamento_nombre,
+               COALESCE(d.codigo, LOWER(u.departamento)) as departamento_codigo
+        FROM usuarios u
+        LEFT JOIN departamentos d ON u.departamento_id = d.id
+        WHERE u.activo = 1
+        ORDER BY departamento_nombre ASC, u.nombre_completo ASC
+    ");
+    $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $agrupados = [];
+    foreach ($usuarios as $u) {
+        $depto = $u['departamento_codigo'];
+        if (!isset($agrupados[$depto])) {
+            $agrupados[$depto] = [
+                'codigo' => $depto,
+                'nombre' => $u['departamento_nombre'],
+                'empleados' => []
+            ];
+        }
+        $agrupados[$depto]['empleados'][] = [
+            'id' => $u['id'],
+            'nombre' => $u['nombre_completo'],
+            'usuario' => $u['usuario']
+        ];
+    }
+    
+    return array_values($agrupados);
+}
+
+/**
+ * Verificar si un vale esta expirado (72 horas)
+ */
+function verificar_expiracion_vale($fecha_creacion) {
+    $fecha = new DateTime($fecha_creacion);
+    $ahora = new DateTime();
+    $horas_transcurridas = ($ahora->getTimestamp() - $fecha->getTimestamp()) / 3600;
+    $horas_restantes = 72 - $horas_transcurridas;
+    
+    if ($horas_restantes <= 0) {
+        return ['expirado' => true, 'horas_restantes' => 0, 'texto' => 'Expirado'];
+    }
+    if ($horas_restantes < 1) {
+        return ['expirado' => false, 'horas_restantes' => $horas_restantes, 'texto' => (int)ceil($horas_restantes * 60) . ' min restantes'];
+    }
+    if ($horas_restantes < 24) {
+        return ['expirado' => false, 'horas_restantes' => $horas_restantes, 'texto' => (int)floor($horas_restantes) . 'h restantes'];
+    }
+    $dias = (int)floor($horas_restantes / 24);
+    $hrs = (int)floor($horas_restantes - ($dias * 24));
+    return ['expirado' => false, 'horas_restantes' => $horas_restantes, 'texto' => $dias . 'd ' . $hrs . 'h restantes'];
 }
 
 ?>

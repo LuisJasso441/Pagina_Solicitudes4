@@ -317,14 +317,7 @@ function tiempo_relativo_dash($fecha) {
                     </div>
                 </div>
 
-                <?php
-                // Ocultamos únicamente el mensaje de bienvenida del login (redundante con el saludo
-                // de arriba), pero seguimos mostrando cualquier otra alerta real.
-                $alerta_html = mostrar_alerta();
-                if (mb_stripos($alerta_html, 'bienvenido') === false) {
-                    echo $alerta_html;
-                }
-                ?>
+                <?php echo mostrar_alerta(); ?>
 
                 <div class="seccion-titulo">
                     <i class="bi bi-graph-up"></i> Estadísticas de Salidas de Envases

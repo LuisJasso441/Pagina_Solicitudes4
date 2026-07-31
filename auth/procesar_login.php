@@ -114,9 +114,6 @@ try {
         // TODO: Implementar sistema de "recordar sesión" con tokens
     }
     
-    // Establecer mensaje de bienvenida
-    establecer_alerta('success', '¡Bienvenido, ' . $usuario_db['nombre_completo'] . '!');
-    
     // ⭐ REDIRIGIR AL DASHBOARD CORRESPONDIENTE
     $departamento_lower = $usuario_db['departamento_codigo'] ?? strtolower(trim($usuario_db['departamento']));
     

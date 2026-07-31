@@ -13,8 +13,8 @@ require_once __DIR__ . '/../../includes/inventario_epp/vales_epp_funciones.php';
 $permisos = verificar_permisos_epp($_SESSION['usuario_id']);
 $permisos_vale = verificar_permisos_vales();
 
-if (!$permisos['tiene_acceso']) {
-    establecer_alerta('error', 'No tienes acceso al módulo de EPP.');
+if (!$permisos['tiene_acceso'] && !$permisos_vale['puede_ver']) {
+    establecer_alerta('error', 'No tienes acceso a esta seccion.');
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
@@ -67,7 +67,15 @@ $page_title = "Vales de Entrega de EPP";
 </head>
 <body>
     <div class="dashboard-container">
-        <?php include __DIR__ . "/../../includes/sidebar/sidebar_inventario.php"; ?>
+        <?php
+        $depto_sb = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
+        if ($depto_sb === 'almacen_residuos') {
+            $sidebar_file = __DIR__ . "/../../includes/sidebar/sidebar_sec.php";
+            if (file_exists($sidebar_file)) include $sidebar_file;
+        } else {
+            include __DIR__ . "/../../includes/sidebar/sidebar_inventario.php";
+        }
+        ?>
 
         <main class="main-content">
             <div class="content-wrapper">
@@ -174,6 +182,13 @@ $page_title = "Vales de Entrega de EPP";
                                     };
                                     ?>
                                     <span class="badge <?php echo $badge_class; ?>"><i class="bi <?php echo $badge_icon; ?>"></i> <?php echo $v['estado']; ?></span>
+                                    <?php if ($v['estado'] === 'Pendiente'):
+                                        $exp = verificar_expiracion_vale($v['fecha_creacion']);
+                                    ?>
+                                    <br><small class="<?php echo $exp['expirado'] ? 'text-danger fw-bold' : 'text-muted'; ?>" style="font-size:0.7rem;">
+                                        <i class="bi bi-clock"></i> <?php echo $exp['texto']; ?>
+                                    </small>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($v['fecha_creacion'])); ?></td>
                                 <td style="font-size: 0.8rem;"><?php echo htmlspecialchars($v['creado_por_nombre']); ?></td>
