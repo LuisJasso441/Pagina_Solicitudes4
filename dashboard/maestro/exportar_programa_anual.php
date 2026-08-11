@@ -298,7 +298,7 @@ try {
     // METADATA
     // ============================================================
     $spreadsheet->getProperties()
-                ->setCreator('Verden Core - Mantenimientos TI')
+                ->setCreator('VerdenCore - Mantenimientos TI')
                 ->setLastModifiedBy($_SESSION['nombre_completo'] ?? 'Sistemas')
                 ->setTitle('Programa Anual - ' . $conf['label'] . ' ' . $anio)
                 ->setSubject('FR-TI-04 Programa Anual')

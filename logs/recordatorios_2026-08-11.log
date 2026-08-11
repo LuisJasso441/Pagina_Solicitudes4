@@ -1,0 +1,137 @@
+[2026-08-11 09:43:32] ==================================================================
+[2026-08-11 09:43:32] INICIO - Envío de recordatorios de inactividad
+[2026-08-11 09:43:32] Modo:            DRY-RUN (no envía)
+[2026-08-11 09:43:32] Umbral días:     3
+[2026-08-11 09:43:32] Cooldown días:   7
+[2026-08-11 09:43:32] ==================================================================
+[2026-08-11 09:43:32] Candidatos encontrados: 1
+[2026-08-11 09:43:32] 
+[2026-08-11 09:43:32] --- Usuario ID=3 (GVLAB02) 'Roberto Sánchez' - 96 días inactivo ---
+[2026-08-11 09:43:32]   (Descartadas 3 notificaciones de módulos excluidos)
+[2026-08-11 09:43:32]   Notificaciones no leídas: 110 en 2 módulo(s).
+[2026-08-11 09:43:32]     - Documentos Colaborativos: 103
+[2026-08-11 09:43:32]     - Cotizaciones (CQR): 7
+[2026-08-11 09:43:32]   DRY-RUN: se enviaría a chotisgpt@gmail.com con asunto "Tiene 110 notificaciones pendientes en el Portal"
+[2026-08-11 09:43:32] 
+[2026-08-11 09:43:33] ==================================================================
+[2026-08-11 09:43:33] RESUMEN
+[2026-08-11 09:43:33]   Candidatos evaluados:           1
+[2026-08-11 09:43:33]   Saltados por cooldown:          0
+[2026-08-11 09:43:33]   Saltados por 0 notificaciones:  0
+[2026-08-11 09:43:33]   Enviados con éxito:             1 (simulado)
+[2026-08-11 09:43:33]   Enviados con error:             0
+[2026-08-11 09:43:33] FIN
+[2026-08-11 09:43:33] ==================================================================
+[2026-08-11 09:51:57] ==================================================================
+[2026-08-11 09:51:57] INICIO - Envío de recordatorios de inactividad
+[2026-08-11 09:51:57] Modo:            REAL (envía correos)
+[2026-08-11 09:51:57] Umbral días:     3
+[2026-08-11 09:51:57] Cooldown días:   7
+[2026-08-11 09:51:57] Usuario único:   ID 3
+[2026-08-11 09:51:57] ==================================================================
+[2026-08-11 09:51:57] Candidatos encontrados: 1
+[2026-08-11 09:51:57] 
+[2026-08-11 09:51:57] --- Usuario ID=3 (GVLAB02) 'Roberto Sánchez' - 96 días inactivo ---
+[2026-08-11 09:51:57]   (Descartadas 3 notificaciones de módulos excluidos)
+[2026-08-11 09:51:57]   Notificaciones no leídas: 110 en 2 módulo(s).
+[2026-08-11 09:51:57]     - Documentos Colaborativos: 103
+[2026-08-11 09:51:57]     - Cotizaciones (CQR): 7
+[2026-08-11 09:51:57]   ENVIADO OK a chotisgpt@gmail.com
+[2026-08-11 09:51:57] 
+[2026-08-11 09:51:57] ==================================================================
+[2026-08-11 09:51:57] RESUMEN
+[2026-08-11 09:51:57]   Candidatos evaluados:           1
+[2026-08-11 09:51:57]   Saltados por cooldown:          0
+[2026-08-11 09:51:57]   Saltados por 0 notificaciones:  0
+[2026-08-11 09:51:57]   Enviados con éxito:             1
+[2026-08-11 09:51:57]   Enviados con error:             0
+[2026-08-11 09:51:57] FIN
+[2026-08-11 09:51:57] ==================================================================
+[2026-08-11 09:52:58] ==================================================================
+[2026-08-11 09:52:58] INICIO - Envío de recordatorios de inactividad
+[2026-08-11 09:52:58] Modo:            REAL (envía correos)
+[2026-08-11 09:52:58] Umbral días:     3
+[2026-08-11 09:52:58] Cooldown días:   7
+[2026-08-11 09:52:58] Usuario único:   ID 3
+[2026-08-11 09:52:58] ==================================================================
+[2026-08-11 09:52:58] Candidatos encontrados: 1
+[2026-08-11 09:52:58] 
+[2026-08-11 09:52:58] --- Usuario ID=3 (GVLAB02) 'Roberto Sánchez' - 96 días inactivo ---
+[2026-08-11 09:52:58]   SALTADO: ya recibió recordatorio en últimos 7 días.
+[2026-08-11 09:52:58] 
+[2026-08-11 09:52:58] ==================================================================
+[2026-08-11 09:52:58] RESUMEN
+[2026-08-11 09:52:58]   Candidatos evaluados:           1
+[2026-08-11 09:52:58]   Saltados por cooldown:          1
+[2026-08-11 09:52:58]   Saltados por 0 notificaciones:  0
+[2026-08-11 09:52:58]   Enviados con éxito:             0
+[2026-08-11 09:52:58]   Enviados con error:             0
+[2026-08-11 09:52:58] FIN
+[2026-08-11 09:52:58] ==================================================================
+[2026-08-11 09:53:02] ==================================================================
+[2026-08-11 09:53:02] INICIO - Envío de recordatorios de inactividad
+[2026-08-11 09:53:02] Modo:            REAL (envía correos)
+[2026-08-11 09:53:02] Umbral días:     3
+[2026-08-11 09:53:02] Cooldown días:   7
+[2026-08-11 09:53:02] Usuario único:   ID 3
+[2026-08-11 09:53:02] ==================================================================
+[2026-08-11 09:53:02] Candidatos encontrados: 1
+[2026-08-11 09:53:02] 
+[2026-08-11 09:53:02] --- Usuario ID=3 (GVLAB02) 'Roberto Sánchez' - 96 días inactivo ---
+[2026-08-11 09:53:02]   SALTADO: ya recibió recordatorio en últimos 7 días.
+[2026-08-11 09:53:02] 
+[2026-08-11 09:53:02] ==================================================================
+[2026-08-11 09:53:02] RESUMEN
+[2026-08-11 09:53:02]   Candidatos evaluados:           1
+[2026-08-11 09:53:02]   Saltados por cooldown:          1
+[2026-08-11 09:53:02]   Saltados por 0 notificaciones:  0
+[2026-08-11 09:53:02]   Enviados con éxito:             0
+[2026-08-11 09:53:02]   Enviados con error:             0
+[2026-08-11 09:53:02] FIN
+[2026-08-11 09:53:02] ==================================================================
+[2026-08-11 09:57:20] ==================================================================
+[2026-08-11 09:57:20] INICIO - Envío de recordatorios de inactividad
+[2026-08-11 09:57:20] Modo:            REAL (envía correos)
+[2026-08-11 09:57:20] Umbral días:     3
+[2026-08-11 09:57:20] Cooldown días:   7 (IGNORADO por --forzar-cooldown)
+[2026-08-11 09:57:20] Usuario único:   ID 3
+[2026-08-11 09:57:20] ==================================================================
+[2026-08-11 09:57:20] Candidatos encontrados: 1
+[2026-08-11 09:57:20] 
+[2026-08-11 09:57:20] --- Usuario ID=3 (GVLAB02) 'Roberto Sánchez' - 96 días inactivo ---
+[2026-08-11 09:57:20]   (Descartadas 3 notificaciones de módulos excluidos)
+[2026-08-11 09:57:20]   Notificaciones no leídas: 110 en 2 módulo(s).
+[2026-08-11 09:57:20]     - Documentos Colaborativos: 103
+[2026-08-11 09:57:20]     - Cotizaciones (CQR): 7
+[2026-08-11 09:57:20]   ENVIADO OK a chotisgpt@gmail.com
+[2026-08-11 09:57:20] 
+[2026-08-11 09:57:20] ==================================================================
+[2026-08-11 09:57:20] RESUMEN
+[2026-08-11 09:57:20]   Candidatos evaluados:           1
+[2026-08-11 09:57:20]   Saltados por cooldown:          0
+[2026-08-11 09:57:20]   Saltados por 0 notificaciones:  0
+[2026-08-11 09:57:20]   Enviados con éxito:             1
+[2026-08-11 09:57:20]   Enviados con error:             0
+[2026-08-11 09:57:20] FIN
+[2026-08-11 09:57:20] ==================================================================
+[2026-08-11 09:57:43] ==================================================================
+[2026-08-11 09:57:43] INICIO - Envío de recordatorios de inactividad
+[2026-08-11 09:57:43] Modo:            REAL (envía correos)
+[2026-08-11 09:57:43] Umbral días:     3
+[2026-08-11 09:57:43] Cooldown días:   7 (IGNORADO por --forzar-cooldown)
+[2026-08-11 09:57:44] Usuario único:   ID 3
+[2026-08-11 09:57:44] ==================================================================
+[2026-08-11 09:57:44] Candidatos encontrados: 1
+[2026-08-11 09:57:44] 
+[2026-08-11 09:57:44] --- Usuario ID=3 (GVLAB02) 'Roberto Sánchez' - 96 días inactivo ---
+[2026-08-11 09:57:44]   SALTADO: no tiene notificaciones no leídas de módulos activos.
+[2026-08-11 09:57:44] 
+[2026-08-11 09:57:44] ==================================================================
+[2026-08-11 09:57:44] RESUMEN
+[2026-08-11 09:57:44]   Candidatos evaluados:           1
+[2026-08-11 09:57:44]   Saltados por cooldown:          0
+[2026-08-11 09:57:44]   Saltados por 0 notificaciones:  1
+[2026-08-11 09:57:44]   Enviados con éxito:             0
+[2026-08-11 09:57:44]   Enviados con error:             0
+[2026-08-11 09:57:44] FIN
+[2026-08-11 09:57:44] ==================================================================

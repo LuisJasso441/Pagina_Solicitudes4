@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Página de Inicio - Verden Core</title>
+  <title>Página de Inicio - VerdenCore</title>
   <link rel="stylesheet" href="assets/css/styles.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
@@ -22,7 +22,7 @@
   </nav>
 
   <main class="main-content">
-    <h1 class="main-title">¡Bienvenido a Verden Core!</h1>
+    <h1 class="main-title">¡Bienvenido a VerdenCore!</h1>
     <p class="main-description">En este portal web encontrarán aquellas solicitudes que manejan todos los departamentos
       de la empresa.</p>
     <p class="main-description">Por favor, inicia sesión para continuar.</p>

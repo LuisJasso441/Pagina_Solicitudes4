@@ -74,6 +74,34 @@ function validarPassword($password) {
 }
 
 /**
+ * Validar correo electronico (opcional; si viene, debe ser valido y no duplicado)
+ */
+function validarCorreo($pdo, $correo, $excluir_id = null) {
+    if ($correo === '') {
+        return true; // Correo opcional
+    }
+    if (strlen($correo) > 150) {
+        return 'El correo no puede exceder 150 caracteres.';
+    }
+    if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+        return 'El formato del correo no es valido.';
+    }
+    // Chequeo de duplicados (aunque haya UNIQUE, damos mensaje claro antes del INSERT/UPDATE)
+    $sql = "SELECT id FROM usuarios WHERE LOWER(correo) = LOWER(?)";
+    $params = [$correo];
+    if ($excluir_id) {
+        $sql .= " AND id != ?";
+        $params[] = $excluir_id;
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    if ($stmt->fetch()) {
+        return 'Ya existe un usuario con ese correo.';
+    }
+    return true;
+}
+
+/**
  * Obtener codigo de departamento por ID
  */
 function getCodigoDepartamento($pdo, $departamento_id) {
@@ -92,6 +120,7 @@ if ($accion === 'crear') {
     // Recoger datos del formulario
     $nombre_completo = trim($_POST['nombre_completo'] ?? '');
     $usuario = trim($_POST['usuario'] ?? '');
+    $correo = trim($_POST['correo'] ?? '');
     $departamento_id = (int)($_POST['departamento_id'] ?? 0);
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
@@ -148,6 +177,11 @@ if ($accion === 'crear') {
         }
     }
     
+    $validacion_correo = validarCorreo($pdo, $correo);
+    if ($validacion_correo !== true) {
+        $errores[] = $validacion_correo;
+    }
+    
     if ($departamento_id <= 0) {
         $errores[] = 'Debe seleccionar un departamento.';
     }
@@ -192,8 +226,8 @@ if ($accion === 'crear') {
     
     try {
         // Insertar usuario
-        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, periodo_pago, empresa, jornada, usuario, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, periodo_pago, empresa, jornada, usuario, correo, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $nombre_completo,
@@ -204,6 +238,7 @@ if ($accion === 'crear') {
             $empresa,
             $jornada,
             strtoupper($usuario), 
+            $correo !== '' ? $correo : null,
             $password_hash, 
             $departamento_codigo, 
             $departamento_id, 
@@ -269,6 +304,7 @@ elseif ($accion === 'editar') {
     // Recoger datos del formulario (solo campos de Sistemas)
     $nombre_completo = trim($_POST['nombre_completo'] ?? '');
     $usuario = trim($_POST['usuario'] ?? '');
+    $correo = trim($_POST['correo'] ?? '');
     $departamento_id = (int)($_POST['departamento_id'] ?? 0);
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
@@ -306,6 +342,11 @@ elseif ($accion === 'editar') {
         if ($validacion_usuario !== true) {
             $errores[] = $validacion_usuario;
         }
+    }
+    
+    $validacion_correo = validarCorreo($pdo, $correo, $id);
+    if ($validacion_correo !== true) {
+        $errores[] = $validacion_correo;
     }
     
     if ($departamento_id <= 0) {
@@ -348,6 +389,7 @@ elseif ($accion === 'editar') {
             $sql = "UPDATE usuarios SET 
                         nombre_completo = ?,
                         usuario = ?, 
+                        correo = ?,
                         password = ?,
                         departamento = ?, 
                         departamento_id = ?,
@@ -359,6 +401,7 @@ elseif ($accion === 'editar') {
             $stmt->execute([
                 $nombre_completo,
                 strtoupper($usuario),
+                $correo !== '' ? $correo : null,
                 $password_hash,
                 $departamento_codigo,
                 $departamento_id,
@@ -370,6 +413,7 @@ elseif ($accion === 'editar') {
             $sql = "UPDATE usuarios SET 
                         nombre_completo = ?, 
                         usuario = ?, 
+                        correo = ?,
                         departamento = ?, 
                         departamento_id = ?,
                         es_admin_area = ?,
@@ -380,6 +424,7 @@ elseif ($accion === 'editar') {
             $stmt->execute([
                 $nombre_completo,
                 strtoupper($usuario),
+                $correo !== '' ? $correo : null,
                 $departamento_codigo,
                 $departamento_id,
                 $es_admin_area,

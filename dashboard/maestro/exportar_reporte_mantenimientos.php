@@ -311,7 +311,7 @@ try {
         : '';
 
     $spreadsheet->getProperties()
-                ->setCreator('Verden Core - Mantenimientos TI')
+                ->setCreator('VerdenCore - Mantenimientos TI')
                 ->setLastModifiedBy($_SESSION['nombre_completo'] ?? 'Sistemas')
                 ->setTitle('Reporte de Mantenimientos Preventivos' . $tipo_label_titulo)
                 ->setSubject('Mantenimientos cerrados ' . $fecha_desde . ' a ' . $fecha_hasta)

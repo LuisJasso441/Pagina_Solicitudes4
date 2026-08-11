@@ -137,6 +137,9 @@ if (DEV_MODE) {
 // Incluir configuración de departamentos (PRIMERO)
 require_once DIR_CONFIG . 'departamentos.php';
 
+// Incluir configuración SMTP (DESPUÉS de departamentos, ANTES de functions)
+require_once DIR_CONFIG . 'correo.php';
+
 // Incluir funciones generales (DESPUÉS)
 require_once DIR_INCLUDES . 'functions.php';
 

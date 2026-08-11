@@ -635,5 +635,9 @@ $hay_filtros = !empty($filtro_estado) || $busqueda !== '';
             localStorage.setItem('theme', isDark ? 'light' : 'dark');
         });
     </script>
+
+    <!-- Sistema de notificaciones en tiempo real -->
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+
 </body>
 </html>

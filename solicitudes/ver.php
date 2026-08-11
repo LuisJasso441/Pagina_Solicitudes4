@@ -14,10 +14,7 @@
  * - Las imágenes de evidencia se abren en modal (no en pestaña nueva)
  */
 
-session_start();
-require_once __DIR__ . '/../config/config.php';
-require_once __DIR__ . '/../auth/verificar_sesion.php';
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/bootstrap.php';
 
 $usuario_id = $_SESSION['usuario_id'];
 $es_ti = es_usuario_ti();
@@ -444,31 +441,7 @@ function obtener_icono_tipo($tipo) {
     <div class="dashboard-container">
         
         <!-- SIDEBAR ⭐ CORREGIDO: Ahora incluye verificación de GTH y Mantenimiento -->
-        <?php 
-        if (es_usuario_ti()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_ti.php';
-        } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_gth.php';
-        } elseif (es_usuario_colaborativo()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_colaborativo.php';
-        } elseif (es_usuario_epp()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_inventario.php';
-        } elseif (es_usuario_gth()) {
-            include __DIR__ . '/../../../includes/sidebar/sidebar_gth.php';
-        } elseif (es_mantenimiento()) {
-            include __DIR__ . '/../includes/sidebar/sidebar_mantenimiento.php';
-        } elseif (in_array(strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''), ['logistica', 'almacen_residuos'])) {
-            // El módulo SEC puede no estar desplegado aún en Producción: respaldo a sidebar_normal.php
-            $sidebar_sec = __DIR__ . '/../includes/sidebar/sidebar_sec.php';
-            if (file_exists($sidebar_sec)) {
-                include $sidebar_sec;
-            } else {
-                include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
-            }
-        } else {
-            include __DIR__ . '/../includes/sidebar/sidebar_normal.php';
-        }
-        ?>
+        <?php render_sidebar(); ?>
 
         <!-- CONTENIDO PRINCIPAL -->
         <main class="main-content">

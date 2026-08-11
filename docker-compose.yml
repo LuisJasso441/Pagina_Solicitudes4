@@ -15,6 +15,23 @@
       DB_NAME: solicitudes_ti
       DB_USER: root
       DB_PASS: root
+      # SMTP - Desarrollo (MailHog captura todo, sin auth ni TLS)
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      SMTP_ENCRYPTION: "none"
+      SMTP_FROM_EMAIL: "no-reply@verden.local"
+      SMTP_FROM_NAME: "Portal Verden (DEV)"
+      SMTP_DEBUG: "0"
+      # Correos de contacto para el footer de las plantillas
+      # (dejar en blanco los emails si no quieres mostrar ese contacto)
+      SMTP_CONTACTO_1_EMAIL: "coord.sistemas@grupoverden.com"
+      SMTP_CONTACTO_1_LABEL: "Coordinador de Sistemas"
+      SMTP_CONTACTO_2_EMAIL: "auxiliar.sistemas@grupoverden.com"
+      SMTP_CONTACTO_2_LABEL: "Auxiliar de Sistemas"
+      SMTP_CONTACTO_3_EMAIL: "asist.sistemas@grupoverden.com"
+      SMTP_CONTACTO_3_LABEL: "Auxiliar de Sistemas"
     depends_on:
       db:
         condition: service_healthy

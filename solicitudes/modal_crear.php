@@ -268,7 +268,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // ====================================
     // Enviar formulario con AJAX
     // ====================================
-    document.getElementById('btnEnviarSolicitud').addEventListener('click', function() {
+    const __btnEnviarSolicitud = document.getElementById('btnEnviarSolicitud');
+    if (__btnEnviarSolicitud && !__btnEnviarSolicitud.dataset.listenerAttached) {
+    __btnEnviarSolicitud.dataset.listenerAttached = '1';
+    __btnEnviarSolicitud.addEventListener('click', function() {
         const form = document.getElementById('formNuevaSolicitud');
         
         // Validar formulario
@@ -328,6 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    } // cierre del guard: listenerAttached
+
     // Función para mostrar alertas dentro del modal
     function mostrarAlerta(tipo, mensaje) {
         const alertContainer = document.getElementById('alertContainer');

@@ -238,6 +238,13 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                         <small class="text-muted">Sin espacios. Se convertirá a mayúsculas.</small>
                                     </div>
                                     <div class="col-md-6">
+                                        <label class="form-label">Correo Electrónico</label>
+                                        <input type="email" name="correo" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['correo'] ?? ''); ?>"
+                                               maxlength="150" placeholder="Ej: juan.perez@grupoverden.com">
+                                        <small class="text-muted">Opcional. Se usará para notificaciones automáticas.</small>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label required">Departamento</label>
                                         <select name="departamento_id" class="form-select" required>
                                             <option value="">Seleccionar departamento...</option>

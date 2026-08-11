@@ -181,6 +181,13 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                pattern="[A-Za-z0-9_\-]+" title="Solo letras, numeros, guion y guion bajo">
                                         <small class="text-muted">Sin espacios. Se convertir&aacute; a may&uacute;sculas.</small>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Correo Electr&oacute;nico</label>
+                                        <input type="email" name="correo" class="form-control" 
+                                               value="<?php echo htmlspecialchars($form_data['correo'] ?? ''); ?>"
+                                               maxlength="150" placeholder="Ej: juan.perez@grupoverden.com">
+                                        <small class="text-muted">Opcional. Se usar&aacute; para notificaciones autom&aacute;ticas.</small>
+                                    </div>
                                     <div class="col-md-6" id="campoDepartamento">
                                         <label class="form-label required">Departamento</label>
                                         <select name="departamento_id" id="selectDepartamento" class="form-select" required>

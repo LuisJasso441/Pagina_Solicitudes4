@@ -387,7 +387,7 @@ try {
         ->setLastModifiedBy($_SESSION['nombre_completo'] ?? 'Sistemas')
         ->setTitle('Bitácora de Registro Aires Acondicionados')
         ->setSubject('Registro de préstamos de controles de aire acondicionado')
-        ->setDescription('Generado automáticamente desde Verden Core');
+        ->setDescription('Generado automáticamente desde VerdenCore');
 
     // -----------------------------------------------------------------
     // DESCARGAR

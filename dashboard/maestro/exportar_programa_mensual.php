@@ -417,7 +417,7 @@ try {
 
     // PASO 13: Metadata
     $spreadsheet->getProperties()
-                ->setCreator('Verden Core - Mantenimientos TI')
+                ->setCreator('VerdenCore - Mantenimientos TI')
                 ->setLastModifiedBy($_SESSION['nombre_completo'] ?? 'Sistemas')
                 ->setTitle('Programa Mensual ' . $MESES_ES[$mes] . ' ' . $anio)
                 ->setSubject('Programa Mensual de Mantenimiento Preventivo de TI')
