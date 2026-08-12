@@ -342,6 +342,59 @@ function formatear_tamanio_osm($bytes) {
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+        
+        /* ====================================
+           MODO OSCURO - Overrides locales
+           ==================================== */
+        body[data-theme="dark"] .apartado-section {
+            background: var(--card-bg, #2d2d2d);
+            border-color: var(--border-color, #404040);
+        }
+        body[data-theme="dark"] .campo-visualizacion {
+            background: #1f1f1f;
+        }
+        body[data-theme="dark"] .campo-visualizacion label {
+            color: var(--text-secondary, #b0b0b0);
+        }
+        body[data-theme="dark"] .campo-visualizacion .valor {
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .btn-group-acciones {
+            background: var(--card-bg, #2d2d2d);
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+        }
+        body[data-theme="dark"] .btn-group-acciones h2 {
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .form-label {
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .evidencia-card-osm {
+            background: var(--card-bg, #2d2d2d);
+            border-color: var(--border-color, #404040);
+        }
+        body[data-theme="dark"] .evidencia-card-osm .preview-container {
+            background: #1f1f1f;
+        }
+        body[data-theme="dark"] .evidencia-card-osm .file-name {
+            color: var(--text-primary, #e0e0e0);
+        }
+        /* Firmas: se preservan con fondo blanco en modo oscuro
+           por requerimiento de jSignature (trazo negro sobre blanco).
+           Cambiarlo rompería la validación de firmas ya guardadas. */
+        body[data-theme="dark"] .firma-container {
+            background: #ffffff;
+        }
+        body[data-theme="dark"] .firma-imagen {
+            background: #ffffff;
+        }
+        /* Campo de devolución: mantiene su paleta amber intacta,
+           que ya tiene buen contraste sobre fondo oscuro */
+        body[data-theme="dark"] .form-control::placeholder,
+        body[data-theme="dark"] .form-select::placeholder {
+            color: #a0a0a0 !important;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -924,6 +977,12 @@ function formatear_tamanio_osm($bytes) {
         </div>
     </div>
     
+    <!-- Botón flotante de cambio de tema -->
+    <button class="theme-toggle-float" id="themeToggle" aria-label="Cambiar tema">
+        <span class="icon-sun"><i class="bi bi-sun-fill"></i></span>
+        <span class="icon-moon"><i class="bi bi-moon-fill"></i></span>
+    </button>
+    
     <!-- jQuery (necesario para jSignature) -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <!-- jSignature para firmas digitales -->
@@ -1179,5 +1238,24 @@ function formatear_tamanio_osm($bytes) {
     
     <!-- Sistema de notificaciones en tiempo real -->
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+    
+    <script>
+        // Modo oscuro
+        const themeToggle = document.getElementById('themeToggle');
+        const bodyElement = document.body;
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        bodyElement.setAttribute('data-theme', currentTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = bodyElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            themeToggle.classList.add('rotating');
+            setTimeout(() => {
+                themeToggle.classList.remove('rotating');
+            }, 500);
+            bodyElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    </script>
 </body>
 </html>

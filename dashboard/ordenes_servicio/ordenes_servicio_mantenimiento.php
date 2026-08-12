@@ -348,6 +348,63 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             align-items: center;
             gap: 6px;
         }
+        
+        /* ====================================
+           MODO OSCURO - Overrides locales
+           ==================================== */
+        body[data-theme="dark"] {
+            background: var(--bg-primary, #1a1a1a);
+        }
+        body[data-theme="dark"] .page-header {
+            background: var(--card-bg, #2d2d2d);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+        body[data-theme="dark"] .page-header h1 {
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .page-header .text-muted {
+            color: var(--text-secondary, #b0b0b0) !important;
+        }
+        body[data-theme="dark"] .stat-card {
+            background: var(--card-bg, #2d2d2d);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        body[data-theme="dark"] .stat-number {
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .stat-label {
+            color: var(--text-secondary, #b0b0b0);
+        }
+        body[data-theme="dark"] .card {
+            background: var(--card-bg, #2d2d2d);
+            border-color: var(--border-color, #404040);
+        }
+        body[data-theme="dark"] .card-body {
+            background: var(--card-bg, #2d2d2d);
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] table th {
+            background: #1f1f1f;
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .form-label {
+            color: var(--text-primary, #e0e0e0);
+        }
+        body[data-theme="dark"] .nav-tabs {
+            border-bottom-color: var(--border-color, #404040);
+        }
+        body[data-theme="dark"] .nav-tabs .nav-link:not(.active) {
+            color: var(--text-secondary, #b0b0b0);
+        }
+        body[data-theme="dark"] .nav-tabs .nav-link:not(.active):hover {
+            color: var(--text-primary, #e0e0e0);
+            border-color: transparent;
+        }
+        body[data-theme="dark"] .form-control::placeholder,
+        body[data-theme="dark"] .form-select::placeholder {
+            color: #a0a0a0 !important;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -788,6 +845,12 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
     </div>
     <?php endif; ?>
     
+    <!-- Botón flotante de cambio de tema -->
+    <button class="theme-toggle-float" id="themeToggle" aria-label="Cambiar tema">
+        <span class="icon-sun"><i class="bi bi-sun-fill"></i></span>
+        <span class="icon-moon"><i class="bi bi-moon-fill"></i></span>
+    </button>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Sidebar Toggle JS -->
@@ -936,6 +999,25 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
             }, 3000);
         }
         <?php endif; ?>
+    </script>
+
+    <script>
+        // Modo oscuro
+        const themeToggle = document.getElementById('themeToggle');
+        const bodyElement = document.body;
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        bodyElement.setAttribute('data-theme', currentTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = bodyElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            themeToggle.classList.add('rotating');
+            setTimeout(() => {
+                themeToggle.classList.remove('rotating');
+            }, 500);
+            bodyElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
     </script>
 
 </body>
