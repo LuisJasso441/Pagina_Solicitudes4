@@ -161,11 +161,21 @@ if ($filtro_base === 'local') {
     }
     $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
 } else {
-    $stmt_stats = $pdo->query("
-        SELECT COUNT(*) as total
-        FROM ordenes_servicio_mantenimiento
-        WHERE estado = 'completado'
-    ");
+    if (!$es_mantenimiento) {
+        $stmt_stats = $pdo->prepare("
+            SELECT COUNT(*) as total
+            FROM ordenes_servicio_mantenimiento
+            WHERE estado = 'completado'
+            AND departamento = :dept_usuario
+        ");
+        $stmt_stats->execute([':dept_usuario' => $_SESSION['departamento_nombre']]);
+    } else {
+        $stmt_stats = $pdo->query("
+            SELECT COUNT(*) as total
+            FROM ordenes_servicio_mantenimiento
+            WHERE estado = 'completado'
+        ");
+    }
     $stats = $stmt_stats->fetch(PDO::FETCH_ASSOC);
     $stats['pendientes'] = 0;
     $stats['en_proceso'] = 0;
