@@ -32,6 +32,19 @@
       SMTP_CONTACTO_2_LABEL: "Auxiliar de Sistemas"
       SMTP_CONTACTO_3_EMAIL: "asist.sistemas@grupoverden.com"
       SMTP_CONTACTO_3_LABEL: "Auxiliar de Sistemas"
+      # URL absoluta base del portal - se usa en enlaces dentro de correos.
+      # OBLIGATORIA para que los botones "Ver ..." de los correos sean funcionales.
+      # En produccion se sobreescribe desde /var/www/html/.env con el URL publico real.
+      URL_BASE_ABSOLUTA: "http://localhost/Pagina_Solicitudes4/"
+      # CQR - Destinatarios de correos automaticos por rol (una persona por rol)
+      # En produccion estas se sobreescriben desde /var/www/html/.env sin tocar codigo.
+      # Si el email queda vacio, el envio se omite silenciosamente (fail-safe).
+      CQR_CORREO_NORMATIVIDAD: "normatividad.test@verden.local"
+      CQR_CORREO_NORMATIVIDAD_NOMBRE: "Normatividad (DEV)"
+      CQR_CORREO_VENTAS: "ventas.test@verden.local"
+      CQR_CORREO_VENTAS_NOMBRE: "Ventas (DEV)"
+      # Cooldown anti-spam: minutos minimos entre correos del mismo tipo al mismo destinatario
+      CQR_COOLDOWN_MINUTOS: "5"
     depends_on:
       db:
         condition: service_healthy

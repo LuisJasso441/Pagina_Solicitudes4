@@ -57,6 +57,16 @@ if (!defined('SMTP_DEBUG')) {
 }
 
 // ====================================
+// URL ABSOLUTA DEL PORTAL
+// ====================================
+// Se usa en enlaces dentro de correos (botones CTA "Ver ...").
+// OBLIGATORIA: URL_BASE en produccion es relativa ("/") y romperia los links.
+// Idempotente: si config/config.php ya la definio, este define() no hace nada.
+if (!defined('URL_BASE_ABSOLUTA')) {
+    define('URL_BASE_ABSOLUTA', getenv('URL_BASE_ABSOLUTA') ?: 'http://localhost/Pagina_Solicitudes4/');
+}
+
+// ====================================
 // CORREOS DE CONTACTO (footer de plantillas)
 // ====================================
 // Se leen desde variables de entorno. Si algún email queda vacío,
@@ -110,4 +120,39 @@ if (!defined('RECORDATORIO_COOLDOWN_DIAS')) {
 // No poner en variable de entorno, es un identificador de código.
 if (!defined('RECORDATORIO_TIPO_CORREO')) {
     define('RECORDATORIO_TIPO_CORREO', 'recordatorio_inactividad');
+}
+
+// ====================================
+// COTIZACIONES QR (CQR) - Correos automáticos
+// ====================================
+// Destinatarios fijos por rol para los eventos del módulo CQR.
+// Fuente de verdad: variables de entorno (docker-compose en dev, .env en producción).
+// Si un email queda vacío, el envío se omite silenciosamente (fail-safe).
+
+if (!defined('CQR_CORREO_NORMATIVIDAD')) {
+    define('CQR_CORREO_NORMATIVIDAD', getenv('CQR_CORREO_NORMATIVIDAD') ?: '');
+}
+if (!defined('CQR_CORREO_NORMATIVIDAD_NOMBRE')) {
+    define('CQR_CORREO_NORMATIVIDAD_NOMBRE', getenv('CQR_CORREO_NORMATIVIDAD_NOMBRE') ?: '');
+}
+if (!defined('CQR_CORREO_VENTAS')) {
+    define('CQR_CORREO_VENTAS', getenv('CQR_CORREO_VENTAS') ?: '');
+}
+if (!defined('CQR_CORREO_VENTAS_NOMBRE')) {
+    define('CQR_CORREO_VENTAS_NOMBRE', getenv('CQR_CORREO_VENTAS_NOMBRE') ?: '');
+}
+
+// Cooldown anti-spam: minutos mínimos entre correos del mismo tipo al mismo destinatario.
+// Mismo patrón que RECORDATORIO_COOLDOWN_DIAS pero en minutos (CQR trabaja en escala de segundos).
+if (!defined('CQR_COOLDOWN_MINUTOS')) {
+    define('CQR_COOLDOWN_MINUTOS', (int) (getenv('CQR_COOLDOWN_MINUTOS') ?: 5));
+}
+
+// Tipos canónicos usados en la columna `correos_enviados.tipo` para este módulo.
+// No van por variable de entorno, son identificadores de código.
+if (!defined('CQR_TIPO_CORREO_NUEVA')) {
+    define('CQR_TIPO_CORREO_NUEVA', 'cqr_nueva_cotizacion');
+}
+if (!defined('CQR_TIPO_CORREO_RESPUESTA')) {
+    define('CQR_TIPO_CORREO_RESPUESTA', 'cqr_respuesta_recibida');
 }

@@ -280,7 +280,22 @@ function crear_cotizacion_qr($datos) {
             );
         }
         
-        $pdo->commit();
+                $pdo->commit();
+        
+        // Envio de correo a Normatividad (fuera de transaccion, fail-safe).
+        // La cotizacion ya esta persistida; un fallo aqui NUNCA rompe el guardado.
+        try {
+            require_once __DIR__ . '/cqr_correos.php';
+            cqr_enviar_correo_nueva_cotizacion([
+                'id'                   => $cotizacion_id,
+                'folio'                => $folio,
+                'departamento_creador' => $datos['departamento_creador'] ?? '',
+                'nombre_cliente'       => $datos['nombre_cliente'] ?? '',
+                'tipo_cliente'         => $datos['tipo_cliente'] ?? '',
+            ]);
+        } catch (\Throwable $e) {
+            error_log('[CQR] Excepcion inesperada envio correo nueva cotizacion: ' . $e->getMessage());
+        }
         
         return [
             'success' => true,
@@ -388,6 +403,24 @@ function responder_cotizacion_qr($cotizacion_id, $datos, $usuario_id) {
         }
         
         $pdo->commit();
+        
+        // Envio de correo a Ventas (fuera de transaccion, fail-safe).
+        // Solo enviamos si es decision final (aceptada/rechazada); 'en_revision' no notifica por correo.
+        // La cotizacion ya esta persistida; un fallo aqui NUNCA rompe el guardado.
+        if (in_array($datos['decision'], ['aceptada', 'rechazada'], true)) {
+            try {
+                require_once __DIR__ . '/cqr_correos.php';
+                cqr_enviar_correo_respuesta_normatividad(
+                    [
+                        'id'    => $cotizacion_id,
+                        'folio' => $cotizacion['folio'],
+                    ],
+                    $datos['decision']
+                );
+            } catch (\Throwable $e) {
+                error_log('[CQR] Excepcion inesperada envio correo respuesta normatividad: ' . $e->getMessage());
+            }
+        }
         
         return ['success' => true];
         
