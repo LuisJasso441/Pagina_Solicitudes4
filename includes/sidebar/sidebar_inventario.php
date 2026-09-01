@@ -1,13 +1,13 @@
 <?php
 /**
  * Sidebar - Inventario de EPP
- * Exclusivo para: Almacén de Refacciones, Seguridad, Contabilidad
- * Ubicación: includes/sidebar/sidebar_inventario.php
+ * Exclusivo para: Almacen de Refacciones, Seguridad, Contabilidad
+ * Ubicacion: includes/sidebar/sidebar_inventario.php
  * 
- * VERSIÓN 2.1 - Secciones comunes + Inventario EPP + Vales de Entrega
+ * VERSION 2.2 - Secciones comunes + Inventario EPP + Vales de Entrega
  */
 
-// Protección de sesión
+// Proteccion de sesion
 if (!isset($_SESSION['usuario_id'])) {
     if (function_exists('destruir_sesion')) {
         destruir_sesion();
@@ -23,7 +23,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../inventario_epp/inventario_epp_funciones.php';
 
 // =====================================================
-// Estadísticas para badges
+// Estadisticas para badges
 // =====================================================
 try {
     $pdo_sidebar = conectarDB();
@@ -31,6 +31,10 @@ try {
     // EPP sin stock
     $stmt_sin_stock = $pdo_sidebar->query("SELECT COUNT(*) as total FROM inventario_epp WHERE activo = 1 AND stock = 0");
     $epp_sin_stock = $stmt_sin_stock->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    
+    // Articulos bajo umbral minimo
+    $stmt_umbral = $pdo_sidebar->query("SELECT COUNT(*) as total FROM inventario_epp WHERE activo = 1 AND stock_minimo > 0 AND stock <= stock_minimo");
+    $epp_bajo_umbral = $stmt_umbral->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
     // Movimientos del mes
     $stmt_movs = $pdo_sidebar->query("SELECT COUNT(*) as total FROM movimientos_epp WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW())");
@@ -40,7 +44,7 @@ try {
     $stmt_vales = $pdo_sidebar->query("SELECT COUNT(*) as total FROM vales_epp WHERE estado = 'Pendiente'");
     $vales_pendientes = $stmt_vales->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
     
-    // Órdenes de servicio pendientes del usuario
+    // Ordenes de servicio pendientes del usuario
     $stmt_ordenes = $pdo_sidebar->prepare("
         SELECT COUNT(*) as total 
         FROM ordenes_servicio_mantenimiento 
@@ -69,7 +73,7 @@ try {
 }
 
 // =====================================================
-// Determinar páginas activas
+// Determinar paginas activas
 // =====================================================
 $en_dashboard = ($current_page === 'dashboard_epp.php');
 $en_agregar = ($current_page === 'agregar_epp.php');
@@ -83,10 +87,10 @@ $es_seguridad = ($depto_sidebar === 'seguridad');
 $es_almacen = ($depto_sidebar === 'almacen_refacciones');
 ?>
 
-<!-- Botón Hamburguesa para Sidebar Responsive -->
+<!-- Boton Hamburguesa para Sidebar Responsive -->
 <button class="hamburger-btn" 
         type="button" 
-        aria-label="Abrir menú de navegación"
+        aria-label="Abrir menu de navegacion"
         aria-expanded="false"
         aria-controls="sidebar">
     <span class="hamburger-icon">
@@ -96,7 +100,7 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
     </span>
 </button>
 
-<!-- Overlay para cerrar sidebar en móvil -->
+<!-- Overlay para cerrar sidebar en movil -->
 <div class="sidebar-overlay" aria-hidden="true"></div>
 
 <aside class="sidebar" id="sidebar">
@@ -196,6 +200,15 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
                     <span class="badge bg-danger ms-2"><?php echo $epp_sin_stock; ?></span>
                 </a>
             </li>
+            <?php if ($epp_bajo_umbral > 0): ?>
+            <li class="nav-item">
+                <a class="nav-link text-warning" 
+                   href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php?vista=inventario">
+                    <i class="bi bi-bell"></i> Bajo Umbral
+                    <span class="badge bg-warning text-dark ms-2"><?php echo $epp_bajo_umbral; ?></span>
+                </a>
+            </li>
+            <?php endif; ?>
             <?php endif; ?>
             
             <!-- ============================================ -->
@@ -224,15 +237,15 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
             <?php endif; ?>
             
             <!-- ============================================ -->
-            <!-- ÓRDENES DE SERVICIO -->
+            <!-- ORDENES DE SERVICIO -->
             <!-- ============================================ -->
             <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">ÓRDENES DE SERVICIO</small>
+            <small class="text-white-50 px-3 fw-bold">ORDENES DE SERVICIO</small>
             
             <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'ordenes_servicio_mantenimiento.php' ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php">
-                    <i class="bi bi-clipboard-check"></i> Órdenes de Mantenimiento
+                    <i class="bi bi-clipboard-check"></i> Ordenes de Mantenimiento
                     <?php if ($ordenes_pendientes_validar > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $ordenes_pendientes_validar; ?></span>
                     <?php endif; ?>
@@ -255,7 +268,7 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
             <hr class="text-white-50 my-3">
             <li class="nav-item">
                 <a class="nav-link text-white fw-bold" href="<?php echo URL_BASE; ?>auth/logout.php">
-                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesion
                 </a>
             </li>
         </ul>
@@ -264,3 +277,5 @@ $es_almacen = ($depto_sidebar === 'almacen_refacciones');
 
 <!-- Modal para crear nueva solicitud de TI -->
 <?php include __DIR__ . '/../../solicitudes/modal_crear.php'; ?>
+<!-- Modal para crear nueva orden de servicio -->
+<?php include __DIR__ . '/../ordenes_servicio/modal_crear_orden_servicio.php'; ?>

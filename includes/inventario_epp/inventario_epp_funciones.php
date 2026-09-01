@@ -213,11 +213,11 @@ function agregar_epp($datos) {
         
         $stmt = $pdo->prepare("
             INSERT INTO inventario_epp (
-                categoria, articulo, unidad, lote_identificador, stock, talla,
+                categoria, articulo, unidad, lote_identificador, stock, stock_minimo, talla,
                 precio, nombre_proveedor, observaciones,
                 usuario_creador_id, usuario_creador_nombre, departamento_creador
             ) VALUES (
-                :categoria, :articulo, :unidad, :lote_identificador, :stock, :talla,
+                :categoria, :articulo, :unidad, :lote_identificador, :stock, :stock_minimo, :talla,
                 :precio, :nombre_proveedor, :observaciones,
                 :usuario_creador_id, :usuario_creador_nombre, :departamento_creador
             )
@@ -229,6 +229,7 @@ function agregar_epp($datos) {
             ':unidad'               => $datos['unidad'],
             ':lote_identificador'   => $datos['lote_identificador'] ?: null,
             ':stock'                => $stock_total,
+            ':stock_minimo'         => (int)($datos['stock_minimo'] ?? 0),
             ':talla'                => $tallas_resumen ?: null,
             ':precio'               => $datos['precio'] ? (float) $datos['precio'] : null,
             ':nombre_proveedor'     => $datos['nombre_proveedor'] ?: null,
@@ -388,7 +389,7 @@ function agregar_stock_existente($datos) {
  */
 function actualizar_campo_epp($id, $campo, $valor) {
     $pdo = conectarDB();
-    $campos_permitidos = ['articulo', 'unidad', 'precio', 'nombre_proveedor', 'lote_identificador', 'observaciones', 'categoria'];
+        $campos_permitidos = ['articulo', 'unidad', 'precio', 'nombre_proveedor', 'lote_identificador', 'observaciones', 'categoria', 'stock_minimo'];
     if (!in_array($campo, $campos_permitidos)) {
         return ['success' => false, 'message' => 'Campo no permitido para edicion.'];
     }
@@ -629,6 +630,7 @@ function obtener_estadisticas_epp() {
     $stats['total_articulos'] = $pdo->query("SELECT COUNT(*) FROM inventario_epp WHERE activo = 1")->fetchColumn();
     $stats['total_stock'] = $pdo->query("SELECT COALESCE(SUM(t.stock), 0) FROM inventario_epp_tallas t JOIN inventario_epp i ON t.inventario_epp_id = i.id WHERE i.activo = 1")->fetchColumn();
     $stats['sin_stock'] = $pdo->query("SELECT COUNT(*) FROM inventario_epp WHERE activo = 1 AND stock = 0")->fetchColumn();
+    $stats['bajo_umbral'] = $pdo->query("SELECT COUNT(*) FROM inventario_epp WHERE activo = 1 AND stock_minimo > 0 AND stock <= stock_minimo")->fetchColumn();
     $stats['total_movimientos'] = $pdo->query("SELECT COUNT(*) FROM movimientos_epp")->fetchColumn();
     $stats['movimientos_mes'] = $pdo->query("SELECT COUNT(*) FROM movimientos_epp WHERE MONTH(fecha_movimiento) = MONTH(NOW()) AND YEAR(fecha_movimiento) = YEAR(NOW())")->fetchColumn();
     
@@ -639,17 +641,31 @@ function obtener_estadisticas_epp() {
     return $stats;
 }
 
+/**
+ * Obtener articulos en alerta de umbral
+ */
+function obtener_articulos_bajo_umbral() {
+    $pdo = conectarDB();
+    $stmt = $pdo->query("
+        SELECT id, articulo, categoria, unidad, stock, stock_minimo
+        FROM inventario_epp 
+        WHERE activo = 1 AND stock_minimo > 0 AND stock <= stock_minimo
+        ORDER BY (stock_minimo - stock) DESC, articulo ASC
+    ");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 function obtener_articulos_dropdown_epp() {
     $pdo = conectarDB();
     $stmt = $pdo->query("
         SELECT i.id, i.categoria, i.articulo, i.unidad, i.stock as stock_total,
-               t.id as talla_id, t.talla, t.stock as talla_stock
+               COALESCE(t.id, 0) as talla_id, 
+               COALESCE(t.talla, 'Unica') as talla, 
+               COALESCE(t.stock, i.stock) as talla_stock
         FROM inventario_epp i
-        JOIN inventario_epp_tallas t ON i.id = t.inventario_epp_id
+        LEFT JOIN inventario_epp_tallas t ON i.id = t.inventario_epp_id
         WHERE i.activo = 1 
         ORDER BY i.categoria ASC, i.articulo ASC, t.talla ASC
     ");
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-
-?>

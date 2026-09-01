@@ -57,6 +57,37 @@ function crear_vale_epp($datos) {
         
         $vale_id = $pdo->lastInsertId();
         
+        // Validar que ninguna linea deje el stock bajo el umbral
+        foreach ($datos['lineas'] as $linea) {
+            if (!empty($linea['talla_id'])) {
+                $chk = $pdo->prepare("
+                    SELECT t.stock as stock_talla, i.stock as stock_total, i.stock_minimo, i.articulo
+                    FROM inventario_epp_tallas t
+                    JOIN inventario_epp i ON t.inventario_epp_id = i.id
+                    WHERE t.id = :tid
+                ");
+                $chk->execute([':tid' => $linea['talla_id']]);
+                $info = $chk->fetch(PDO::FETCH_ASSOC);
+                
+                if ($info) {
+                    $stock_despues = (int)$info['stock_talla'] - (int)$linea['cantidad'];
+                    $minimo = (int)$info['stock_minimo'];
+                    
+                    // Bloquear si no hay suficiente stock
+                    if ((int)$info['stock_talla'] < (int)$linea['cantidad']) {
+                        $pdo->rollBack();
+                        return ['success' => false, 'message' => "Stock insuficiente para {$info['articulo']}. Disponible: {$info['stock_talla']}, solicitado: {$linea['cantidad']}"];
+                    }
+                    
+                    // Bloquear si quedaria bajo umbral
+                    if ($minimo > 0 && $stock_despues < $minimo) {
+                        $pdo->rollBack();
+                        return ['success' => false, 'message' => "No se puede crear el vale: {$info['articulo']} quedaria con {$stock_despues} unidades, por debajo del umbral minimo de {$minimo}."];
+                    }
+                }
+            }
+        }
+        
         // Insertar líneas
         $stmt_linea = $pdo->prepare("
             INSERT INTO vales_epp_lineas (

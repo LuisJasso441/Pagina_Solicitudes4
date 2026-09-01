@@ -85,16 +85,9 @@ switch ($accion) {
     // =====================================================
     // Eliminar artículo (soft delete)
     // =====================================================
-    case 'eliminar':
-    $depto_codigo = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento'] ?? ''));
-    if ($depto_codigo === 'almacen_refacciones') {
-        echo json_encode(['success' => false, 'message' => 'Almacén de Refacciones no tiene permiso para eliminar artículos.']);
-        exit;
-    }
-    
-    case 'eliminar':
-        if (!$permisos['puede_editar']) {
-            echo json_encode(['success' => false, 'message' => 'Sin permiso para eliminar.']);
+        case 'eliminar':
+        if (!$permisos['puede_eliminar']) {
+            echo json_encode(['success' => false, 'message' => 'No tienes permiso para eliminar articulos.']);
             exit;
         }
         

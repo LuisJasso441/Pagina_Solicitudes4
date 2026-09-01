@@ -31,11 +31,12 @@ $articulos_inventario = obtener_inventario_epp_compacto([]);
 $articulos_js = [];
 foreach ($articulos_inventario as $art) {
     $articulos_js[] = [
-        'id' => $art['id'],
-        'categoria' => $art['categoria'],
-        'articulo' => $art['articulo'],
-        'unidad' => $art['unidad'],
-        'tallas' => $art['tallas_data']
+    'id' => $art['id'],
+    'categoria' => $art['categoria'],
+    'articulo' => $art['articulo'],
+    'unidad' => $art['unidad'],
+    'stock_minimo' => (int)($art['stock_minimo'] ?? 0),
+    'tallas' => $art['tallas_data']
     ];
 }
 
@@ -148,6 +149,16 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         .vale-header-dark { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); }
         .vale-header-tyvek { background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%); }
         .campo-fijo { background: #e9ecef; pointer-events: none; font-weight: 600; }
+        /* Autocompletado de articulos */
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-list { position: absolute; z-index: 100; background: #fff; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; }
+        .autocomplete-list.visible { display: block; }
+        .autocomplete-item { padding: 6px 10px; cursor: pointer; font-size: 0.82rem; border-bottom: 1px solid #f0f0f0; }
+        .autocomplete-item:hover, .autocomplete-item.active { background: #e8f4fd; }
+        .autocomplete-item .cat-tag { font-size: 0.7rem; color: #6c757d; font-weight: 600; }
+        .autocomplete-item .art-name { color: #2c3e50; }
+        .autocomplete-item mark { background: #fff3cd; padding: 0; border-radius: 2px; }
+        .autocomplete-input { font-size: 0.82rem; }
     </style>
 </head>
 <body>
@@ -358,11 +369,6 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         lineaCount++;
         const n = lineaCount;
         
-        let optionsHtml = '<option value="">-- Seleccionar del inventario --</option>';
-        articulosData.forEach(a => {
-            optionsHtml += `<option value="${a.id}" data-articulo="${a.articulo}">[${a.categoria}] ${a.articulo}</option>`;
-        });
-        
         const div = document.createElement('div');
         div.className = 'linea-item';
         div.id = 'linea-' + n;
@@ -374,17 +380,17 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
                 </button>
             </div>
             <div class="row g-2">
-                <div class="col-md-5">
-                    <select class="form-select form-select-sm" onchange="seleccionarArticulo(this, ${n})">
-                        ${optionsHtml}
-                    </select>
+                <div class="col-md-12">
+                    <div class="autocomplete-wrapper">
+                        <input type="text" class="form-control form-control-sm autocomplete-input" 
+                               id="buscarArt_${n}" placeholder="Buscar articulo..." autocomplete="off"
+                               oninput="filtrarArticulos(${n})" onfocus="filtrarArticulos(${n})">
+                        <div class="autocomplete-list" id="listaArt_${n}"></div>
+                    </div>
                     <input type="hidden" name="inventario_epp_id[]" id="epp_id_${n}" value="0">
+                    <input type="hidden" name="descripcion[]" id="desc_${n}" value="">
                     <input type="hidden" name="talla_id[]" id="talla_id_${n}" value="0">
                     <input type="hidden" name="talla_nombre[]" id="talla_nombre_${n}" value="">
-                </div>
-                <div class="col-md-7">
-                    <input type="text" name="descripcion[]" class="form-control form-control-sm" 
-                           id="desc_${n}" placeholder="Descripcion del articulo">
                 </div>
                 <div class="col-md-3" id="tallaWrapper_${n}" style="display:none;">
                     <label style="font-size:0.7rem;color:#6c757d;">Talla</label>
@@ -417,6 +423,7 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         `;
         
         document.getElementById('lineasLista').appendChild(div);
+        document.getElementById('buscarArt_' + n).focus();
     }
     
     function eliminarLinea(n) {
@@ -424,25 +431,62 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         if (el) el.remove();
     }
     
-    function seleccionarArticulo(selectEl, n) {
-        const eppId = selectEl.value;
-        const descInput = document.getElementById('desc_' + n);
-        const eppIdInput = document.getElementById('epp_id_' + n);
-        const tallaWrapper = document.getElementById('tallaWrapper_' + n);
-        const selectTalla = document.getElementById('selectTalla_' + n);
-        const stockInfo = document.getElementById('stockInfo_' + n);
+    function filtrarArticulos(n) {
+        const input = document.getElementById('buscarArt_' + n);
+        const lista = document.getElementById('listaArt_' + n);
+        const query = input.value.toLowerCase().trim();
         
-        eppIdInput.value = eppId || 0;
-        document.getElementById('talla_id_' + n).value = 0;
-        document.getElementById('talla_nombre_' + n).value = '';
-        stockInfo.style.display = 'none';
+        let html = '';
+        const filtrados = articulosData.filter(a => {
+            if (!query) return true;
+            const texto = (a.categoria + ' ' + a.articulo).toLowerCase();
+            return query.split(/\s+/).every(palabra => texto.includes(palabra));
+        });
         
-        if (!eppId) { tallaWrapper.style.display = 'none'; return; }
+        if (filtrados.length === 0) {
+            html = '<div class="autocomplete-item text-muted" style="pointer-events:none;">Sin resultados</div>';
+        } else {
+            filtrados.forEach(a => {
+                let nombre = a.articulo;
+                if (query) {
+                    query.split(/\s+/).forEach(palabra => {
+                        if (palabra) {
+                            const regex = new RegExp('(' + palabra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                            nombre = nombre.replace(regex, '<mark>$1</mark>');
+                        }
+                    });
+                }
+                html += `<div class="autocomplete-item" onclick="elegirArticulo(${n}, ${a.id})">
+                    <span class="cat-tag">[${a.categoria}]</span> <span class="art-name">${nombre}</span>
+                </div>`;
+            });
+        }
         
+        lista.innerHTML = html;
+        lista.classList.add('visible');
+    }
+    
+    function elegirArticulo(n, eppId) {
         const art = articulosData.find(a => a.id == eppId);
         if (!art) return;
         
-        descInput.value = art.articulo;
+        const input = document.getElementById('buscarArt_' + n);
+        const lista = document.getElementById('listaArt_' + n);
+        
+        input.value = '[' + art.categoria + '] ' + art.articulo;
+        lista.classList.remove('visible');
+        
+        document.getElementById('epp_id_' + n).value = eppId;
+        document.getElementById('desc_' + n).value = art.articulo;
+        document.getElementById('talla_id_' + n).value = 0;
+        document.getElementById('talla_nombre_' + n).value = '';
+        
+        // Cargar tallas
+        const tallaWrapper = document.getElementById('tallaWrapper_' + n);
+        const selectTalla = document.getElementById('selectTalla_' + n);
+        const stockInfo = document.getElementById('stockInfo_' + n);
+        stockInfo.style.display = 'none';
+        
         selectTalla.innerHTML = '<option value="">Seleccione talla</option>';
         art.tallas.forEach(t => {
             const opt = document.createElement('option');
@@ -460,19 +504,40 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         }
     }
     
-    function seleccionarTalla(selectEl, n) {
+    // Cerrar lista al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('.autocomplete-list.visible').forEach(lista => {
+            if (!lista.parentElement.contains(e.target)) {
+                lista.classList.remove('visible');
+            }
+        });
+    });
+    
+        function seleccionarTalla(selectEl, n) {
         const opt = selectEl.options[selectEl.selectedIndex];
         const stockInfo = document.getElementById('stockInfo_' + n);
         
         if (selectEl.value && opt.dataset.stock !== undefined) {
             document.getElementById('talla_id_' + n).value = selectEl.value;
             document.getElementById('talla_nombre_' + n).value = opt.dataset.talla;
-            document.getElementById('stockDisp_' + n).textContent = opt.dataset.stock + ' unidades';
-            stockInfo.style.display = 'block';
             
             const stock = parseInt(opt.dataset.stock);
+            const eppId = document.getElementById('epp_id_' + n).value;
+            const art = articulosData.find(a => a.id == eppId);
+            const minimo = art ? art.stock_minimo : 0;
+            
+            let stockHtml = stock + ' unidades';
+            if (minimo > 0) {
+                stockHtml += ' <span style="font-size:0.7rem;color:#6c757d;">(min: ' + minimo + ')</span>';
+            }
+            if (minimo > 0 && stock <= minimo) {
+                stockHtml += '<br><span style="font-size:0.7rem;color:#dc3545;"><i class="bi bi-exclamation-triangle"></i> Ya esta en/bajo umbral</span>';
+            }
+            document.getElementById('stockDisp_' + n).innerHTML = stockHtml;
+            stockInfo.style.display = 'block';
+            
             document.getElementById('stockDisp_' + n).className = 'fw-bold ' + 
-                (stock === 0 ? 'text-danger' : (stock <= 5 ? 'text-warning' : 'text-success'));
+                (stock === 0 ? 'text-danger' : (minimo > 0 && stock <= minimo ? 'text-warning' : 'text-success'));
         } else {
             document.getElementById('talla_id_' + n).value = 0;
             document.getElementById('talla_nombre_' + n).value = '';

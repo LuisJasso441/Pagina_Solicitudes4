@@ -82,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $datos['lote_identificador'] = trim($_POST['lote_identificador'] ?? '');
         $datos['precio']           = trim($_POST['precio'] ?? '');
         $datos['nombre_proveedor'] = trim($_POST['nombre_proveedor'] ?? '');
+        $datos['stock_minimo']     = (int) ($_POST['stock_minimo'] ?? 0);
         
         $tallas_raw = $_POST['tallas'] ?? [];
         $cantidades_raw = $_POST['cantidades'] ?? [];
@@ -387,6 +388,13 @@ foreach ($articulos_existentes as $art) {
                                         <span class="stock-total-badge text-primary" id="stockTotalDisplay">0</span>
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Umbral Minimo de Stock</label>
+                                <input type="number" name="stock_minimo" class="form-control" min="0" placeholder="0"
+                                       value="<?php echo htmlspecialchars($datos['stock_minimo'] ?? '0'); ?>">
+                                <small class="text-muted">El sistema avisara cuando el stock llegue a esta cantidad. Dejar en 0 para no activar.</small>
                             </div>
                             
                             <div class="mb-3">

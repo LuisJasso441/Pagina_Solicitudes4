@@ -134,12 +134,12 @@ $stats = obtener_estadisticas_epp();
                 
                 <!-- Estadísticas -->
                 <div class="row g-2 mb-3">
-                    <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-primary"><?php echo $stats['total_articulos']; ?></div><div class="stat-label">Artículos</div></div></div>
+                    <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-primary"><?php echo $stats['total_articulos']; ?></div><div class="stat-label">Articulos</div></div></div>
                     <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-success"><?php echo number_format($stats['total_stock']); ?></div><div class="stat-label">Stock Total</div></div></div>
                     <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-danger"><?php echo $stats['sin_stock']; ?></div><div class="stat-label">Sin Stock</div></div></div>
+                    <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value <?php echo ($stats['bajo_umbral'] ?? 0) > 0 ? 'text-warning' : 'text-muted'; ?>"><?php echo $stats['bajo_umbral'] ?? 0; ?></div><div class="stat-label">Bajo Umbral</div></div></div>
                     <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-info"><?php echo $stats['movimientos_mes']; ?></div><div class="stat-label">Movimientos (Mes)</div></div></div>
                     <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-success"><?php echo $stats['entradas_mes']; ?></div><div class="stat-label">Entradas (Mes)</div></div></div>
-                    <div class="col-6 col-md-2"><div class="stat-card-mini"><div class="stat-value text-danger"><?php echo $stats['salidas_mes']; ?></div><div class="stat-label">Salidas (Mes)</div></div></div>
                 </div>
                 
                 <!-- Tabs -->
@@ -215,7 +215,12 @@ $stats = obtener_estadisticas_epp();
                                 $tiene_multiples_tallas = (count($tallas) > 1) || (count($tallas) === 1 && $tallas[0]['talla'] !== 'Única');
                                 $primera_talla = $tallas[0] ?? null;
                                 $stock_inicial = $primera_talla ? (int)$primera_talla['stock'] : 0;
-                                $sc = $stock_inicial == 0 ? 'stock-cero' : ($stock_inicial <= 5 ? 'stock-bajo' : 'stock-ok');
+                                $stock_minimo = (int)($item['stock_minimo'] ?? 0);
+                                $stock_total = (int)$item['stock'];
+                                // Color: rojo si es 0, naranja si <= umbral, verde si OK
+                                if ($stock_total == 0) { $sc = 'stock-cero'; }
+                                elseif ($stock_minimo > 0 && $stock_total <= $stock_minimo) { $sc = 'stock-bajo'; }
+                                else { $sc = 'stock-ok'; }
                             ?>
                             <tr data-id="<?php echo $item['id']; ?>">
                                 <td class="text-center text-muted"><?php echo $index + 1; ?></td>
@@ -265,21 +270,21 @@ $stats = obtener_estadisticas_epp();
                                 <td class="text-center">
                                     <span class="stock-badge stock-display <?php echo $sc; ?>" 
                                           id="stock-<?php echo $item['id']; ?>"
-                                          data-talla-id="<?php echo $primera_talla ? $primera_talla['id'] : 0; ?>">
+                                          data-talla-id="<?php echo $primera_talla ? $primera_talla['id'] : 0; ?>"
+                                          <?php if ($stock_minimo > 0): ?>
+                                          title="Umbral minimo: <?php echo $stock_minimo; ?>"
+                                          <?php endif; ?>>
                                         <?php echo $stock_inicial; ?>
                                     </span>
+                                    <?php if ($stock_minimo > 0 && $stock_total <= $stock_minimo && $stock_total > 0): ?>
+                                    <br><small class="text-warning" style="font-size:0.65rem;"><i class="bi bi-exclamation-triangle"></i> Min: <?php echo $stock_minimo; ?></small>
+                                    <?php endif; ?>
                                 </td>
                                 
                                 <?php if ($permisos['puede_editar']): ?>
                                 <td class="text-center">
                                     <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/ver_epp.php?id=<?php echo $item['id']; ?>" 
                                        class="btn btn-outline-info btn-accion" title="Ver detalle"><i class="bi bi-eye"></i></a>
-                                    <?php if ($permisos['puede_eliminar']): ?>
-                                    <button type="button" class="btn btn-outline-danger btn-accion" title="Eliminar" 
-                                            onclick="eliminarEPP(<?php echo $item['id']; ?>, '<?php echo htmlspecialchars($item['articulo'], ENT_QUOTES); ?>')">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    <?php endif; ?>
                                 </td>
                                 <?php endif; ?>
                             </tr>

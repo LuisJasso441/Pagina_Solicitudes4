@@ -210,6 +210,41 @@ $page_title = "Ver EPP: " . $epp['articulo'];
                             <?php else: ?>
                             <p class="text-muted text-center" style="font-size: 0.85rem;">Sin tallas registradas.</p>
                             <?php endif; ?>
+                            
+                            <!-- Umbral minimo -->
+                            <div class="mt-3 pt-3" style="border-top: 2px solid #e2e8f0;">
+                                <h6 style="font-size: 0.85rem; color: #6c757d;"><i class="bi bi-bell"></i> Umbral Minimo de Stock</h6>
+                                <?php 
+                                $umbral = (int)($epp['stock_minimo'] ?? 0);
+                                $en_alerta = ($umbral > 0 && $stock_total <= $umbral);
+                                ?>
+                                <?php if (isset($permisos['puede_editar_tabla']) && $permisos['puede_editar_tabla']): ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="number" id="inputUmbral" min="0" value="<?php echo $umbral; ?>" 
+                                           class="form-control form-control-sm" style="width: 80px; text-align: center;"
+                                           onchange="guardarUmbral(<?php echo $epp['id']; ?>, this.value)">
+                                    <span class="text-muted" style="font-size: 0.8rem;">unidades</span>
+                                    <?php if ($en_alerta): ?>
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> En alerta</span>
+                                    <?php elseif ($umbral > 0): ?>
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> OK</span>
+                                    <?php else: ?>
+                                    <span class="text-muted" style="font-size: 0.75rem;">Sin umbral</span>
+                                    <?php endif; ?>
+                                </div>
+                                <small class="text-muted" style="font-size: 0.7rem;">El sistema avisara cuando el stock llegue a esta cantidad</small>
+                                <?php else: ?>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold" style="font-size: 1.1rem;"><?php echo $umbral; ?></span>
+                                    <span class="text-muted" style="font-size: 0.8rem;">unidades</span>
+                                    <?php if ($en_alerta): ?>
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> En alerta</span>
+                                    <?php elseif ($umbral > 0): ?>
+                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> OK</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -275,5 +310,26 @@ $page_title = "Ver EPP: " . $epp['articulo'];
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
+    <script>
+    function guardarUmbral(eppId, valor) {
+        fetch('<?php echo URL_BASE; ?>dashboard/inventario_epp/api_inventario_epp.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({accion: 'actualizar_campo', id: eppId, campo: 'stock_minimo', valor: parseInt(valor) || 0})
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const input = document.getElementById('inputUmbral');
+                input.style.borderColor = '#28a745';
+                setTimeout(() => { input.style.borderColor = ''; }, 1500);
+            } else {
+                alert(data.message || 'Error al guardar');
+            }
+        })
+        .catch(() => alert('Error de conexion'));
+    }
+    </script>
 </body>
 </html>
