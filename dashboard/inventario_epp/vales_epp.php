@@ -91,6 +91,11 @@ $page_title = "Vales de Entrega de EPP";
                         <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/inventario_epp.php" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-arrow-left"></i> Inventario
                         </a>
+                        <?php if ($permisos_vale['departamento'] === 'seguridad'): ?>
+                        <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/empleados_epp.php" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-people"></i> Empleados
+                        </a>
+                        <?php endif; ?>
                         <?php if ($permisos_vale['puede_crear']): ?>
                         <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/crear_vale_epp.php" class="btn btn-danger btn-sm">
                             <i class="bi bi-plus-circle"></i> Crear Vale

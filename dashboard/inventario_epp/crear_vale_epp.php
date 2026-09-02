@@ -58,14 +58,17 @@ if ($es_modo_tyvek) {
 // Procesar formulario
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $datos = [];
-    $datos['empleado_id'] = (int) ($_POST['empleado_id'] ?? 0);
+    // Valor prefijado: "epp:<id>" (empleados_epp) o "usr:<id>" (usuario de plataforma)
+    $datos['empleado_sel'] = trim($_POST['empleado_id'] ?? '');
     $datos['nombre_empleado'] = trim($_POST['nombre_empleado'] ?? '');
     $datos['area'] = trim($_POST['area'] ?? '');
     $datos['observaciones'] = trim($_POST['observaciones'] ?? '');
     $datos['usuario_id'] = $_SESSION['usuario_id'];
     $datos['usuario_nombre'] = $_SESSION['nombre_completo'];
     
-    if (!$datos['empleado_id']) $errores[] = "Debe seleccionar un empleado.";
+    if ($datos['empleado_sel'] === '' || !preg_match('/^(epp|usr):\d+$/', $datos['empleado_sel'])) {
+        $errores[] = "Debe seleccionar un empleado.";
+    }
     if (empty($datos['area'])) $errores[] = "El area es obligatoria.";
     
     // Procesar lineas
@@ -239,11 +242,16 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
                                             if ($dep['codigo'] === 'almacen_residuos'):
                                                 foreach ($dep['empleados'] as $emp): ?>
                                     <option value="<?php echo $emp['id']; ?>" data-nombre="<?php echo htmlspecialchars($emp['nombre']); ?>">
-                                        <?php echo htmlspecialchars($emp['usuario'] . ' - ' . $emp['nombre']); ?>
+                                        <?php echo htmlspecialchars(($emp['id_display'] !== '' ? $emp['id_display'] . ' - ' : '') . $emp['nombre']); ?>
                                     </option>
                                     <?php endforeach; endif; endforeach; endif; ?>
                                 </select>
                                 <input type="hidden" name="nombre_empleado" id="nombreEmpleadoHidden" value="">
+                                <?php if (!$es_modo_tyvek): ?>
+                                <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnNuevoEmpleado">
+                                    <i class="bi bi-person-plus"></i> Nuevo empleado
+                                </button>
+                                <?php endif; ?>
                             </div>
                         </div>
                         
@@ -314,6 +322,39 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         </main>
     </div>
 
+    <?php if (!$es_modo_tyvek): ?>
+    <!-- Modal: nuevo empleado inline -->
+    <div class="modal fade" id="modalNuevoEmpleado" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-plus"></i> Nuevo empleado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger py-2 d-none" id="errorNuevoEmp" style="font-size:0.85rem;"></div>
+                    <div class="mb-2">
+                        <label class="form-label">Departamento</label>
+                        <input type="text" class="form-control campo-fijo" id="nuevoEmpDepto" readonly>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">ID / Nómina <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="nuevoEmpNomina" maxlength="30" placeholder="Ej. EMP-1234" autocomplete="off">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">Nombre completo <span class="text-muted">(opcional)</span></label>
+                        <input type="text" class="form-control" id="nuevoEmpNombre" maxlength="150" autocomplete="off">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarNuevoEmp">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
@@ -346,7 +387,7 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
             depto.empleados.forEach(emp => {
                 const opt = document.createElement('option');
                 opt.value = emp.id;
-                opt.textContent = emp.usuario + ' - ' + emp.nombre;
+                opt.textContent = etiquetaEmpleado(emp.id_display, emp.nombre);
                 opt.dataset.nombre = emp.nombre;
                 selectEmpleado.appendChild(opt);
             });
@@ -360,6 +401,83 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
     });
     
     <?php if (!$es_modo_tyvek): ?>
+    // ============================================
+    // Nuevo empleado inline (origen = 'vale')
+    // ============================================
+    // Etiqueta unificada: "ID - Nombre", o solo ID, o solo Nombre segun lo que haya
+    function etiquetaEmpleado(idDisplay, nombre) {
+        if (idDisplay && nombre && idDisplay !== nombre) return idDisplay + ' - ' + nombre;
+        return idDisplay || nombre || '';
+    }
+
+    const modalNuevoEmp    = new bootstrap.Modal(document.getElementById('modalNuevoEmpleado'));
+    const btnNuevoEmpleado = document.getElementById('btnNuevoEmpleado');
+    const nuevoEmpDepto    = document.getElementById('nuevoEmpDepto');
+    const nuevoEmpNombre   = document.getElementById('nuevoEmpNombre');
+    const nuevoEmpNomina   = document.getElementById('nuevoEmpNomina');
+    const errorNuevoEmp    = document.getElementById('errorNuevoEmp');
+    const btnGuardarNuevoEmp = document.getElementById('btnGuardarNuevoEmp');
+    let deptoCodigoActual  = '';
+
+    btnNuevoEmpleado.addEventListener('click', function() {
+        if (!selectDepto.value) {
+            alert('Seleccione primero un departamento.');
+            return;
+        }
+        deptoCodigoActual = selectDepto.options[selectDepto.selectedIndex].dataset.codigo || '';
+        nuevoEmpDepto.value = selectDepto.value;
+        nuevoEmpNombre.value = '';
+        nuevoEmpNomina.value = '';
+        errorNuevoEmp.classList.add('d-none');
+        errorNuevoEmp.textContent = '';
+        modalNuevoEmp.show();
+    });
+
+    btnGuardarNuevoEmp.addEventListener('click', async function() {
+        const nomina = nuevoEmpNomina.value.trim();
+        if (!nomina) {
+            errorNuevoEmp.textContent = 'El ID / nómina es obligatorio.';
+            errorNuevoEmp.classList.remove('d-none');
+            return;
+        }
+        btnGuardarNuevoEmp.disabled = true;
+        try {
+            const resp = await fetch('<?php echo URL_BASE; ?>dashboard/inventario_epp/api_vales_epp.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accion: 'crear_empleado_epp',
+                    departamento_codigo: deptoCodigoActual,
+                    nombre_completo: nuevoEmpNombre.value.trim(),
+                    no_nomina: nomina
+                })
+            });
+            const data = await resp.json();
+            if (!data.success) {
+                errorNuevoEmp.textContent = data.message || 'No se pudo guardar.';
+                errorNuevoEmp.classList.remove('d-none');
+                btnGuardarNuevoEmp.disabled = false;
+                return;
+            }
+            const emp = data.empleado;
+            const opt = document.createElement('option');
+            opt.value = emp.value;
+            opt.textContent = etiquetaEmpleado(emp.id_display, emp.nombre);
+            opt.dataset.nombre = emp.nombre;
+            selectEmpleado.appendChild(opt);
+            selectEmpleado.value = emp.value;
+            nombreHidden.value = emp.nombre;
+            const depto = departamentosData.find(d => d.codigo === deptoCodigoActual);
+            if (depto) depto.empleados.push({ id: emp.value, nombre: emp.nombre, id_display: emp.id_display });
+            modalNuevoEmp.hide();
+            btnGuardarNuevoEmp.disabled = false;
+        } catch (e) {
+            errorNuevoEmp.textContent = 'Error de conexión.';
+            errorNuevoEmp.classList.remove('d-none');
+            btnGuardarNuevoEmp.disabled = false;
+        }
+    });
+
     // ============================================
     // Lineas dinamicas (modo completo)
     // ============================================

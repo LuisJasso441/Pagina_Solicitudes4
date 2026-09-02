@@ -34,6 +34,20 @@ function crear_vale_epp($datos) {
     try {
         $pdo->beginTransaction();
         
+        // Resolver el empleado seleccionado. Puede venir de empleados_epp ("epp:<id>")
+        // o de un usuario de plataforma ("usr:<id>"), en cuyo caso se crea/vincula
+        // su registro en empleados_epp dentro de esta misma transaccion.
+        $empleado_id = null;
+        if (preg_match('/^(epp|usr):(\d+)$/', $datos['empleado_sel'] ?? '', $m)) {
+            $empleado_id = ($m[1] === 'epp')
+                ? (int) $m[2]
+                : obtener_o_crear_empleado_epp_desde_usuario($pdo, (int) $m[2]);
+        }
+        if (!$empleado_id) {
+            $pdo->rollBack();
+            return ['success' => false, 'message' => 'Empleado no válido.'];
+        }
+        
         $folio = generar_folio_vale();
         
         $stmt = $pdo->prepare("
@@ -48,7 +62,7 @@ function crear_vale_epp($datos) {
         $stmt->execute([
             ':folio' => $folio,
             ':nombre_empleado' => $datos['nombre_empleado'],
-            ':empleado_id' => $datos['empleado_id'] ?? null,
+            ':empleado_id' => $empleado_id,
             ':area' => $datos['area'],
             ':creado_por_id' => $datos['usuario_id'],
             ':creado_por_nombre' => $datos['usuario_nombre'],
@@ -402,39 +416,293 @@ function verificar_permisos_vales() {
 }
 
 /**
- * Obtener empleados agrupados por departamento (para dropdown)
+ * Obtener empleados agrupados por departamento (para dropdown del vale)
+ * Fuente: empleados_epp (incluye externos sin cuenta en la plataforma).
+ * Devuelve TODOS los departamentos activos; los que aun no tienen
+ * empleados regresan con 'empleados' vacio.
  */
 function obtener_empleados_por_departamento() {
     $pdo = conectarDB();
+
+    // Departamentos a ocultar (espacios, no areas de personal). Ajusta la lista.
+    $deptos_excluidos = ['SJ', 'SC', 'otros'];
+
+    // ---- 1. Empleados registrados en empleados_epp (externos, manuales, vinculados) ----
     $stmt = $pdo->query("
-        SELECT u.id, u.nombre_completo, u.usuario,
-               COALESCE(d.nombre, u.departamento) as departamento_nombre,
-               COALESCE(d.codigo, LOWER(u.departamento)) as departamento_codigo
-        FROM usuarios u
-        LEFT JOIN departamentos d ON u.departamento_id = d.id
-        WHERE u.activo = 1
-        ORDER BY departamento_nombre ASC, u.nombre_completo ASC
+        SELECT d.codigo, d.nombre AS departamento_nombre,
+               e.id AS emp_id, e.nombre_completo, e.no_nomina, e.usuario_id
+        FROM departamentos d
+        LEFT JOIN empleados_epp e
+               ON e.departamento_id = d.id AND e.activo = 1
+        WHERE d.activo = 1
+        ORDER BY d.nombre ASC, e.nombre_completo ASC
     ");
-    $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+    $rows_epp = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // ---- 2. Usuarios de la plataforma que tambien piden vales ----
+    $stmt = $pdo->query("
+        SELECT u.id AS usuario_id, u.nombre_completo, u.no_nomina,
+               d.codigo, d.nombre AS departamento_nombre
+        FROM usuarios u
+        INNER JOIN departamentos d ON u.departamento_id = d.id
+        WHERE u.activo = 1 AND d.activo = 1
+        ORDER BY d.nombre ASC, u.nombre_completo ASC
+    ");
+    $rows_usr = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Usuarios ya representados en empleados_epp (para no duplicar)
+    $usuarios_vinculados = [];
+    $nominas_usadas = [];
+    foreach ($rows_epp as $r) {
+        if (!empty($r['usuario_id'])) $usuarios_vinculados[(int) $r['usuario_id']] = true;
+        if (!empty($r['no_nomina']))  $nominas_usadas[$r['no_nomina']] = true;
+    }
+
+    // ---- 3. Armar estructura agrupada por departamento ----
     $agrupados = [];
-    foreach ($usuarios as $u) {
-        $depto = $u['departamento_codigo'];
-        if (!isset($agrupados[$depto])) {
-            $agrupados[$depto] = [
-                'codigo' => $depto,
-                'nombre' => $u['departamento_nombre'],
-                'empleados' => []
+
+    foreach ($rows_epp as $r) {
+        if (in_array($r['codigo'], $deptos_excluidos, true)) continue;
+        if (!isset($agrupados[$r['codigo']])) {
+            $agrupados[$r['codigo']] = ['codigo' => $r['codigo'], 'nombre' => $r['departamento_nombre'], 'empleados' => []];
+        }
+        if (!empty($r['emp_id'])) {
+            $agrupados[$r['codigo']]['empleados'][] = [
+                'id'         => 'epp:' . $r['emp_id'],
+                // Sin nombre -> se identifica por su ID/nomina
+                'nombre'     => ($r['nombre_completo'] !== null && $r['nombre_completo'] !== '') ? $r['nombre_completo'] : ($r['no_nomina'] ?: ''),
+                'id_display' => $r['no_nomina'] ?: ''
             ];
         }
-        $agrupados[$depto]['empleados'][] = [
-            'id' => $u['id'],
-            'nombre' => $u['nombre_completo'],
-            'usuario' => $u['usuario']
+    }
+
+    foreach ($rows_usr as $r) {
+        if (in_array($r['codigo'], $deptos_excluidos, true)) continue;
+        if (isset($usuarios_vinculados[(int) $r['usuario_id']])) continue;
+        if (!empty($r['no_nomina']) && isset($nominas_usadas[$r['no_nomina']])) continue;
+        if (!isset($agrupados[$r['codigo']])) {
+            $agrupados[$r['codigo']] = ['codigo' => $r['codigo'], 'nombre' => $r['departamento_nombre'], 'empleados' => []];
+        }
+        $agrupados[$r['codigo']]['empleados'][] = [
+            'id'         => 'usr:' . $r['usuario_id'],
+            'nombre'     => $r['nombre_completo'],
+            'id_display' => $r['no_nomina'] ?: ''
         ];
     }
-    
+
+    // Ordenar empleados por nombre dentro de cada departamento
+    foreach ($agrupados as $codigo => $grupo) {
+        usort($agrupados[$codigo]['empleados'], function ($a, $b) {
+            return strcmp($a['nombre'], $b['nombre']);
+        });
+    }
+
     return array_values($agrupados);
+}
+
+/**
+ * Obtener (o crear) el registro en empleados_epp de un usuario de plataforma.
+ * Usa la MISMA conexion/transaccion que se le pase (no abre otra, para no
+ * provocar deadlocks). Devuelve el id de empleados_epp o null.
+ */
+function obtener_o_crear_empleado_epp_desde_usuario(PDO $pdo, $usuario_id) {
+    $usuario_id = (int) $usuario_id;
+    if ($usuario_id <= 0) return null;
+
+    // 1. Ya vinculado?
+    $stmt = $pdo->prepare("SELECT id FROM empleados_epp WHERE usuario_id = :uid AND activo = 1 LIMIT 1");
+    $stmt->execute([':uid' => $usuario_id]);
+    $id = $stmt->fetchColumn();
+    if ($id) return (int) $id;
+
+    // 2. Datos del usuario
+    $stmt = $pdo->prepare("SELECT id, nombre_completo, no_nomina, departamento_id FROM usuarios WHERE id = :uid");
+    $stmt->execute([':uid' => $usuario_id]);
+    $u = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$u || empty($u['departamento_id'])) return null; // sin depto no se puede (NOT NULL)
+
+    // 3. Existe ya un registro manual con esa misma nomina? Vincularlo.
+    if (!empty($u['no_nomina'])) {
+        $stmt = $pdo->prepare("SELECT id FROM empleados_epp WHERE no_nomina = :nom AND activo = 1 LIMIT 1");
+        $stmt->execute([':nom' => $u['no_nomina']]);
+        $id_existente = $stmt->fetchColumn();
+        if ($id_existente) {
+            $pdo->prepare("UPDATE empleados_epp SET usuario_id = :uid WHERE id = :id")
+                ->execute([':uid' => $usuario_id, ':id' => $id_existente]);
+            return (int) $id_existente;
+        }
+    }
+
+    // 4. Crear nuevo registro vinculado
+    $stmt = $pdo->prepare("
+        INSERT INTO empleados_epp (usuario_id, nombre_completo, no_nomina, departamento_id, origen, observaciones)
+        VALUES (:uid, :nombre, :nomina, :depto, 'usuario', 'Vinculado desde cuenta de plataforma')
+    ");
+    $stmt->execute([
+        ':uid'    => $usuario_id,
+        ':nombre' => $u['nombre_completo'],
+        ':nomina' => $u['no_nomina'] ?: null,
+        ':depto'  => $u['departamento_id']
+    ]);
+    return (int) $pdo->lastInsertId();
+}
+
+/**
+ * Alta rapida de empleado desde el formulario del vale (origen = 'vale').
+ * $datos: departamento_codigo, nombre_completo, no_nomina (opcional).
+ * Es un INSERT autonomo (no entra en la transaccion del vale), asi que
+ * usa su propia conexion sin riesgo de deadlock.
+ */
+function crear_empleado_epp_inline($datos) {
+    $pdo = conectarDB();
+
+    $nombre = trim($datos['nombre_completo'] ?? '');
+    $nomina = trim($datos['no_nomina'] ?? '');
+    $codigo = trim($datos['departamento_codigo'] ?? '');
+
+    // Ahora la nomina (ID) es obligatoria; el nombre es opcional
+    if ($nomina === '') return ['success' => false, 'message' => 'El ID / nómina es obligatorio.'];
+    if ($codigo === '') return ['success' => false, 'message' => 'Seleccione primero un departamento.'];
+
+    $stmt = $pdo->prepare("SELECT id FROM departamentos WHERE codigo = :cod AND activo = 1 LIMIT 1");
+    $stmt->execute([':cod' => $codigo]);
+    $depto_id = $stmt->fetchColumn();
+    if (!$depto_id) return ['success' => false, 'message' => 'Departamento no válido.'];
+
+    // La nomina debe ser unica (uk_no_nomina_epp)
+    $chk = $pdo->prepare("SELECT id FROM empleados_epp WHERE no_nomina = :nom LIMIT 1");
+    $chk->execute([':nom' => $nomina]);
+    if ($chk->fetch()) {
+        return ['success' => false, 'message' => "El ID/nómina '{$nomina}' ya está registrado en otro empleado."];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO empleados_epp (nombre_completo, no_nomina, departamento_id, origen, created_by, observaciones)
+            VALUES (:nombre, :nomina, :depto, 'vale', :creado_por, 'Alta rápida desde vale')
+        ");
+        $stmt->execute([
+            ':nombre'     => $nombre, // puede ir vacio
+            ':nomina'     => $nomina,
+            ':depto'      => (int) $depto_id,
+            ':creado_por' => $_SESSION['usuario_id'] ?? null
+        ]);
+        $nuevo_id = (int) $pdo->lastInsertId();
+
+        return [
+            'success'  => true,
+            'message'  => 'Empleado agregado.',
+            'empleado' => [
+                'value'      => 'epp:' . $nuevo_id,
+                'id_display' => $nomina,
+                'nombre'     => $nombre !== '' ? $nombre : $nomina // fallback para el snapshot del vale
+            ]
+        ];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error al guardar: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Listado de empleados EPP para administracion (con filtros).
+ */
+function obtener_empleados_epp_admin($filtros = []) {
+    $pdo = conectarDB();
+    $where = ["1=1"];
+    $params = [];
+
+    if (!empty($filtros['departamento_id'])) {
+        $where[] = "e.departamento_id = :depto";
+        $params[':depto'] = (int) $filtros['departamento_id'];
+    }
+    if (!empty($filtros['busqueda'])) {
+        $where[] = "(e.nombre_completo LIKE :b1 OR e.no_nomina LIKE :b2)";
+        $params[':b1'] = '%' . $filtros['busqueda'] . '%';
+        $params[':b2'] = '%' . $filtros['busqueda'] . '%';
+    }
+    if (empty($filtros['incluir_inactivos'])) {
+        $where[] = "e.activo = 1";
+    }
+
+    $sql = "SELECT e.*, d.nombre AS departamento_nombre
+            FROM empleados_epp e
+            LEFT JOIN departamentos d ON e.departamento_id = d.id
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY e.activo DESC, d.nombre ASC, e.nombre_completo ASC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Departamentos activos (para filtro y edicion).
+ */
+function obtener_departamentos_para_empleados() {
+    $pdo = conectarDB();
+    return $pdo->query("SELECT id, codigo, nombre FROM departamentos WHERE activo = 1 ORDER BY nombre ASC")
+               ->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Actualizar empleado EPP (nombre opcional, ID obligatorio, con nomina unica).
+ */
+function actualizar_empleado_epp($datos) {
+    $pdo = conectarDB();
+    $id       = (int) ($datos['id'] ?? 0);
+    $nombre   = trim($datos['nombre_completo'] ?? '');
+    $nomina   = trim($datos['no_nomina'] ?? '');
+    $depto_id = (int) ($datos['departamento_id'] ?? 0);
+
+    if ($id <= 0)        return ['success' => false, 'message' => 'Empleado no válido.'];
+    if ($nomina === '')  return ['success' => false, 'message' => 'El ID / nómina es obligatorio.'];
+    if ($depto_id <= 0)  return ['success' => false, 'message' => 'Seleccione un departamento.'];
+
+    $chkd = $pdo->prepare("SELECT id FROM departamentos WHERE id = :did AND activo = 1 LIMIT 1");
+    $chkd->execute([':did' => $depto_id]);
+    if (!$chkd->fetch()) return ['success' => false, 'message' => 'Departamento no válido.'];
+
+    // Nomina unica, excluyendose a si mismo (placeholders distintos por EMULATE_PREPARES=false)
+    $chk = $pdo->prepare("SELECT id FROM empleados_epp WHERE no_nomina = :nom AND id <> :id_self LIMIT 1");
+    $chk->execute([':nom' => $nomina, ':id_self' => $id]);
+    if ($chk->fetch()) {
+        return ['success' => false, 'message' => "El ID/nómina '{$nomina}' ya está en otro empleado."];
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            UPDATE empleados_epp
+            SET nombre_completo = :nombre, no_nomina = :nomina,
+                departamento_id = :depto, updated_by = :upd
+            WHERE id = :id
+        ");
+        $stmt->execute([
+            ':nombre' => $nombre,
+            ':nomina' => $nomina,
+            ':depto'  => $depto_id,
+            ':upd'    => $_SESSION['usuario_id'] ?? null,
+            ':id'     => $id
+        ]);
+        return ['success' => true, 'message' => 'Empleado actualizado.'];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Activar / desactivar empleado (soft; nunca se borra para no romper vales historicos).
+ */
+function cambiar_estado_empleado_epp($id, $activo) {
+    $pdo = conectarDB();
+    $id = (int) $id;
+    $activo = $activo ? 1 : 0;
+    if ($id <= 0) return ['success' => false, 'message' => 'Empleado no válido.'];
+    try {
+        $stmt = $pdo->prepare("UPDATE empleados_epp SET activo = :act, updated_by = :upd WHERE id = :id");
+        $stmt->execute([':act' => $activo, ':upd' => $_SESSION['usuario_id'] ?? null, ':id' => $id]);
+        return ['success' => true, 'message' => $activo ? 'Empleado reactivado.' : 'Empleado desactivado.', 'activo' => $activo];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
 }
 
 /**
