@@ -326,13 +326,26 @@ $current_page = basename(__FILE__);
                                     </div>
                                 </div>
 
-                                <div class="mb-2">
-                                    <label class="form-label">Tipo de mantenimiento (opcional)</label>
-                                    <select name="tipo_mantenimiento" class="form-select">
-                                        <option value="">Todos</option>
-                                        <option value="fisico">Físico</option>
-                                        <option value="logico">Lógico</option>
-                                    </select>
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label">Tipo de equipo</label>
+                                        <select name="tipo_equipo" class="form-select">
+                                            <option value="">Todos</option>
+                                            <option value="computo">Equipos de Cómputo</option>
+                                            <option value="impresoras">Impresoras</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">Tipo de mantenimiento</label>
+                                        <select name="tipo_mantenimiento" class="form-select">
+                                            <option value="">Todos</option>
+                                            <option value="fisico">Físico</option>
+                                            <option value="logico">Lógico</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-text mb-2">
+                                    Descarga cada combinación en un archivo separado.
                                 </div>
 
                                 <button type="submit" class="btn btn-success btn-descargar mt-2">

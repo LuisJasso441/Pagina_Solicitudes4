@@ -53,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $fecha_desde = trim($_POST['fecha_desde'] ?? '');
 $fecha_hasta = trim($_POST['fecha_hasta'] ?? '');
 $tipo_filtro = trim($_POST['tipo_mantenimiento'] ?? '');
+$tipo_equipo = trim($_POST['tipo_equipo'] ?? '');
 
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_desde)) {
     establecer_alerta('error', 'Fecha "Desde" inválida.');
@@ -71,6 +72,11 @@ if (strtotime($fecha_desde) > strtotime($fecha_hasta)) {
 }
 if ($tipo_filtro && !in_array($tipo_filtro, ['fisico', 'logico'])) {
     establecer_alerta('error', 'Tipo de mantenimiento inválido.');
+    header('Location: ' . URL_BASE . 'dashboard/maestro/index.php');
+    exit;
+}
+if ($tipo_equipo && !in_array($tipo_equipo, ['computo', 'impresoras'])) {
+    establecer_alerta('error', 'Tipo de equipo inválido.');
     header('Location: ' . URL_BASE . 'dashboard/maestro/index.php');
     exit;
 }
@@ -102,6 +108,18 @@ $params = [
 if ($tipo_filtro) {
     $where[] = "sm.tipo_mantenimiento = :tipo";
     $params[':tipo'] = $tipo_filtro;
+}
+
+// Filtro por tipo de equipo (valores exactos del inventario, igual que FR-TI-04)
+if ($tipo_equipo === 'computo') {
+    $where[] = "ie.tipo_equipo IN (:teq1, :teq2, :teq3, :teq4)";
+    $params[':teq1'] = 'all_in_one';
+    $params[':teq2'] = 'pc';
+    $params[':teq3'] = 'laptop';
+    $params[':teq4'] = 'computadora';
+} elseif ($tipo_equipo === 'impresoras') {
+    $where[] = "ie.tipo_equipo = :teq";
+    $params[':teq'] = 'impresora';
 }
 
 $where_sql = implode(' AND ', $where);
@@ -332,7 +350,13 @@ try {
     // ENVIAR ARCHIVO
     // =====================================================================
     $tipo_archivo_label = $tipo_filtro ? '_' . ucfirst($tipo_filtro) : '';
-    $nombre_archivo = "Reporte_Mantenimientos_TI{$tipo_archivo_label}_{$fecha_desde}_a_{$fecha_hasta}.xlsx";
+    $equipo_label       = '';
+    if ($tipo_equipo === 'computo') {
+        $equipo_label = '_Computo';
+    } elseif ($tipo_equipo === 'impresoras') {
+        $equipo_label = '_Impresoras';
+    }
+    $nombre_archivo = "Reporte_Mantenimientos_TI{$equipo_label}{$tipo_archivo_label}_{$fecha_desde}_a_{$fecha_hasta}.xlsx";
 
     while (ob_get_level()) { ob_end_clean(); }
 
