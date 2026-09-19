@@ -1,15 +1,17 @@
 <?php
 /**
- * Handler: firmar Recibe de SEC + condiciones
+ * Handler POST: firmar recibe de una SEC.
+ * dashboard/salidas_envases/sec/firmar_recibe.php
  *
- * Ubicación: dashboard/salidas_envases/firmar_recibe.php
+ * Firma opcional. Se puede firmar en en_ruta / cerrada / cerrada_con_devolucion.
+ * NO cambia el estado. Cualquier depto autorizado puede registrarla.
  */
 
 session_start();
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../auth/verificar_sesion.php';
-require_once __DIR__ . '/../../includes/permisos_helper.php';
-require_once __DIR__ . '/../../includes/salidas_envases/sec_funciones.php';
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/sec_funciones.php';
 
 verificar_sesion();
 
@@ -21,35 +23,29 @@ if (sesion_expirada()) {
 }
 actualizar_sesion();
 
-if (!es_almacen_residuos()) {
-    establecer_alerta('error', 'Sólo Almacén de Residuos puede firmar Recibe.');
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
 }
 
-$sec_id     = (int)($_POST['sec_id'] ?? 0);
-$usuario_id = (int)$_SESSION['usuario_id'];
-$nombre     = $_POST['recibe_nombre'] ?? '';
-$firma      = $_POST['recibe_firma']  ?? '';
-$condiciones = [
-    'b1' => !empty($_POST['cond_b1']),
-    'r2' => !empty($_POST['cond_r2']),
-    'a3' => !empty($_POST['cond_a3']),
-    'c4' => !empty($_POST['cond_c4']),
-];
-
-if ($sec_id <= 0) {
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+$dept = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+if (!in_array($dept, ['logistica', 'ventas', 'almacen_residuos'], true)) {
+    establecer_alerta('error', 'No tienes permisos para firmar recibe.');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
 }
 
-$resultado = firmar_recibe_sec($sec_id, $nombre, $firma, $usuario_id, $condiciones);
+$sec_id     = (int) ($_POST['sec_id'] ?? 0);
+$nombre     = $_POST['nombre']    ?? '';
+$firma_svg  = $_POST['firma_svg'] ?? '';
+$usuario_id = (int) $_SESSION['usuario_id'];
 
-if ($resultado['success']) {
-    redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$sec_id&msg=recibe_firmada");
-} else {
-    $_SESSION['sec_errores'] = $resultado['errores'];
-    redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$sec_id&msg=error_validacion");
+$res = firmar_recibe_sec($sec_id, $nombre, $firma_svg, $usuario_id);
+
+if (!$res['success']) {
+    $_SESSION['sec_ver_errores'] = $res['errores'];
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/ver_sec.php?id=' . $sec_id);
 }
+
+$sec = obtener_sec_por_id($sec_id);
+if ($sec) notificar_sec_firmada_recibe($sec);
+
+redirigir(URL_BASE . 'dashboard/salidas_envases/sec/ver_sec.php?id=' . $sec_id . '&msg=firma_recibe');

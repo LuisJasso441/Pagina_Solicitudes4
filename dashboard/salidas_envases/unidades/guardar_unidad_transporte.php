@@ -1,85 +1,60 @@
 <?php
 /**
- * Handler: Crear / Actualizar Unidad de Transporte
+ * Handler POST: crea o actualiza una unidad de transporte con sus capacidades.
+ * dashboard/salidas_envases/unidades/guardar_unidad_transporte.php
  *
- * Ubicación: dashboard/salidas_envases/guardar_unidad_transporte.php
+ * Un solo handler para crear (id vacío) y editar (id > 0).
  */
 
 session_start();
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../auth/verificar_sesion.php';
-require_once __DIR__ . '/../../includes/permisos_helper.php';
-require_once __DIR__ . '/../../includes/salidas_envases/unidades_transporte_funciones.php';
 
-verificar_sesion();
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/unidades_transporte_funciones.php';
 
-if (sesion_expirada()) {
-    destruir_sesion();
-    session_start();
-    establecer_alerta('warning', 'Tu sesión ha expirado. Inicia sesión nuevamente.');
-    redirigir(URL_BASE . 'auth/InicioSesion.php');
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
+    exit;
 }
-actualizar_sesion();
-
-// Solo Logística
 if (!es_logistica()) {
-    establecer_alerta('error', 'No tienes permisos para gestionar Unidades de Transporte.');
-    redirigir(URL_BASE . 'dashboard/index.php');
+    $_SESSION['flash_msg']  = 'Solo Logística puede gestionar unidades de transporte.';
+    $_SESSION['flash_tipo'] = 'danger';
+    header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+    exit;
 }
-
-// Solo POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirigir(URL_BASE . 'dashboard/salidas_envases/unidades_transporte.php');
+    header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+    exit;
 }
 
-$usuario_id = (int)$_SESSION['usuario_id'];
-$accion     = $_POST['accion'] ?? '';
-$id         = (int)($_POST['id'] ?? 0);
+// ---- Recolectar datos ----
+$id_raw = trim($_POST['id'] ?? '');
+$id     = ($id_raw === '') ? null : (int) $id_raw;
 
 $datos = [
-    'nombre'           => $_POST['nombre']           ?? '',
-    'placas'           => $_POST['placas']           ?? '',
-    'capacidad_tmb'    => $_POST['capacidad_tmb']    ?? 0,
-    'capacidad_tote'   => $_POST['capacidad_tote']   ?? 0,
-    'capacidad_gfa'    => $_POST['capacidad_gfa']    ?? 0,
-    'capacidad_jaula'  => $_POST['capacidad_jaula']  ?? 0,
+    'nombre'    => $_POST['nombre']    ?? '',
+    'matricula' => $_POST['matricula'] ?? '',
+    'notas'     => $_POST['notas']     ?? '',
+    'activo'    => isset($_POST['activo']) ? 1 : 0,
 ];
 
-$base_url = URL_BASE . 'dashboard/salidas_envases/unidades_transporte.php';
-
-if ($accion === 'crear') {
-
-    $resultado = crear_unidad_transporte($datos, $usuario_id);
-
-    if ($resultado['success']) {
-        redirigir($base_url . '?msg=creada');
-    } else {
-        $_SESSION['unidad_errores'] = $resultado['errores'];
-        redirigir($base_url . '?msg=error_validacion');
+// Capacidades: array asociativo indexado, cada elemento con especificacion_id y capacidad_maxima
+$capacidades_raw = $_POST['capacidades'] ?? [];
+$capacidades = [];
+if (is_array($capacidades_raw)) {
+    foreach ($capacidades_raw as $cap) {
+        if (!is_array($cap)) continue;
+        $capacidades[] = [
+            'especificacion_id' => (int) ($cap['especificacion_id'] ?? 0),
+            'capacidad_maxima'  => (int) ($cap['capacidad_maxima']  ?? 0),
+        ];
     }
-
-} elseif ($accion === 'editar') {
-
-    if ($id <= 0) {
-        redirigir($base_url . '?msg=error');
-    }
-
-    $existente = obtener_unidad_transporte_por_id($id);
-    if (!$existente) {
-        establecer_alerta('error', 'La unidad de transporte no existe.');
-        redirigir($base_url);
-    }
-
-    $resultado = actualizar_unidad_transporte($id, $datos, $usuario_id);
-
-    if ($resultado['success']) {
-        redirigir($base_url . '?msg=actualizada');
-    } else {
-        $_SESSION['unidad_errores'] = $resultado['errores'];
-        redirigir($base_url . '?msg=error_validacion');
-    }
-
-} else {
-
-    redirigir($base_url . '?msg=error');
 }
+
+$resultado = guardar_unidad_transporte($id, $datos, $capacidades, (int) $_SESSION['usuario_id']);
+
+$_SESSION['flash_msg']  = $resultado['msg'];
+$_SESSION['flash_tipo'] = $resultado['ok'] ? 'success' : 'danger';
+header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+exit;

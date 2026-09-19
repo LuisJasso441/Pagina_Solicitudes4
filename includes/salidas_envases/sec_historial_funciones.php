@@ -92,17 +92,21 @@ function contar_historial_sec($sec_id) {
  */
 function historial_icono_evento($tipo) {
     $map = [
-        'sec_creada'           => ['bi-file-earmark-plus',    'primary'],
-        'entrega_firmada'      => ['bi-pen',                  'info'],
-        'recibe_firmada'       => ['bi-check2-square',        'success'],
-        'lineas_editadas'      => ['bi-pencil-square',        'warning'],
-        'sec_cancelada'        => ['bi-x-circle',             'danger'],
-        'sec_cerrada'          => ['bi-check-circle-fill',    'success'],
-        'evidencia_subida'     => ['bi-image',                'secondary'],
-        'evidencia_eliminada'  => ['bi-trash',                'danger'],
-        'comentario_agregado'  => ['bi-chat-dots',            'primary'],
-        'comentario_editado'   => ['bi-pencil',               'secondary'],
-        'comentario_eliminado' => ['bi-trash3',               'danger'],
+        'sec_creada'            => ['bi-file-earmark-plus',    'primary'],
+        'sec_editada'           => ['bi-pencil-square',        'warning'],
+        'sec_enviada_firma'     => ['bi-send',                 'primary'],
+        'entrega_firmada'       => ['bi-pen',                  'info'],
+        'recibe_firmada'        => ['bi-check2-square',        'success'],
+        'lineas_editadas'       => ['bi-pencil-square',        'warning'],
+        'sec_cancelada'         => ['bi-x-circle',             'danger'],
+        'sec_cerrada'           => ['bi-check-circle-fill',    'success'],
+        'devolucion_registrada' => ['bi-arrow-return-left',    'warning'],
+        'token_recibe_generado' => ['bi-link-45deg',           'info'],
+        'evidencia_subida'      => ['bi-image',                'secondary'],
+        'evidencia_eliminada'   => ['bi-trash',                'danger'],
+        'comentario_agregado'   => ['bi-chat-dots',            'primary'],
+        'comentario_editado'    => ['bi-pencil',               'secondary'],
+        'comentario_eliminado'  => ['bi-trash3',               'danger'],
     ];
     if (isset($map[$tipo])) return ['icono' => $map[$tipo][0], 'color' => $map[$tipo][1]];
     return ['icono' => 'bi-circle', 'color' => 'secondary'];

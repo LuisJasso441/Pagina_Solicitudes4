@@ -1,336 +1,281 @@
 <?php
 /**
- * Gestión de Unidades de Transporte
- * Módulo SEC — Salidas de Envases para Clientes
+ * Unidades de Transporte
+ * dashboard/salidas_envases/unidades/unidades_transporte.php
  *
- * Ubicación: dashboard/salidas_envases/unidades_transporte.php
- *
- * Exclusivo para Logística.
+ * Permisos:
+ *   - Logística: CRUD completo.
+ *   - Almacén de Residuos y Ventas: solo lectura.
  */
 
 session_start();
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../auth/verificar_sesion.php';
-require_once __DIR__ . '/../../includes/permisos_helper.php';
-require_once __DIR__ . '/../../includes/salidas_envases/unidades_transporte_funciones.php';
 
-verificar_sesion();
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/tipos_envase_funciones.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/unidades_transporte_funciones.php';
 
-if (sesion_expirada()) {
-    destruir_sesion();
-    session_start();
-    establecer_alerta('warning', 'Tu sesión ha expirado por inactividad. Por favor inicia sesión nuevamente.');
-    redirigir(URL_BASE . 'auth/InicioSesion.php');
-}
-actualizar_sesion();
-
-// Acceso: solo Logística
-if (!es_logistica()) {
-    establecer_alerta('error', 'Sólo el departamento de Logística puede gestionar Unidades de Transporte.');
-    redirigir(URL_BASE . 'dashboard/index.php');
+// ---- Autenticación ----
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
+    exit;
 }
 
-$nombre_usuario = $_SESSION['nombre_completo'];
-$usuario_id     = $_SESSION['usuario_id'];
+// ---- Autorización ----
+if (!puede_administrar_tipos_envase()) {
+    establecer_alerta('error', 'Solo Almacén de Residuos puede administrar tipos de envase.');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/catalogo/tipos_envase.php');
+}
 
-// Filtro: mostrar inactivas
-$mostrar_inactivas = isset($_GET['inactivas']) && $_GET['inactivas'] == '1';
-$unidades = obtener_unidades_transporte(!$mostrar_inactivas);
+$puede_editar = puede_administrar_unidades_transporte();
 
-// Conteo de usos por unidad (para mostrar advertencia al desactivar)
-$usos_por_unidad = [];
+// ---- Datos ----
+$unidades = obtener_unidades_transporte(true); // incluir inactivas para admin
+
+// Especificaciones activas (para el dropdown del modal)
+$especificaciones_activas = obtener_especificaciones(null, false);
+
+// Embebido JSON para poblar el modal al editar sin AJAX
+$unidades_data = [];
 foreach ($unidades as $u) {
-    $usos_por_unidad[$u['id']] = contar_usos_unidad_transporte($u['id']);
+    $caps = obtener_capacidades_unidad($u['id']);
+    $unidades_data[$u['id']] = [
+        'id'         => (int) $u['id'],
+        'nombre'     => $u['nombre'],
+        'matricula'  => $u['matricula'],
+        'notas'      => $u['notas'],
+        'activo'     => (int) $u['activo'],
+        'capacidades' => array_map(static fn($c) => [
+            'especificacion_id' => (int) $c['especificacion_id'],
+            'capacidad_maxima'  => (int) $c['capacidad_maxima'],
+            'especificacion_nombre' => $c['especificacion_nombre'],
+            'tipo_nombre'      => $c['tipo_nombre'],
+            'activa'           => (int) $c['especificacion_activa'],
+        ], $caps),
+    ];
 }
-
-// Mensajes flash
-$mensajes = [
-    'creada'         => ['success', 'Unidad de transporte creada correctamente.'],
-    'actualizada'    => ['success', 'Unidad de transporte actualizada correctamente.'],
-    'desactivada'    => ['warning', 'Unidad de transporte desactivada.'],
-    'reactivada'     => ['success', 'Unidad de transporte reactivada.'],
-    'error'          => ['danger',  'Ocurrió un error al procesar la solicitud.'],
-    'error_validacion' => ['danger', 'Hay errores de validación. Revisa los campos.'],
-];
-$msg_flash = $_GET['msg'] ?? null;
-$errores_flash = $_SESSION['unidad_errores'] ?? [];
-unset($_SESSION['unidad_errores']);
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unidades de Transporte | <?php echo NOMBRE_SISTEMA; ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Unidades de Transporte - Verden</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/sidebar.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
-
     <style>
-        .capacity-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0.5rem;
-        }
-        .capacity-cell {
-            text-align: center;
-            padding: 0.4rem 0.25rem;
-            background: #f8f9fa;
-            border-radius: 6px;
-            font-size: 0.85rem;
-        }
-        .capacity-cell .label {
-            font-size: 0.65rem;
-            color: #6c757d;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: block;
-        }
-        .capacity-cell .value {
+        .unidad-card { transition: box-shadow 0.15s; }
+        .unidad-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .cap-item { border-bottom: 1px solid #f0f0f0; padding: 0.5rem 0; }
+        .cap-item:last-child { border-bottom: none; }
+        .cap-cantidad {
+            display: inline-block;
+            min-width: 60px;
+            padding: 2px 8px;
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-radius: 4px;
             font-weight: 600;
-            color: #14b8a6;
-            font-size: 1rem;
+            text-align: center;
         }
-        .badge-inactiva {
-            background-color: #6c757d;
+        .fila-capacidad {
+            display: flex; gap: 0.5rem; align-items: center;
+            margin-bottom: 0.5rem;
         }
-        .placa-cell {
-            font-family: 'Courier New', monospace;
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-        @media (max-width: 768px) {
-            .capacity-grid { grid-template-columns: repeat(2, 1fr); }
-        }
+        .fila-capacidad .form-select { flex: 2; }
+        .fila-capacidad .form-control { flex: 1; }
+        .empty-state { text-align: center; padding: 2rem 1rem; color: #999; }
+        .empty-state .bi { font-size: 2.5rem; opacity: 0.5; }
     </style>
 </head>
 <body>
-    <div class="dashboard-container">
+    <?php include __DIR__ . '/../../../includes/sidebar/sidebar_sec.php'; ?>
 
-        <?php
-        include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
-        ?>
+    <main class="main-content">
+        <div class="container-fluid py-4">
 
-        <main class="main-content">
-            <div class="content-wrapper">
-
-                <!-- Encabezado -->
-                <div class="page-header">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div>
-                            <h1><i class="bi bi-truck"></i> Unidades de Transporte</h1>
-                            <p class="text-muted mb-0" style="font-size: 0.85rem;">
-                                Gestión de unidades disponibles para Salidas de Envases (SEC)
-                            </p>
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalUnidad" onclick="abrirModalNueva()">
-                                <i class="bi bi-plus-circle me-1"></i> Nueva Unidad
-                            </button>
-                        </div>
-                    </div>
+            <!-- Encabezado -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+                <div>
+                    <h1 class="h3 mb-0"><i class="bi bi-truck-front"></i> Unidades de Transporte</h1>
+                    <small class="text-muted">
+                        <?php echo $puede_editar
+                            ? 'Gestiona las unidades y sus capacidades por especificación.'
+                            : 'Consulta las unidades de transporte disponibles (solo lectura).'; ?>
+                    </small>
                 </div>
-
-                <!-- Mensajes flash -->
-                <?php if ($msg_flash && isset($mensajes[$msg_flash])): ?>
-                    <div class="alert alert-<?php echo $mensajes[$msg_flash][0]; ?> alert-dismissible fade show" role="alert">
-                        <?php echo htmlspecialchars($mensajes[$msg_flash][1]); ?>
-                        <?php if (!empty($errores_flash)): ?>
-                            <ul class="mb-0 mt-2">
-                                <?php foreach ($errores_flash as $err): ?>
-                                    <li><?php echo htmlspecialchars($err); ?></li>
-                                <?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
+                <?php if ($puede_editar): ?>
+                <button type="button" class="btn btn-primary" onclick="abrirNuevaUnidad()">
+                    <i class="bi bi-plus-circle"></i> Nueva Unidad
+                </button>
                 <?php endif; ?>
-
-                <!-- Filtros -->
-                <div class="card mb-3">
-                    <div class="card-body py-2">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                            <div>
-                                <span class="text-muted me-2">
-                                    <i class="bi bi-list-ul"></i> Total: <strong><?php echo count($unidades); ?></strong> unidades
-                                </span>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="toggleInactivas"
-                                       <?php echo $mostrar_inactivas ? 'checked' : ''; ?>
-                                       onchange="window.location='?inactivas=<?php echo $mostrar_inactivas ? '0' : '1'; ?>'">
-                                <label class="form-check-label" for="toggleInactivas">
-                                    Mostrar inactivas
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tabla -->
-                <div class="card">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 60px;">#</th>
-                                        <th>Nombre</th>
-                                        <th>Placas</th>
-                                        <th style="min-width: 280px;">Capacidad por tipo de envase</th>
-                                        <th class="text-center" style="width: 110px;">Estado</th>
-                                        <th class="text-center" style="width: 140px;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($unidades)): ?>
-                                        <tr>
-                                            <td colspan="6" class="text-center text-muted py-5">
-                                                <i class="bi bi-inbox" style="font-size: 2rem;"></i><br>
-                                                No hay unidades registradas. Crea la primera con el botón <strong>Nueva Unidad</strong>.
-                                            </td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($unidades as $u): ?>
-                                            <tr <?php echo $u['activa'] == 0 ? 'class="table-secondary"' : ''; ?>>
-                                                <td><?php echo (int)$u['id']; ?></td>
-                                                <td>
-                                                    <strong><?php echo htmlspecialchars($u['nombre']); ?></strong>
-                                                </td>
-                                                <td class="placa-cell"><?php echo htmlspecialchars($u['placas']); ?></td>
-                                                <td>
-                                                    <div class="capacity-grid">
-                                                        <div class="capacity-cell">
-                                                            <span class="label">TMB</span>
-                                                            <span class="value"><?php echo (int)$u['capacidad_tmb']; ?></span>
-                                                        </div>
-                                                        <div class="capacity-cell">
-                                                            <span class="label">TOTE</span>
-                                                            <span class="value"><?php echo (int)$u['capacidad_tote']; ?></span>
-                                                        </div>
-                                                        <div class="capacity-cell">
-                                                            <span class="label">GFA</span>
-                                                            <span class="value"><?php echo (int)$u['capacidad_gfa']; ?></span>
-                                                        </div>
-                                                        <div class="capacity-cell">
-                                                            <span class="label">JAULA</span>
-                                                            <span class="value"><?php echo (int)$u['capacidad_jaula']; ?></span>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td class="text-center">
-                                                    <?php if ($u['activa'] == 1): ?>
-                                                        <span class="badge bg-success">Activa</span>
-                                                    <?php else: ?>
-                                                        <span class="badge badge-inactiva">Inactiva</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="btn-group btn-group-sm" role="group">
-                                                        <button type="button" class="btn btn-outline-primary"
-                                                                title="Editar"
-                                                                data-bs-toggle="modal" data-bs-target="#modalUnidad"
-                                                                onclick='abrirModalEditar(<?php echo json_encode($u, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>
-                                                            <i class="bi bi-pencil"></i>
-                                                        </button>
-                                                        <?php if ($u['activa'] == 1): ?>
-                                                            <button type="button" class="btn btn-outline-warning"
-                                                                    title="Desactivar"
-                                                                    onclick="confirmarDesactivar(<?php echo (int)$u['id']; ?>, '<?php echo htmlspecialchars($u['nombre'], ENT_QUOTES); ?>', <?php echo (int)$usos_por_unidad[$u['id']]; ?>)">
-                                                                <i class="bi bi-slash-circle"></i>
-                                                            </button>
-                                                        <?php else: ?>
-                                                            <button type="button" class="btn btn-outline-success"
-                                                                    title="Reactivar"
-                                                                    onclick="confirmarReactivar(<?php echo (int)$u['id']; ?>, '<?php echo htmlspecialchars($u['nombre'], ENT_QUOTES); ?>')">
-                                                                <i class="bi bi-arrow-counterclockwise"></i>
-                                                            </button>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
             </div>
-        </main>
 
-    </div>
+            <!-- Listado -->
+            <?php if (empty($unidades)): ?>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Aún no hay unidades de transporte registradas.
+                    <?php if ($puede_editar): ?>
+                        Presiona <strong>Nueva Unidad</strong> para crear la primera.
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <div class="row g-3">
+                    <?php foreach ($unidades as $u):
+                        $caps = obtener_capacidades_unidad($u['id']);
+                    ?>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card unidad-card h-100 <?php echo $u['activo'] ? '' : 'border-secondary opacity-75'; ?>">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-0 d-flex align-items-center gap-2">
+                                        <i class="bi bi-truck text-primary"></i>
+                                        <span><?php echo htmlspecialchars($u['nombre']); ?></span>
+                                        <?php if (!$u['activo']): ?>
+                                            <span class="badge bg-secondary">Inactiva</span>
+                                        <?php endif; ?>
+                                    </h5>
+                                    <?php if (!empty($u['matricula'])): ?>
+                                    <small class="text-muted">
+                                        <i class="bi bi-hash"></i> <?php echo htmlspecialchars($u['matricula']); ?>
+                                    </small>
+                                    <?php endif; ?>
+                                </div>
+                                <?php if ($puede_editar): ?>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-link text-dark p-0" data-bs-toggle="dropdown" aria-label="Acciones">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="abrirEditarUnidad(<?php echo (int) $u['id']; ?>); return false;">
+                                                <i class="bi bi-pencil"></i> Editar
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="#" onclick="eliminarUnidad(<?php echo (int) $u['id']; ?>, <?php echo htmlspecialchars(json_encode($u['nombre']), ENT_QUOTES); ?>); return false;">
+                                                <i class="bi bi-trash"></i> Eliminar
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted d-block mb-2">
+                                    <?php echo count($caps); ?> capacidad<?php echo count($caps) === 1 ? '' : 'es'; ?> configurada<?php echo count($caps) === 1 ? '' : 's'; ?>
+                                </small>
 
-    <!-- ===================================================================== -->
-    <!-- MODAL: Crear / Editar Unidad                                           -->
-    <!-- ===================================================================== -->
+                                <?php if (empty($caps)): ?>
+                                    <p class="text-muted small mb-2">Sin capacidades configuradas.</p>
+                                <?php else: ?>
+                                    <ul class="list-unstyled mb-2">
+                                        <?php foreach ($caps as $c): ?>
+                                        <li class="cap-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong><?php echo htmlspecialchars($c['tipo_nombre']); ?></strong>
+                                                <br>
+                                                <small class="<?php echo $c['especificacion_activa'] ? 'text-muted' : 'text-danger'; ?>">
+                                                    <?php echo htmlspecialchars($c['especificacion_nombre']); ?>
+                                                    <?php if (!$c['especificacion_activa']): ?>
+                                                        <i class="bi bi-exclamation-circle" title="Especificación inactiva"></i>
+                                                    <?php endif; ?>
+                                                </small>
+                                            </div>
+                                            <span class="cap-cantidad"><?php echo number_format((int) $c['capacidad_maxima']); ?></span>
+                                        </li>
+                                        <?php endforeach; ?>
+                                    </ul>
+                                <?php endif; ?>
+
+                                <?php if (!empty($u['notas'])): ?>
+                                <hr class="my-2">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-sticky"></i> <?php echo nl2br(htmlspecialchars($u['notas'])); ?>
+                                </small>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </main>
+
+    <?php if ($puede_editar): ?>
+    <!-- ================== MODAL: Nueva / Editar unidad ================== -->
     <div class="modal fade" id="modalUnidad" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <form action="<?php echo URL_BASE; ?>dashboard/salidas_envases/guardar_unidad_transporte.php" method="POST" id="formUnidad" novalidate>
+                <form method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades/guardar_unidad_transporte.php" id="formUnidad">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="modalUnidadTitulo">
-                            <i class="bi bi-truck"></i> Nueva Unidad de Transporte
+                        <h5 class="modal-title">
+                            <i class="bi bi-truck-front"></i>
+                            <span id="modalUnidadTitulo">Nueva Unidad de Transporte</span>
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <input type="hidden" name="accion" id="accion" value="crear">
-                        <input type="hidden" name="id" id="id" value="">
+                        <input type="hidden" name="id" id="unidadId" value="">
 
-                        <div class="row g-3">
-                            <div class="col-md-7">
-                                <label class="form-label">Nombre de la unidad <span class="text-danger">*</span></label>
-                                <input type="text" name="nombre" id="nombre" class="form-control" maxlength="100" required>
-                                <small class="text-muted">Ejemplo: Camión 1, Pickup Norte, Furgón Ruta A.</small>
+                        <!-- Datos base -->
+                        <fieldset class="mb-4">
+                            <legend class="h6 text-muted mb-3">Datos de la unidad</legend>
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label class="form-label fw-bold">Nombre: <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="nombre" id="unidadNombre"
+                                           maxlength="100" required placeholder="Ej. Camión 01, Tortón Rojo">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Matrícula:</label>
+                                    <input type="text" class="form-control" name="matricula" id="unidadMatricula"
+                                           maxlength="50" placeholder="Ej. ABC-1234">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold">Notas:</label>
+                                    <textarea class="form-control" name="notas" id="unidadNotas" rows="2"
+                                              placeholder="Detalles adicionales, restricciones, etc."></textarea>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check form-switch">
+                                        <input type="checkbox" class="form-check-input" name="activo" id="unidadActivo" value="1" checked>
+                                        <label class="form-check-label" for="unidadActivo">Activa</label>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-5">
-                                <label class="form-label">Placas <span class="text-danger">*</span></label>
-                                <input type="text" name="placas" id="placas" class="form-control text-uppercase placa-cell" maxlength="20" required
-                                       style="letter-spacing: 1px;">
-                            </div>
-                        </div>
+                        </fieldset>
 
-                        <hr class="my-4">
+                        <!-- Capacidades -->
+                        <fieldset>
+                            <legend class="h6 text-muted mb-3">
+                                Capacidades por especificación
+                                <small class="text-muted fw-normal">(opcional — se pueden agregar después)</small>
+                            </legend>
 
-                        <h6 class="mb-3"><i class="bi bi-box-seam me-1"></i> Capacidad permitida por tipo de envase</h6>
-                        <div class="row g-3">
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">TMB <small class="text-muted">(Tambo)</small></label>
-                                <input type="number" name="capacidad_tmb" id="capacidad_tmb" class="form-control" min="0" step="1" value="0" required>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">TOTE</label>
-                                <input type="number" name="capacidad_tote" id="capacidad_tote" class="form-control" min="0" step="1" value="0" required>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">GFA <small class="text-muted">(Garrafa)</small></label>
-                                <input type="number" name="capacidad_gfa" id="capacidad_gfa" class="form-control" min="0" step="1" value="0" required>
-                            </div>
-                            <div class="col-6 col-md-3">
-                                <label class="form-label">JAULA</label>
-                                <input type="number" name="capacidad_jaula" id="capacidad_jaula" class="form-control" min="0" step="1" value="0" required>
-                            </div>
-                        </div>
-                        <small class="text-muted d-block mt-2">
-                            <i class="bi bi-info-circle"></i> Si la unidad no permite cierto tipo de envase, deja el valor en 0.
-                        </small>
+                            <?php if (empty($especificaciones_activas)): ?>
+                                <div class="alert alert-warning small mb-2">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    No hay especificaciones activas en el catálogo.
+                                    Primero registra tipos y especificaciones en <strong>Tipos de Envase</strong>.
+                                </div>
+                            <?php else: ?>
+                            <div id="contenedorCapacidades"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="agregarCapacidad()">
+                                <i class="bi bi-plus"></i> Agregar capacidad
+                            </button>
+                            <?php endif; ?>
+                        </fieldset>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="bi bi-x-circle"></i> Cancelar
-                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-circle"></i> <span id="btnGuardarTxt">Crear unidad</span>
+                            <i class="bi bi-check-circle"></i> Guardar
                         </button>
                     </div>
                 </form>
@@ -338,63 +283,143 @@ unset($_SESSION['unidad_errores']);
         </div>
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- FORMS OCULTOS: desactivar / reactivar                                  -->
-    <!-- ===================================================================== -->
-    <form id="formDesactivar" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/eliminar_unidad_transporte.php" method="POST" style="display:none;">
-        <input type="hidden" name="accion" value="desactivar">
-        <input type="hidden" name="id" id="desactivarId" value="">
+    <!-- Formulario silencioso para eliminación -->
+    <form method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades/eliminar_unidad_transporte.php"
+          id="formEliminarUnidad" style="display:none;">
+        <input type="hidden" name="id" id="eliminarUnidadId">
     </form>
-    <form id="formReactivar" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/eliminar_unidad_transporte.php" method="POST" style="display:none;">
-        <input type="hidden" name="accion" value="reactivar">
-        <input type="hidden" name="id" id="reactivarId" value="">
-    </form>
+
+    <!-- Template de fila de capacidad -->
+    <template id="tplCapacidad">
+        <div class="fila-capacidad">
+            <select class="form-select form-select-sm" name="capacidades[__i__][especificacion_id]" required>
+                <option value="">Especificación…</option>
+                <?php
+                // Agrupar por tipo
+                $agrupadas = [];
+                foreach ($especificaciones_activas as $e) {
+                    $agrupadas[$e['tipo_nombre']][] = $e;
+                }
+                foreach ($agrupadas as $tipo_nombre => $especs):
+                ?>
+                <optgroup label="<?php echo htmlspecialchars($tipo_nombre); ?>">
+                    <?php foreach ($especs as $e): ?>
+                    <option value="<?php echo (int) $e['id']; ?>">
+                        <?php echo htmlspecialchars($e['nombre']); ?>
+                    </option>
+                    <?php endforeach; ?>
+                </optgroup>
+                <?php endforeach; ?>
+            </select>
+            <input type="number" class="form-control form-control-sm" name="capacidades[__i__][capacidad_maxima]"
+                   min="1" step="1" placeholder="Cantidad" required>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.fila-capacidad').remove()" title="Quitar">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </template>
+    <?php endif; // fin bloque solo Logística ?>
+
+    <!-- Toast de mensajes flash -->
+    <?php if (isset($_SESSION['flash_msg'])): ?>
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div class="toast show" role="alert">
+            <div class="toast-header bg-<?php echo $_SESSION['flash_tipo'] ?? 'primary'; ?> text-white">
+                <strong class="me-auto">
+                    <?php echo ($_SESSION['flash_tipo'] ?? '') === 'success' ? 'Éxito' : (($_SESSION['flash_tipo'] ?? '') === 'danger' ? 'Error' : 'Aviso'); ?>
+                </strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body"><?php echo htmlspecialchars($_SESSION['flash_msg']); ?></div>
+        </div>
+    </div>
+    <?php unset($_SESSION['flash_msg'], $_SESSION['flash_tipo']); endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+
+    <?php if ($puede_editar): ?>
     <script>
-        function abrirModalNueva() {
-            document.getElementById('formUnidad').reset();
-            document.getElementById('accion').value = 'crear';
-            document.getElementById('id').value = '';
-            document.getElementById('modalUnidadTitulo').innerHTML = '<i class="bi bi-truck"></i> Nueva Unidad de Transporte';
-            document.getElementById('btnGuardarTxt').textContent = 'Crear unidad';
-        }
+    // Datos completos de las unidades para poblar el modal al editar
+    const UNIDADES_DATA = <?php echo json_encode($unidades_data, JSON_UNESCAPED_UNICODE); ?>;
 
-        function abrirModalEditar(u) {
-            document.getElementById('formUnidad').reset();
-            document.getElementById('accion').value = 'editar';
-            document.getElementById('id').value = u.id;
-            document.getElementById('nombre').value = u.nombre;
-            document.getElementById('placas').value = u.placas;
-            document.getElementById('capacidad_tmb').value   = u.capacidad_tmb;
-            document.getElementById('capacidad_tote').value  = u.capacidad_tote;
-            document.getElementById('capacidad_gfa').value   = u.capacidad_gfa;
-            document.getElementById('capacidad_jaula').value = u.capacidad_jaula;
-            document.getElementById('modalUnidadTitulo').innerHTML = '<i class="bi bi-pencil"></i> Editar Unidad: ' + u.nombre;
-            document.getElementById('btnGuardarTxt').textContent = 'Guardar cambios';
-        }
+    let capIndex = 0;
 
-        function confirmarDesactivar(id, nombre, usos) {
-            let msg = '¿Desactivar la unidad "' + nombre + '"?\n\n';
-            if (usos > 0) {
-                msg += '⚠️ Esta unidad está asignada en ' + usos + ' línea(s) de SEC históricas. ';
-                msg += 'Esas referencias se mantendrán intactas, pero la unidad ya no aparecerá disponible para nuevas SEC.';
-            } else {
-                msg += 'Podrás reactivarla después si lo necesitas.';
-            }
-            if (confirm(msg)) {
-                document.getElementById('desactivarId').value = id;
-                document.getElementById('formDesactivar').submit();
-            }
+    function agregarCapacidad(especId = null, cantidad = null) {
+        const tpl = document.getElementById('tplCapacidad');
+        if (!tpl) return;
+        const clone = tpl.content.cloneNode(true);
+        // Renombrar los name[] con el índice único
+        clone.querySelectorAll('[name*="__i__"]').forEach(el => {
+            el.name = el.name.replace('__i__', capIndex);
+        });
+        // Prepoblar si viene con datos (modo edición)
+        if (especId !== null) {
+            const sel = clone.querySelector('select');
+            const inp = clone.querySelector('input[type="number"]');
+            if (sel) sel.value = especId;
+            if (inp) inp.value = cantidad;
         }
+        document.getElementById('contenedorCapacidades').appendChild(clone);
+        capIndex++;
+    }
 
-        function confirmarReactivar(id, nombre) {
-            if (confirm('¿Reactivar la unidad "' + nombre + '"?')) {
-                document.getElementById('reactivarId').value = id;
-                document.getElementById('formReactivar').submit();
-            }
+    function limpiarCapacidades() {
+        const cont = document.getElementById('contenedorCapacidades');
+        if (cont) cont.innerHTML = '';
+        capIndex = 0;
+    }
+
+    function abrirNuevaUnidad() {
+        document.getElementById('formUnidad').reset();
+        document.getElementById('unidadId').value = '';
+        document.getElementById('unidadActivo').checked = true;
+        document.getElementById('modalUnidadTitulo').textContent = 'Nueva Unidad de Transporte';
+        limpiarCapacidades();
+        new bootstrap.Modal(document.getElementById('modalUnidad')).show();
+    }
+
+    function abrirEditarUnidad(id) {
+        const u = UNIDADES_DATA[id];
+        if (!u) {
+            alert('No se pudo cargar la unidad.');
+            return;
         }
+        document.getElementById('formUnidad').reset();
+        document.getElementById('unidadId').value = u.id;
+        document.getElementById('unidadNombre').value = u.nombre || '';
+        document.getElementById('unidadMatricula').value = u.matricula || '';
+        document.getElementById('unidadNotas').value = u.notas || '';
+        document.getElementById('unidadActivo').checked = (u.activo === 1 || u.activo === '1');
+        document.getElementById('modalUnidadTitulo').textContent = 'Editar: ' + u.nombre;
+
+        limpiarCapacidades();
+        (u.capacidades || []).forEach(c => {
+            agregarCapacidad(c.especificacion_id, c.capacidad_maxima);
+            // Si la especificación está inactiva y ya no aparece en el select,
+            // la agregamos manualmente para no perder el dato
+            const cont = document.getElementById('contenedorCapacidades');
+            const ultimaFila = cont.lastElementChild;
+            const sel = ultimaFila.querySelector('select');
+            if (sel && sel.value !== String(c.especificacion_id)) {
+                const opt = document.createElement('option');
+                opt.value = c.especificacion_id;
+                opt.textContent = '⚠ ' + (c.tipo_nombre || '') + ' — ' + (c.especificacion_nombre || '') + ' (inactiva)';
+                sel.appendChild(opt);
+                sel.value = c.especificacion_id;
+            }
+        });
+
+        new bootstrap.Modal(document.getElementById('modalUnidad')).show();
+    }
+
+    function eliminarUnidad(id, nombre) {
+        if (confirm('¿Eliminar la unidad "' + nombre + '"?\n\nEsto también eliminará todas sus capacidades configuradas.')) {
+            document.getElementById('eliminarUnidadId').value = id;
+            document.getElementById('formEliminarUnidad').submit();
+        }
+    }
     </script>
+    <?php endif; ?>
 </body>
 </html>

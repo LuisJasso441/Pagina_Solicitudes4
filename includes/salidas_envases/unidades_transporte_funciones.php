@@ -1,235 +1,302 @@
 <?php
 /**
- * Funciones del módulo de Unidades de Transporte
- * Parte del módulo SEC - Salidas de Envases para Clientes
+ * Funciones de Unidades de Transporte + Capacidades
  *
  * Ubicación: includes/salidas_envases/unidades_transporte_funciones.php
  *
- * Gestión exclusiva por Logística. Otros módulos (SEC, Disponibilidad)
- * consultan unidades activas para asignación.
+ * Modelo:
+ *   unidades_transporte      → datos base de la unidad
+ *   unidades_capacidades     → capacidad máxima por especificación de cada unidad
+ *
+ * Permisos:
+ *   - Logística: CRUD completo.
+ *   - Almacén de Residuos y Ventas: solo lectura.
  */
 
 require_once __DIR__ . '/../../config/database.php';
 
-// ====================================================================
-// CONSULTAS
-// ====================================================================
+// =====================================================================
+// LECTURA
+// =====================================================================
 
-/**
- * Obtener todas las unidades de transporte
- *
- * @param bool $solo_activas Si true, sólo retorna las que tienen activa=1
- * @return array
- */
-function obtener_unidades_transporte($solo_activas = true) {
+function obtener_unidades_transporte($incluir_inactivas = false) {
     try {
         $pdo = conectarDB();
-        $sql = "SELECT * FROM unidades_transporte";
-        if ($solo_activas) {
-            $sql .= " WHERE activa = 1";
-        }
-        $sql .= " ORDER BY activa DESC, nombre ASC";
-        return $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        $where = $incluir_inactivas ? '' : 'WHERE u.activo = 1';
+        $sql = "
+            SELECT
+                u.*,
+                COUNT(c.id) AS total_capacidades
+            FROM unidades_transporte u
+            LEFT JOIN unidades_capacidades c ON c.unidad_id = u.id
+            {$where}
+            GROUP BY u.id
+            ORDER BY u.nombre ASC
+        ";
+        $stmt = $pdo->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
-        error_log("Error obtener_unidades_transporte: " . $e->getMessage());
+        error_log('obtener_unidades_transporte: ' . $e->getMessage());
         return [];
     }
 }
 
-/**
- * Obtener una unidad por su ID
- *
- * @param int $id
- * @return array|false
- */
 function obtener_unidad_transporte_por_id($id) {
     try {
         $pdo = conectarDB();
         $stmt = $pdo->prepare("SELECT * FROM unidades_transporte WHERE id = ?");
-        $stmt->execute([(int)$id]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $stmt->execute([$id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     } catch (Exception $e) {
-        error_log("Error obtener_unidad_transporte_por_id: " . $e->getMessage());
+        error_log('obtener_unidad_transporte_por_id: ' . $e->getMessage());
+        return null;
+    }
+}
+
+function existe_unidad_transporte($nombre, $excluir_id = null) {
+    try {
+        $pdo = conectarDB();
+        $sql = "SELECT id FROM unidades_transporte WHERE nombre = ?";
+        $params = [trim($nombre)];
+        if ($excluir_id !== null) {
+            $sql .= " AND id != ?";
+            $params[] = (int) $excluir_id;
+        }
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchColumn() !== false;
+    } catch (Exception $e) {
+        error_log('existe_unidad_transporte: ' . $e->getMessage());
         return false;
     }
 }
 
-/**
- * Contar cuántas SEC usan esta unidad (para advertir antes de desactivar)
- *
- * @param int $id
- * @return int
- */
-function contar_usos_unidad_transporte($id) {
+// =====================================================================
+// CAPACIDADES
+// =====================================================================
+
+function obtener_capacidades_unidad($unidad_id) {
     try {
         $pdo = conectarDB();
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM sec_lineas WHERE unidad_transporte_id = ?");
-        $stmt->execute([(int)$id]);
-        return (int)$stmt->fetchColumn();
+        $sql = "
+            SELECT
+                c.id,
+                c.unidad_id,
+                c.especificacion_id,
+                c.capacidad_maxima,
+                e.nombre AS especificacion_nombre,
+                e.activo AS especificacion_activa,
+                t.id     AS tipo_id,
+                t.nombre AS tipo_nombre,
+                t.activo AS tipo_activo
+            FROM unidades_capacidades c
+            INNER JOIN sec_especificaciones e ON e.id = c.especificacion_id
+            INNER JOIN sec_tipos_envase t     ON t.id = e.tipo_envase_id
+            WHERE c.unidad_id = ?
+            ORDER BY t.nombre ASC, e.nombre ASC
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$unidad_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
-        error_log("Error contar_usos_unidad_transporte: " . $e->getMessage());
-        return 0;
+        error_log('obtener_capacidades_unidad: ' . $e->getMessage());
+        return [];
     }
 }
 
-// ====================================================================
-// VALIDACIÓN
-// ====================================================================
+function especificacion_usada_en_unidades($especificacion_id) {
+    try {
+        $pdo = conectarDB();
+        $stmt = $pdo->prepare("SELECT id FROM unidades_capacidades WHERE especificacion_id = ? LIMIT 1");
+        $stmt->execute([$especificacion_id]);
+        return $stmt->fetch() !== false;
+    } catch (Exception $e) {
+        error_log('especificacion_usada_en_unidades: ' . $e->getMessage());
+        return true;
+    }
+}
 
-/**
- * Validar datos de una unidad de transporte
- *
- * @param array $datos
- * @return array Lista de errores (vacía si OK)
- */
-function validar_unidad_transporte($datos) {
-    $errores = [];
+// =====================================================================
+// CREACIÓN Y ACTUALIZACIÓN (un solo método para ambos)
+// =====================================================================
 
-    $nombre = trim($datos['nombre'] ?? '');
+function guardar_unidad_transporte($id, $datos, $capacidades, $usuario_id) {
+    $nombre    = trim($datos['nombre'] ?? '');
+    $matricula = trim($datos['matricula'] ?? '');
+    $notas     = trim($datos['notas'] ?? '');
+    $activo    = !empty($datos['activo']) ? 1 : 0;
+
     if ($nombre === '') {
-        $errores[] = 'El nombre de la unidad es obligatorio.';
-    } elseif (mb_strlen($nombre) > 100) {
-        $errores[] = 'El nombre no puede exceder 100 caracteres.';
+        return ['ok' => false, 'msg' => 'El nombre es obligatorio.'];
+    }
+    if (mb_strlen($nombre) > 100) {
+        return ['ok' => false, 'msg' => 'El nombre no puede exceder 100 caracteres.'];
+    }
+    if (mb_strlen($matricula) > 50) {
+        return ['ok' => false, 'msg' => 'La matrícula no puede exceder 50 caracteres.'];
+    }
+    if (existe_unidad_transporte($nombre, $id)) {
+        return ['ok' => false, 'msg' => 'Ya existe otra unidad con ese nombre.'];
     }
 
-    $placas = trim($datos['placas'] ?? '');
-    if ($placas === '') {
-        $errores[] = 'Las placas son obligatorias.';
-    } elseif (mb_strlen($placas) > 20) {
-        $errores[] = 'Las placas no pueden exceder 20 caracteres.';
+    if ($id !== null && !obtener_unidad_transporte_por_id($id)) {
+        return ['ok' => false, 'msg' => 'La unidad no existe.'];
     }
 
-    $tipos = ['tmb', 'tote', 'gfa', 'jaula'];
-    foreach ($tipos as $tipo) {
-        $key = "capacidad_$tipo";
-        $val = $datos[$key] ?? 0;
-        if (!is_numeric($val) || (int)$val < 0) {
-            $errores[] = "La capacidad de " . strtoupper($tipo) . " debe ser un entero ≥ 0.";
+    $caps_limpias = [];
+    $vistas       = [];
+    foreach ($capacidades as $idx => $cap) {
+        $espec_id = (int) ($cap['especificacion_id'] ?? 0);
+        $cant     = (int) ($cap['capacidad_maxima'] ?? 0);
+        if ($espec_id <= 0) continue;
+        if ($cant <= 0) {
+            return ['ok' => false, 'msg' => "Capacidad #" . ($idx + 1) . ": la cantidad debe ser mayor a 0."];
+        }
+        if (isset($vistas[$espec_id])) {
+            return ['ok' => false, 'msg' => "Capacidad #" . ($idx + 1) . ": la especificación se repite en el formulario."];
+        }
+        $vistas[$espec_id] = true;
+        $caps_limpias[] = ['especificacion_id' => $espec_id, 'capacidad_maxima' => $cant];
+    }
+
+    if (!empty($caps_limpias)) {
+        try {
+            $pdo_check = conectarDB();
+            $espec_ids = array_column($caps_limpias, 'especificacion_id');
+            $ph = implode(',', array_fill(0, count($espec_ids), '?'));
+            $stmt = $pdo_check->prepare("SELECT id FROM sec_especificaciones WHERE id IN ({$ph})");
+            $stmt->execute($espec_ids);
+            $existentes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $faltantes = array_diff($espec_ids, $existentes);
+            if (!empty($faltantes)) {
+                return ['ok' => false, 'msg' => 'Alguna especificación seleccionada no existe.'];
+            }
+        } catch (Exception $e) {
+            error_log('guardar_unidad_transporte (validar specs): ' . $e->getMessage());
+            return ['ok' => false, 'msg' => 'Error al validar capacidades.'];
         }
     }
 
-    return $errores;
-}
-
-// ====================================================================
-// MUTACIONES
-// ====================================================================
-
-/**
- * Crear nueva unidad de transporte
- *
- * @param array $datos
- * @param int   $usuario_id
- * @return array ['success' => bool, 'id' => int|null, 'errores' => array]
- */
-function crear_unidad_transporte($datos, $usuario_id) {
-    $errores = validar_unidad_transporte($datos);
-    if (!empty($errores)) {
-        return ['success' => false, 'id' => null, 'errores' => $errores];
-    }
-
+    $pdo = null;
     try {
         $pdo = conectarDB();
-        $stmt = $pdo->prepare("
-            INSERT INTO unidades_transporte
-                (nombre, placas,
-                 capacidad_tmb, capacidad_tote, capacidad_gfa, capacidad_jaula,
-                 activa, created_by, updated_by)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-        ");
-        $stmt->execute([
-            trim($datos['nombre']),
-            strtoupper(trim($datos['placas'])),
-            (int)($datos['capacidad_tmb']   ?? 0),
-            (int)($datos['capacidad_tote']  ?? 0),
-            (int)($datos['capacidad_gfa']   ?? 0),
-            (int)($datos['capacidad_jaula'] ?? 0),
-            (int)$usuario_id,
-            (int)$usuario_id
-        ]);
-        return ['success' => true, 'id' => (int)$pdo->lastInsertId(), 'errores' => []];
+        $pdo->beginTransaction();
+
+        if ($id === null) {
+            $stmt = $pdo->prepare("
+                INSERT INTO unidades_transporte (nombre, matricula, notas, activo, creado_por)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $nombre,
+                $matricula !== '' ? $matricula : null,
+                $notas !== '' ? $notas : null,
+                $activo,
+                $usuario_id,
+            ]);
+            $unidad_id = (int) $pdo->lastInsertId();
+        } else {
+            $unidad_id = (int) $id;
+            $stmt = $pdo->prepare("
+                UPDATE unidades_transporte
+                SET nombre = ?, matricula = ?, notas = ?, activo = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $nombre,
+                $matricula !== '' ? $matricula : null,
+                $notas !== '' ? $notas : null,
+                $activo,
+                $unidad_id,
+            ]);
+            $stmt = $pdo->prepare("DELETE FROM unidades_capacidades WHERE unidad_id = ?");
+            $stmt->execute([$unidad_id]);
+        }
+
+        if (!empty($caps_limpias)) {
+            $stmt = $pdo->prepare("
+                INSERT INTO unidades_capacidades (unidad_id, especificacion_id, capacidad_maxima)
+                VALUES (?, ?, ?)
+            ");
+            foreach ($caps_limpias as $cap) {
+                $stmt->execute([$unidad_id, $cap['especificacion_id'], $cap['capacidad_maxima']]);
+            }
+        }
+
+        $pdo->commit();
+        return [
+            'ok' => true,
+            'msg' => $id === null ? 'Unidad creada correctamente.' : 'Unidad actualizada correctamente.',
+            'unidad_id' => $unidad_id,
+        ];
     } catch (Exception $e) {
-        error_log("Error crear_unidad_transporte: " . $e->getMessage());
-        return ['success' => false, 'id' => null, 'errores' => ['Error al guardar: ' . $e->getMessage()]];
+        if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
+        error_log('guardar_unidad_transporte: ' . $e->getMessage());
+        return ['ok' => false, 'msg' => 'Error al guardar la unidad. Intente de nuevo.'];
     }
 }
 
+// =====================================================================
+// VALIDACIÓN DE USO (para bloquear eliminación)
+// =====================================================================
+
 /**
- * Actualizar unidad de transporte existente
+ * Devuelve un array con las razones por las que una unidad está en uso.
+ * Array vacío significa que se puede eliminar.
  *
- * @param int   $id
- * @param array $datos
- * @param int   $usuario_id
- * @return array ['success' => bool, 'errores' => array]
- */
-function actualizar_unidad_transporte($id, $datos, $usuario_id) {
-    $errores = validar_unidad_transporte($datos);
-    if (!empty($errores)) {
-        return ['success' => false, 'errores' => $errores];
-    }
-
-    try {
-        $pdo = conectarDB();
-        $stmt = $pdo->prepare("
-            UPDATE unidades_transporte
-            SET nombre = ?,
-                placas = ?,
-                capacidad_tmb = ?, capacidad_tote = ?, capacidad_gfa = ?, capacidad_jaula = ?,
-                updated_by = ?
-            WHERE id = ?
-        ");
-        $stmt->execute([
-            trim($datos['nombre']),
-            strtoupper(trim($datos['placas'])),
-            (int)($datos['capacidad_tmb']   ?? 0),
-            (int)($datos['capacidad_tote']  ?? 0),
-            (int)($datos['capacidad_gfa']   ?? 0),
-            (int)($datos['capacidad_jaula'] ?? 0),
-            (int)$usuario_id,
-            (int)$id
-        ]);
-        return ['success' => true, 'errores' => []];
-    } catch (Exception $e) {
-        error_log("Error actualizar_unidad_transporte: " . $e->getMessage());
-        return ['success' => false, 'errores' => ['Error al actualizar: ' . $e->getMessage()]];
-    }
-}
-
-/**
- * Soft delete: marca activa=0
- * NO se elimina físicamente para preservar histórico en SECs ya emitidas.
+ * Verifica:
+ *   - Bloque 5: sec_vueltas (vueltas programadas)
+ *
+ * Pendiente en bloques futuros:
+ *   - Bloque 6 (SECs)
  *
  * @param int $id
- * @param int $usuario_id
- * @return array ['success' => bool, 'errores' => array]
+ * @return string[] razones (vacío si no está en uso)
  */
-function desactivar_unidad_transporte($id, $usuario_id) {
+function unidad_en_uso($id) {
+    $razones = [];
     try {
         $pdo = conectarDB();
-        $stmt = $pdo->prepare("UPDATE unidades_transporte SET activa = 0, updated_by = ? WHERE id = ?");
-        $stmt->execute([(int)$usuario_id, (int)$id]);
-        return ['success' => true, 'errores' => []];
+
+        // Vueltas programadas
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM sec_vueltas WHERE unidad_id = ?");
+        $stmt->execute([$id]);
+        $n = (int) $stmt->fetchColumn();
+        if ($n > 0) {
+            $razones[] = "tiene {$n} vuelta(s) programada(s)";
+        }
+
+        return $razones;
     } catch (Exception $e) {
-        error_log("Error desactivar_unidad_transporte: " . $e->getMessage());
-        return ['success' => false, 'errores' => ['Error al desactivar: ' . $e->getMessage()]];
+        error_log('unidad_en_uso: ' . $e->getMessage());
+        return ['no se pudo validar el uso (error interno)'];
     }
 }
 
-/**
- * Reactivar unidad previamente desactivada
- *
- * @param int $id
- * @param int $usuario_id
- * @return array ['success' => bool, 'errores' => array]
- */
-function reactivar_unidad_transporte($id, $usuario_id) {
+// =====================================================================
+// ELIMINACIÓN
+// =====================================================================
+
+function eliminar_unidad_transporte($id) {
+    $razones = unidad_en_uso($id);
+    if (!empty($razones)) {
+        return [
+            'ok' => false,
+            'msg' => 'No se puede eliminar la unidad: ' . implode('; ', $razones)
+                   . '. Considere desactivarla en lugar de eliminarla.',
+        ];
+    }
     try {
         $pdo = conectarDB();
-        $stmt = $pdo->prepare("UPDATE unidades_transporte SET activa = 1, updated_by = ? WHERE id = ?");
-        $stmt->execute([(int)$usuario_id, (int)$id]);
-        return ['success' => true, 'errores' => []];
+        // FK ON DELETE CASCADE se encarga de eliminar las capacidades asociadas
+        $stmt = $pdo->prepare("DELETE FROM unidades_transporte WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            return ['ok' => false, 'msg' => 'La unidad no existe.'];
+        }
+        return ['ok' => true, 'msg' => 'Unidad eliminada (con sus capacidades).'];
     } catch (Exception $e) {
-        error_log("Error reactivar_unidad_transporte: " . $e->getMessage());
-        return ['success' => false, 'errores' => ['Error al reactivar: ' . $e->getMessage()]];
+        error_log('eliminar_unidad_transporte: ' . $e->getMessage());
+        return ['ok' => false, 'msg' => 'Error al eliminar.'];
     }
 }

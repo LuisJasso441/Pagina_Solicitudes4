@@ -1,18 +1,19 @@
 <?php
 /**
- * Nueva SEC — Crear Salida de Envases para Clientes
+ * Nueva SEC — Crear Salida de Envases
+ * dashboard/salidas_envases/sec/nueva_sec.php
  *
- * Ubicación: dashboard/salidas_envases/nueva_sec.php
- *
- * Sólo Logística y Ventas (con permiso creador=1).
+ * Solo usuarios con puede_crear_sec() (Logística y Ventas).
+ * La SEC nace directamente en 'pendiente_firma_entrega' con stock descontado.
  */
 
 session_start();
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../auth/verificar_sesion.php';
-require_once __DIR__ . '/../../includes/permisos_helper.php';
-require_once __DIR__ . '/../../includes/salidas_envases/unidades_transporte_funciones.php';
-require_once __DIR__ . '/../../includes/salidas_envases/sec_funciones.php';
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/unidades_transporte_funciones.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/tipos_envase_funciones.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/sec_funciones.php';
 
 verificar_sesion();
 
@@ -26,30 +27,52 @@ actualizar_sesion();
 
 if (!puede_crear_sec()) {
     establecer_alerta('error', 'No tienes permisos para crear Salidas de Envases.');
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
 }
 
 $nombre_usuario = $_SESSION['nombre_completo'];
-$usuario_id     = $_SESSION['usuario_id'];
+$usuario_id     = (int) $_SESSION['usuario_id'];
 $dept           = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
 
 // Datos para selectores
-$unidades = obtener_unidades_transporte(true);
+$unidades                 = obtener_unidades_transporte(false); // solo activas
+$especificaciones_activas = obtener_especificaciones(null, false);
 
-// Errores de validación si vienen de un intento previo
+// Datos para el JS (agrupados por tipo)
+$specs_para_js = [];
+foreach ($especificaciones_activas as $e) {
+    $specs_para_js[] = [
+        'id'        => (int) $e['id'],
+        'nombre'    => $e['nombre'],
+        'tipo_id'   => (int) $e['tipo_envase_id'],
+        'tipo_nombre' => $e['tipo_nombre'],
+    ];
+}
+
+// Errores/datos de intento previo
 $errores_flash = $_SESSION['sec_errores'] ?? [];
 $datos_previos = $_SESSION['sec_datos_previos'] ?? [];
 unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
+
+// Valores previos con defaults
+$prev_fecha       = $datos_previos['fecha_salida']      ?? date('Y-m-d');
+$prev_unidad      = (int) ($datos_previos['unidad_id']  ?? 0);
+$prev_vuelta      = (int) ($datos_previos['vuelta_id']  ?? 0);
+$prev_hora_ini    = $datos_previos['hora_inicio_ruta']  ?? '';
+$prev_hora_fin    = $datos_previos['hora_termino_ruta'] ?? '';
+$prev_chofer      = $datos_previos['chofer_nombre']     ?? '';
+$prev_solicita    = $datos_previos['solicita_nombre']   ?? $nombre_usuario;
+$prev_notas       = $datos_previos['notas_generales']   ?? '';
+$prev_lineas      = $datos_previos['lineas']            ?? [];
 ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva SEC | <?php echo NOMBRE_SISTEMA; ?></title>
+    <title>Nueva SEC | <?php echo defined('NOMBRE_SISTEMA') ? NOMBRE_SISTEMA : 'Verden'; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
@@ -57,481 +80,547 @@ unset($_SESSION['sec_errores'], $_SESSION['sec_datos_previos']);
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
-
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
-        .linea-card {
-            background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;
-            padding: 1rem; margin-bottom: 0.75rem;
+        .linea-empresa {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background: #fbfbfb;
+            position: relative;
         }
-        .linea-card .linea-numero {
-            background: #14b8a6; color: white; width: 30px; height: 30px;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        [data-theme="dark"] .linea-empresa {
+            background: #2a2f34;
+            border-color: #3a3f44;
+        }
+        .linea-numero {
+            position: absolute;
+            top: -10px; left: 12px;
+            background: var(--bs-primary);
+            color: #fff;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
             font-weight: 600;
         }
-        .unidad-selector {
-            background: white; border: 1px solid #ced4da; border-radius: 6px;
-            padding: 0.5rem 0.75rem; cursor: pointer; min-height: 50px;
-            display: flex; align-items: center; justify-content: space-between;
-            transition: all 0.2s;
+        .btn-quitar-linea {
+            position: absolute; top: 8px; right: 8px;
         }
-        .unidad-selector:hover { border-color: #14b8a6; }
-        .unidad-selector.seleccionada { border-color: #14b8a6; background: #f0fdfa; }
-        .unidad-selector .placeholder { color: #6c757d; font-style: italic; }
-        .firma-canvas-wrapper {
-            border: 2px dashed #ced4da; border-radius: 8px;
-            background: #fff; position: relative; overflow: hidden;
+        .stock-info {
+            font-size: 0.78rem;
+            margin-top: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
         }
-        .firma-canvas-wrapper canvas { display: block; width: 100%; height: 180px; }
-        .firma-actions { position: absolute; top: 8px; right: 8px; }
-        .unidad-item {
-            border: 1px solid #dee2e6; border-radius: 6px; padding: 12px; margin-bottom: 8px;
-            cursor: pointer; transition: all 0.2s;
+        .stock-info.ok      { background: #d1e7dd; color: #0f5132; }
+        .stock-info.warning { background: #fff3cd; color: #664d03; }
+        .stock-info.danger  { background: #f8d7da; color: #842029; }
+        [data-theme="dark"] .stock-info.ok      { background: rgba(25,135,84,0.20);  color: #75d5a4; }
+        [data-theme="dark"] .stock-info.warning { background: rgba(255,193,7,0.20);  color: #ffe083; }
+        [data-theme="dark"] .stock-info.danger  { background: rgba(220,53,69,0.20);  color: #ffabab; }
+
+        .campo-cantidad.stock-excedido {
+            border-color: #dc3545 !important;
+            background: #fff5f6;
         }
-        .unidad-item:hover { border-color: #14b8a6; background: #f0fdfa; }
-        .unidad-item .nombre { font-weight: 600; }
-        .capacidad-pill {
-            display: inline-block; background: #e0f2fe; color: #075985;
-            padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin: 2px;
-            font-family: 'Courier New', monospace;
+        [data-theme="dark"] .campo-cantidad.stock-excedido {
+            background: rgba(220,53,69,0.10);
         }
-        .slot-libre-pill {
-            display: inline-block; background: #d1fae5; color: #065f46;
-            border: 1px solid #10b981; padding: 4px 10px; border-radius: 10px;
-            margin: 3px; cursor: pointer; font-size: 0.78rem; font-family: 'Courier New', monospace;
-            font-weight: 600;
-        }
-        .slot-libre-pill:hover { background: #a7f3d0; }
-        .placa-cell { font-family: 'Courier New', monospace; font-weight: 600; }
     </style>
 </head>
 <body>
     <div class="dashboard-container">
-
         <?php
-        if ($dept === 'logistica') {
-            include __DIR__ . '/../../includes/sidebar/sidebar_sec.php';
+        if (in_array($dept, ['logistica', 'almacen_residuos'])) {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_sec.php';
+        } elseif ($dept === 'ventas') {
+            include __DIR__ . '/../../../includes/sidebar/sidebar_colaborativo.php';
         } else {
-            include __DIR__ . '/../../includes/sidebar/sidebar_colaborativo.php';
+            include __DIR__ . '/../../../includes/sidebar/sidebar_normal.php';
         }
         ?>
-
         <main class="main-content">
             <div class="content-wrapper">
 
                 <div class="page-header">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <h1><i class="bi bi-plus-square"></i> Nueva Salida de Envases</h1>
+                            <h1><i class="bi bi-plus-circle"></i> Nueva SEC</h1>
                             <p class="text-muted mb-0" style="font-size: 0.85rem;">
-                                Creando como <strong><?php echo htmlspecialchars($nombre_usuario); ?></strong> ·
-                                Departamento: <strong><?php echo htmlspecialchars(ucfirst($dept)); ?></strong>
+                                Crea una salida de envases. El stock se descuenta al guardar.
                             </p>
                         </div>
-                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left"></i> Cancelar
+                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/sec/salidas_envases.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver
                         </a>
                     </div>
                 </div>
 
                 <?php if (!empty($errores_flash)): ?>
-                    <div class="alert alert-danger">
-                        <strong>No se pudo crear la SEC:</strong>
-                        <ul class="mb-0 mt-2">
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <strong>Se encontraron los siguientes errores:</strong>
+                        <ul class="mb-0 mt-1">
                             <?php foreach ($errores_flash as $err): ?>
                                 <li><?php echo htmlspecialchars($err); ?></li>
                             <?php endforeach; ?>
                         </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
                 <?php endif; ?>
 
-                <form id="formNuevaSec" method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/guardar_sec.php" novalidate>
-
-                    <!-- Fecha del documento -->
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="row g-3 align-items-end">
-                                <div class="col-md-4">
-                                    <label class="form-label">Fecha del documento <span class="text-danger">*</span></label>
-                                    <input type="date" name="fecha_documento" id="fechaDocumento" class="form-control"
-                                           value="<?php echo htmlspecialchars($datos_previos['fecha_documento'] ?? date('Y-m-d')); ?>" required>
-                                    <small class="text-muted">Esto determina los slots de unidades disponibles.</small>
-                                </div>
-                                <div class="col-md-8 text-end">
-                                    <div class="alert alert-info mb-0 py-2" style="font-size: 0.85rem;">
-                                        <i class="bi bi-info-circle"></i>
-                                        Al cambiar la fecha, se reiniciarán las unidades y horarios seleccionados.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                <?php if (empty($unidades)): ?>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        No hay unidades de transporte activas. Registra unidades en
+                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades/unidades_transporte.php"><strong>Unidades de Transporte</strong></a>
+                        antes de crear SECs.
                     </div>
+                <?php elseif (empty($especificaciones_activas)): ?>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        No hay especificaciones activas en el catálogo. Registra tipos y especificaciones en
+                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/catalogo/tipos_envase.php"><strong>Tipos de Envase</strong></a>.
+                    </div>
+                <?php else: ?>
 
-                    <!-- Destino: empresa + condiciones -->
+                <form method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/sec/guardar_sec.php" id="formSec" novalidate>
+                    <input type="hidden" name="modo" value="crear">
+
+                    <!-- ==================== CABECERA ==================== -->
                     <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="bi bi-building"></i> Destino</h5>
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Datos generales</h5>
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Empresa destino <span class="text-danger">*</span></label>
-                                    <input type="text" name="empresa_destino" id="empresaDestino" class="form-control"
-                                           value="<?php echo htmlspecialchars($datos_previos['empresa_destino'] ?? ''); ?>"
-                                           maxlength="200" required
-                                           placeholder="Ej: CONTITECH, JTEKT, PREFERRED, etc.">
+                                <div class="col-md-3">
+                                    <label class="form-label fw-bold">Fecha de salida <span class="text-danger">*</span></label>
+                                    <input type="date" class="form-control" name="fecha_salida" id="fechaSalida"
+                                           value="<?php echo htmlspecialchars($prev_fecha); ?>" required>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Condiciones del envase <span class="text-danger">*</span></label>
-                                    <textarea name="condiciones_envase" id="condicionesEnvase" class="form-control"
-                                              rows="3" required
-                                              placeholder="Ej: abierto, cerrado, limpio, sin filo..."><?php echo htmlspecialchars($datos_previos['condiciones_envase'] ?? ''); ?></textarea>
-                                    <small class="text-muted">Descripción de cómo debe ir el envase.</small>
+                                <div class="col-md-4">
+                                    <label class="form-label fw-bold">Unidad de transporte <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="unidad_id" id="selectUnidad" required>
+                                        <option value="">Seleccione unidad…</option>
+                                        <?php foreach ($unidades as $u): ?>
+                                        <option value="<?php echo (int) $u['id']; ?>"
+                                            <?php echo $prev_unidad === (int) $u['id'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($u['nombre']); ?>
+                                            <?php if (!empty($u['matricula'])): ?>· <?php echo htmlspecialchars($u['matricula']); ?><?php endif; ?>
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold">Vuelta <span class="text-danger">*</span></label>
+                                    <select class="form-select" name="vuelta_id" id="selectVuelta"
+                                            data-preseleccionar="<?php echo $prev_vuelta; ?>" required>
+                                        <option value="">Selecciona primero unidad y fecha…</option>
+                                    </select>
+                                    <div id="vueltaAyuda" class="form-text"></div>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label small">Hora inicio ruta <span class="text-muted">(opcional)</span></label>
+                                    <input type="time" class="form-control form-control-sm" name="hora_inicio_ruta"
+                                           value="<?php echo htmlspecialchars($prev_hora_ini); ?>">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Hora término ruta <span class="text-muted">(opcional)</span></label>
+                                    <input type="time" class="form-control form-control-sm" name="hora_termino_ruta"
+                                           value="<?php echo htmlspecialchars($prev_hora_fin); ?>">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Chofer <span class="text-muted">(opcional)</span></label>
+                                    <input type="text" class="form-control form-control-sm" name="chofer_nombre" maxlength="200"
+                                           value="<?php echo htmlspecialchars($prev_chofer); ?>">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Solicita</label>
+                                    <input type="text" class="form-control form-control-sm" name="solicita_nombre" maxlength="200"
+                                           value="<?php echo htmlspecialchars($prev_solicita); ?>">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small">Notas generales</label>
+                                    <textarea class="form-control form-control-sm" name="notas_generales" rows="2"
+                                              maxlength="1000"><?php echo htmlspecialchars($prev_notas); ?></textarea>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Líneas -->
+                    <!-- ==================== LÍNEAS DE EMPRESA ==================== -->
                     <div class="card mb-3">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0"><i class="bi bi-list-ul"></i> Líneas de envases</h5>
-                            <button type="button" class="btn btn-sm btn-primary" onclick="agregarLinea()">
-                                <i class="bi bi-plus-circle"></i> Agregar línea
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-building"></i> Empresas destino</h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAgregarLinea">
+                                <i class="bi bi-plus-lg"></i> Agregar empresa
                             </button>
                         </div>
                         <div class="card-body">
-                            <div id="lineasContainer"></div>
-                            <div id="lineasVacio" class="text-center text-muted py-3" style="display:none;">
-                                <i class="bi bi-inbox" style="font-size: 1.5rem;"></i>
-                                <p class="mb-0">Agrega al menos una línea para continuar.</p>
-                            </div>
+                            <p class="text-muted small mb-3">
+                                Agrega una línea por cada empresa destino. Cada línea puede tener diferente envase, especificación y cantidad.
+                            </p>
+                            <div id="contenedorLineas"></div>
                         </div>
                     </div>
 
-                    <!-- Solicita -->
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Solicita</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Nombre completo <span class="text-danger">*</span></label>
-                                    <input type="text" name="solicita_nombre" id="solicitaNombre" class="form-control"
-                                           value="<?php echo htmlspecialchars($datos_previos['solicita_nombre'] ?? $nombre_usuario); ?>"
-                                           maxlength="255" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">Firma <span class="text-danger">*</span></label>
-                                    <div class="firma-canvas-wrapper">
-                                        <div id="firmaCanvas"></div>
-                                        <div class="firma-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="limpiarFirma()" title="Limpiar firma">
-                                                <i class="bi bi-eraser"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <input type="hidden" name="solicita_firma" id="solicitaFirma">
-                                    <small class="text-muted">Dibuja tu firma en el recuadro.</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Submit -->
+                    <!-- ==================== BOTONES ==================== -->
                     <div class="d-flex justify-content-end gap-2 mb-4">
-                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php" class="btn btn-outline-secondary">
+                        <a href="<?php echo URL_BASE; ?>dashboard/salidas_envases/sec/salidas_envases.php" class="btn btn-secondary">
                             Cancelar
                         </a>
-                        <button type="submit" class="btn btn-success btn-lg" id="btnGuardarSec">
-                            <i class="bi bi-check-circle"></i> Crear y enviar SEC
+                        <button type="submit" class="btn btn-primary" id="btnGuardar">
+                            <i class="bi bi-check-circle"></i> Crear SEC y descontar stock
                         </button>
                     </div>
-
                 </form>
+
+                <?php endif; ?>
 
             </div>
         </main>
-
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- MODAL: Selector de Unidad + Slot                                       -->
-    <!-- ===================================================================== -->
-    <div class="modal fade" id="modalUnidadSlot" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-truck"></i> Seleccionar Unidad y Horario</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <!-- Template de línea de empresa -->
+    <template id="tplLinea">
+        <div class="linea-empresa" data-idx="__i__">
+            <span class="linea-numero">Línea __n__</span>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-linea" title="Quitar">
+                <i class="bi bi-x-lg"></i>
+            </button>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold">Empresa destino <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control form-control-sm" name="lineas[__i__][empresa_nombre]"
+                           maxlength="200" placeholder="Nombre de la empresa" required>
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" id="modalLineaIndex" value="">
-                    <p class="text-muted small">Selecciona una unidad y luego un horario libre.</p>
-                    <div id="listadoUnidades">
-                        <!-- Cargado por JS -->
-                    </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-bold">Especificación <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-sm campo-espec" name="lineas[__i__][especificacion_id]" required>
+                        <option value="">Selecciona…</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Cantidad <span class="text-danger">*</span></label>
+                    <input type="number" class="form-control form-control-sm campo-cantidad" name="lineas[__i__][cantidad]"
+                           min="1" step="1" placeholder="Cantidad" required>
+                    <div class="stock-info-container"></div>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small">Condiciones del envase <span class="text-muted">(opcional)</span></label>
+                    <input type="text" class="form-control form-control-sm" name="lineas[__i__][condiciones_envase]"
+                           maxlength="500" placeholder="Ej. En buen estado, con tapa, limpio">
                 </div>
             </div>
         </div>
-    </div>
+    </template>
 
-    <!-- jQuery → jSignature → Bootstrap → sidebar (orden estándar del proyecto) -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jSignature/2.1.3/jSignature.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
 
     <script>
-    const URL_BASE = <?php echo json_encode(URL_BASE); ?>;
-    const UNIDADES = <?php echo json_encode($unidades, JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-    let lineaCounter = 0;
-    let lineas = []; // [{cantidad, tipo_envase, slot_id, unidad_id, unidad_label, slot_label}]
-    let firma = null;
+    (function () {
+        const URL_BASE = <?php echo json_encode(URL_BASE); ?>;
+        const SPECS    = <?php echo json_encode($specs_para_js, JSON_UNESCAPED_UNICODE); ?>;
+        const PREV_LINEAS = <?php echo json_encode($prev_lineas, JSON_UNESCAPED_UNICODE); ?>;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // jSignature
-        firma = $('#firmaCanvas').jSignature({ width: '100%', height: 180, lineWidth: 2 });
+        let stockMap = {};  // {espec_id: stock_actual}
+        let capacidadesMap = {};  // {espec_id: capacidad_maxima} para la unidad seleccionada
+        let unidadIdActual = null;
+        let lineaIdx = 0;
 
-        // Cambio de fecha: limpiar selecciones
-        document.getElementById('fechaDocumento').addEventListener('change', function() {
-            lineas.forEach(l => { l.slot_id = null; l.unidad_id = null; l.unidad_label = null; l.slot_label = null; });
-            renderLineas();
-        });
-
-        agregarLinea();
-
-        // Submit
-        document.getElementById('formNuevaSec').addEventListener('submit', function(e) {
-            e.preventDefault();
-            enviarFormulario();
-        });
-    });
-
-    function agregarLinea() {
-        lineas.push({
-            id: ++lineaCounter,
-            cantidad: 1,
-            tipo_envase: '',
-            slot_id: null,
-            unidad_id: null,
-            unidad_label: null,
-            slot_label: null
-        });
-        renderLineas();
-    }
-
-    function eliminarLinea(idx) {
-        lineas.splice(idx, 1);
-        renderLineas();
-    }
-
-    function renderLineas() {
-        const cont = document.getElementById('lineasContainer');
-        const vacio = document.getElementById('lineasVacio');
-        cont.innerHTML = '';
-
-        if (lineas.length === 0) {
-            vacio.style.display = 'block';
-            return;
-        }
-        vacio.style.display = 'none';
-
-        lineas.forEach((l, idx) => {
-            const card = document.createElement('div');
-            card.className = 'linea-card';
-            card.innerHTML = `
-                <div class="d-flex align-items-center gap-2 mb-3">
-                    <div class="linea-numero">${idx + 1}</div>
-                    <strong>Línea ${idx + 1}</strong>
-                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="eliminarLinea(${idx})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label small">Cantidad <span class="text-danger">*</span></label>
-                        <input type="number" min="1" step="1" class="form-control" value="${l.cantidad}"
-                               onchange="lineas[${idx}].cantidad = parseInt(this.value)||0">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small">Tipo envase <span class="text-danger">*</span></label>
-                        <select class="form-select" onchange="lineas[${idx}].tipo_envase = this.value">
-                            <option value="">— Seleccionar —</option>
-                            <option value="TMB"   ${l.tipo_envase==='TMB'?'selected':''}>TMB (Tambo)</option>
-                            <option value="TOTE"  ${l.tipo_envase==='TOTE'?'selected':''}>TOTE</option>
-                            <option value="GFA"   ${l.tipo_envase==='GFA'?'selected':''}>GFA (Garrafa)</option>
-                            <option value="JAULA" ${l.tipo_envase==='JAULA'?'selected':''}>JAULA</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small">Unidad de Transporte + Horario <span class="text-danger">*</span></label>
-                        <div class="unidad-selector ${l.slot_id ? 'seleccionada' : ''}" onclick="abrirModalUnidad(${idx})">
-                            <div>
-                                ${l.slot_id
-                                    ? `<strong>${escapar(l.unidad_label)}</strong><br><small class="text-muted">${escapar(l.slot_label)}</small>`
-                                    : '<span class="placeholder">— Seleccionar unidad y horario —</span>'
-                                }
-                            </div>
-                            <i class="bi bi-chevron-right"></i>
-                        </div>
-                    </div>
-                </div>
-            `;
-            cont.appendChild(card);
-        });
-    }
-
-    function abrirModalUnidad(lineaIdx) {
-        const fecha = document.getElementById('fechaDocumento').value;
-        if (!fecha) {
-            alert('Primero indica la fecha del documento.');
-            return;
-        }
-        document.getElementById('modalLineaIndex').value = lineaIdx;
-        const cont = document.getElementById('listadoUnidades');
-        cont.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary"></div></div>';
-
-        // IDs de slots ya seleccionados en OTRAS líneas (para excluirlos)
-        const slotsExcluidos = lineas
-            .filter((l, i) => i !== lineaIdx && l.slot_id)
-            .map(l => l.slot_id);
-
-        // Cargar unidades activas
-        let html = '';
-        if (UNIDADES.length === 0) {
-            html = '<div class="alert alert-warning">No hay unidades de transporte activas.</div>';
-            cont.innerHTML = html;
-            new bootstrap.Modal(document.getElementById('modalUnidadSlot')).show();
-            return;
-        }
-
-        // Para cada unidad, hacer fetch de sus slots libres
-        Promise.all(UNIDADES.map(u =>
-            fetch(URL_BASE + 'dashboard/salidas_envases/api/slots_unidad.php?unidad_id=' + u.id + '&fecha=' + fecha)
+        // ---- Cargar stock inicial ----
+        function cargarStock() {
+            return fetch(URL_BASE + 'dashboard/salidas_envases/api/stock_especificaciones.php')
                 .then(r => r.json())
-                .then(slots => ({ unidad: u, slots: slots.filter(s => !slotsExcluidos.includes(parseInt(s.id))) }))
-        )).then(resultados => {
-            html = '';
-            resultados.forEach(r => {
-                const u = r.unidad;
-                const slotsLibres = r.slots;
-                html += `
-                    <div class="unidad-item">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <span class="nombre">${escapar(u.nombre)}</span>
-                                <small class="placa-cell text-muted ms-2">${escapar(u.placas)}</small>
-                            </div>
-                            <div>
-                                <span class="capacidad-pill" title="TMB">TMB: ${u.capacidad_tmb}</span>
-                                <span class="capacidad-pill" title="TOTE">TOTE: ${u.capacidad_tote}</span>
-                                <span class="capacidad-pill" title="GFA">GFA: ${u.capacidad_gfa}</span>
-                                <span class="capacidad-pill" title="JAULA">JAULA: ${u.capacidad_jaula}</span>
-                            </div>
-                        </div>
-                        <div>
-                            ${slotsLibres.length === 0
-                                ? '<small class="text-muted"><i class="bi bi-x-circle"></i> Sin horarios disponibles en esta fecha.</small>'
-                                : slotsLibres.map(s =>
-                                    `<span class="slot-libre-pill" onclick="seleccionarSlot(${lineaIdx}, ${s.id}, '${escapar(u.nombre)}', '${escapar(u.placas)}', '${s.hora_inicio.substring(0,5)} - ${s.hora_fin.substring(0,5)}')">
-                                        <i class="bi bi-clock"></i> ${s.hora_inicio.substring(0,5)} - ${s.hora_fin.substring(0,5)}
-                                    </span>`
-                                ).join('')
-                            }
-                        </div>
-                    </div>
-                `;
+                .then(d => {
+                    if (d.ok) {
+                        stockMap = d.stock;
+                        recalcularTodasLasLineas();
+                    }
+                })
+                .catch(err => console.error('Stock:', err));
+        }
+
+        // ---- Cargar capacidades de la unidad seleccionada ----
+        function cargarCapacidades() {
+            const unidadId = document.getElementById('selectUnidad').value;
+            unidadIdActual = unidadId ? parseInt(unidadId, 10) : null;
+
+            if (!unidadIdActual) {
+                capacidadesMap = {};
+                recalcularTodasLasLineas();
+                return Promise.resolve();
+            }
+
+            return fetch(URL_BASE + 'dashboard/salidas_envases/api/capacidades_unidad.php?unidad_id=' + unidadIdActual)
+                .then(r => r.json())
+                .then(d => {
+                    capacidadesMap = (d.ok && d.capacidades) ? d.capacidades : {};
+                    recalcularTodasLasLineas();
+                })
+                .catch(err => {
+                    console.error('Capacidades:', err);
+                    capacidadesMap = {};
+                    recalcularTodasLasLineas();
+                });
+        }
+
+        // ---- Poblar select de especificaciones ----
+        function poblarSelectEspec(sel) {
+            // Agrupar por tipo
+            const porTipo = {};
+            SPECS.forEach(s => {
+                if (!porTipo[s.tipo_nombre]) porTipo[s.tipo_nombre] = [];
+                porTipo[s.tipo_nombre].push(s);
             });
-            cont.innerHTML = html;
-            new bootstrap.Modal(document.getElementById('modalUnidadSlot')).show();
-        }).catch(err => {
-            cont.innerHTML = '<div class="alert alert-danger">Error cargando unidades: ' + err.message + '</div>';
-            new bootstrap.Modal(document.getElementById('modalUnidadSlot')).show();
-        });
-    }
-
-    function seleccionarSlot(lineaIdx, slotId, unidadNombre, unidadPlacas, slotLabel) {
-        lineas[lineaIdx].slot_id = slotId;
-        lineas[lineaIdx].unidad_label = unidadNombre + ' (' + unidadPlacas + ')';
-        lineas[lineaIdx].slot_label = slotLabel;
-        bootstrap.Modal.getInstance(document.getElementById('modalUnidadSlot')).hide();
-        renderLineas();
-    }
-
-    function limpiarFirma() {
-        $('#firmaCanvas').jSignature('reset');
-    }
-
-    function enviarFormulario() {
-        // Validar destino
-        const empresa = document.getElementById('empresaDestino').value.trim();
-        if (!empresa) {
-            alert('Debes escribir la empresa destino.');
-            document.getElementById('empresaDestino').focus();
-            return;
-        }
-        const condiciones = document.getElementById('condicionesEnvase').value.trim();
-        if (!condiciones) {
-            alert('Debes escribir las condiciones del envase.');
-            document.getElementById('condicionesEnvase').focus();
-            return;
-        }
-
-        // Validar líneas
-        if (lineas.length === 0) {
-            alert('Debes agregar al menos una línea.');
-            return;
-        }
-        for (let i = 0; i < lineas.length; i++) {
-            const l = lineas[i];
-            if (!l.cantidad || l.cantidad <= 0) { alert(`Línea ${i+1}: cantidad inválida.`); return; }
-            if (!l.tipo_envase) { alert(`Línea ${i+1}: selecciona el tipo de envase.`); return; }
-            if (!l.slot_id)     { alert(`Línea ${i+1}: selecciona unidad y horario.`); return; }
-        }
-        // Validar firma
-        const data = $('#firmaCanvas').jSignature('getData', 'image');
-        if (!data || data[1].length < 100) {
-            alert('Debes firmar antes de enviar.');
-            return;
-        }
-        const firmaBase64 = 'data:' + data[0] + ',' + data[1];
-        document.getElementById('solicitaFirma').value = firmaBase64;
-
-        // Agregar líneas al form como inputs ocultos
-        const form = document.getElementById('formNuevaSec');
-        // Limpiar inputs previos de líneas
-        form.querySelectorAll('input[name^="linea_"]').forEach(el => el.remove());
-
-        lineas.forEach((l, idx) => {
-            ['cantidad','tipo_envase','slot_id'].forEach(campo => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = `linea_${idx}_${campo}`;
-                input.value = l[campo];
-                form.appendChild(input);
+            let html = '<option value="">Selecciona…</option>';
+            Object.keys(porTipo).sort().forEach(tipoNombre => {
+                html += `<optgroup label="${escapeHtml(tipoNombre)}">`;
+                porTipo[tipoNombre].forEach(s => {
+                    html += `<option value="${s.id}">${escapeHtml(s.nombre)}</option>`;
+                });
+                html += '</optgroup>';
             });
+            sel.innerHTML = html;
+        }
+
+        // ---- Suma por especificación considerando todas las líneas ----
+        function sumarPorEspec() {
+            const sumas = {};
+            document.querySelectorAll('.linea-empresa').forEach(div => {
+                const sel  = div.querySelector('.campo-espec');
+                const inp  = div.querySelector('.campo-cantidad');
+                const eid  = parseInt(sel.value, 10);
+                const cant = parseInt(inp.value, 10);
+                if (!eid || isNaN(cant) || cant <= 0) return;
+                sumas[eid] = (sumas[eid] || 0) + cant;
+            });
+            return sumas;
+        }
+
+        // ---- Recalcular estado visual de una línea ----
+        // 5 casos:
+        //   1. sin unidad seleccionada → warning (avisa que falta unidad)
+        //   2. espec NO configurada en la unidad → danger (bloquea)
+        //   3. sin stock disponible → danger (bloquea)
+        //   4. excede capacidad de unidad → danger (bloquea)
+        //   5. OK → verde con info
+        function recalcularLinea(div) {
+            const sel  = div.querySelector('.campo-espec');
+            const inp  = div.querySelector('.campo-cantidad');
+            const cont = div.querySelector('.stock-info-container');
+            const eid  = parseInt(sel.value, 10);
+            const cant = parseInt(inp.value, 10);
+
+            inp.classList.remove('stock-excedido');
+            cont.innerHTML = '';
+
+            if (!eid || isNaN(cant) || cant <= 0) return;
+
+            const stockActual = stockMap[eid] ?? 0;
+            const sumas = sumarPorEspec();
+            const totalPedido = sumas[eid] || 0;
+
+            let cls, icono, texto, bloquea = false;
+
+            // Caso 1: sin unidad seleccionada
+            if (!unidadIdActual) {
+                cls = 'warning';
+                icono = 'exclamation-circle';
+                texto = 'Selecciona una unidad para validar capacidad';
+            }
+            // Caso 2: especificación NO configurada para esta unidad
+            else if (!(eid in capacidadesMap)) {
+                cls = 'danger';
+                icono = 'x-octagon';
+                texto = 'Esta unidad no está configurada para transportar esta especificación';
+                bloquea = true;
+            }
+            // Caso 3: excede stock
+            else if (totalPedido > stockActual) {
+                cls = 'danger';
+                icono = 'exclamation-triangle';
+                texto = `Stock: ${stockActual} · Pedido total: ${totalPedido} · Faltan ${totalPedido - stockActual}`;
+                bloquea = true;
+            }
+            // Caso 4: excede capacidad de la unidad
+            else if (totalPedido > capacidadesMap[eid]) {
+                cls = 'danger';
+                icono = 'exclamation-triangle';
+                const cap = capacidadesMap[eid];
+                texto = `Capacidad unidad: ${cap} · Pedido total: ${totalPedido} · Excede en ${totalPedido - cap}`;
+                bloquea = true;
+            }
+            // Caso 5: OK — muestra ambos indicadores
+            else {
+                const cap = capacidadesMap[eid];
+                const usoPct = (totalPedido / cap) * 100;
+                if (usoPct > 80 || totalPedido > stockActual * 0.8) {
+                    cls = 'warning';
+                    icono = 'exclamation-circle';
+                } else {
+                    cls = 'ok';
+                    icono = 'check-circle';
+                }
+                texto = `Stock: ${stockActual} · Cap. unidad: ${cap} · Pedido: ${totalPedido}`;
+            }
+
+            if (bloquea) inp.classList.add('stock-excedido');
+            cont.innerHTML = `<span class="stock-info ${cls}"><i class="bi bi-${icono}"></i> ${texto}</span>`;
+        }
+
+        function recalcularTodasLasLineas() {
+            document.querySelectorAll('.linea-empresa').forEach(recalcularLinea);
+            actualizarBotonGuardar();
+        }
+
+        function actualizarBotonGuardar() {
+            const tieneExcesos = document.querySelectorAll('.campo-cantidad.stock-excedido').length > 0;
+            const btn = document.getElementById('btnGuardar');
+            if (btn) btn.disabled = tieneExcesos;
+        }
+
+        // ---- Agregar línea ----
+        function agregarLinea(datos = null) {
+            const tpl = document.getElementById('tplLinea');
+            const clone = tpl.content.cloneNode(true);
+            const div = clone.querySelector('.linea-empresa');
+
+            // Reemplazar __i__ por índice único
+            const idx = lineaIdx++;
+            div.setAttribute('data-idx', idx);
+            div.querySelectorAll('[name*="__i__"]').forEach(el => {
+                el.name = el.name.replace('__i__', idx);
+            });
+
+            const sel = div.querySelector('.campo-espec');
+            poblarSelectEspec(sel);
+
+            // Prepoblar si vienen datos (modo edición o error previo)
+            if (datos) {
+                div.querySelector('input[name*="[empresa_nombre]"]').value    = datos.empresa_nombre     || '';
+                div.querySelector('input[name*="[condiciones_envase]"]').value = datos.condiciones_envase || '';
+                if (datos.especificacion_id) sel.value                        = datos.especificacion_id;
+                div.querySelector('.campo-cantidad').value                    = datos.cantidad          || '';
+            }
+
+            document.getElementById('contenedorLineas').appendChild(clone);
+
+            const nuevo = document.getElementById('contenedorLineas').lastElementChild;
+
+            // Renumerar visualmente
+            renumerarLineas();
+
+            // Listeners para recalcular
+            nuevo.querySelector('.campo-espec').addEventListener('change', () => recalcularTodasLasLineas());
+            nuevo.querySelector('.campo-cantidad').addEventListener('input', () => recalcularTodasLasLineas());
+
+            // Botón quitar
+            nuevo.querySelector('.btn-quitar-linea').addEventListener('click', () => {
+                nuevo.remove();
+                renumerarLineas();
+                recalcularTodasLasLineas();
+            });
+
+            recalcularLinea(nuevo);
+        }
+
+        function renumerarLineas() {
+            document.querySelectorAll('.linea-empresa .linea-numero').forEach((span, i) => {
+                span.textContent = 'Línea ' + (i + 1);
+            });
+        }
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s || '';
+            return div.innerHTML;
+        }
+
+        // ---- Cargar vueltas al cambiar unidad/fecha ----
+        function cargarVueltas() {
+            const unidadId = document.getElementById('selectUnidad').value;
+            const fecha    = document.getElementById('fechaSalida').value;
+            const selVuelta = document.getElementById('selectVuelta');
+            const ayuda    = document.getElementById('vueltaAyuda');
+
+            if (!unidadId || !fecha) {
+                selVuelta.innerHTML = '<option value="">Selecciona primero unidad y fecha…</option>';
+                ayuda.textContent = '';
+                return;
+            }
+
+            selVuelta.innerHTML = '<option value="">Cargando…</option>';
+            ayuda.textContent = '';
+
+            const params = new URLSearchParams({ unidad_id: unidadId, fecha: fecha });
+            fetch(URL_BASE + 'dashboard/salidas_envases/api/vueltas_disponibles.php?' + params.toString())
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.ok) throw new Error(data.error || 'Error');
+                    if (data.vueltas.length === 0) {
+                        selVuelta.innerHTML = '<option value="">Sin vueltas programadas</option>';
+                        ayuda.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-triangle"></i> No hay vueltas programadas para esta unidad y fecha. <a href="' + URL_BASE + 'dashboard/salidas_envases/vueltas/vueltas.php">Programar vueltas</a></span>';
+                        return;
+                    }
+                    const preseleccionar = parseInt(selVuelta.dataset.preseleccionar, 10) || 0;
+                    let html = '<option value="">Selecciona vuelta…</option>';
+                    data.vueltas.forEach(v => {
+                        const info = v.total_secs > 0 ? ` (${v.total_secs} SEC${v.total_secs === 1 ? '' : 's'} asignada${v.total_secs === 1 ? '' : 's'})` : '';
+                        const sel = v.id === preseleccionar ? ' selected' : '';
+                        html += `<option value="${v.id}"${sel}>Vuelta ${v.numero}${info}</option>`;
+                    });
+                    selVuelta.innerHTML = html;
+                    ayuda.textContent = data.vueltas.length + ' vuelta(s) disponibles.';
+                })
+                .catch(err => {
+                    console.error(err);
+                    selVuelta.innerHTML = '<option value="">Error al cargar</option>';
+                    ayuda.innerHTML = '<span class="text-danger">Error al cargar vueltas.</span>';
+                });
+        }
+
+        // ---- Inicialización ----
+        document.getElementById('selectUnidad').addEventListener('change', () => {
+            cargarVueltas();
+            cargarCapacidades();
         });
-        const total = document.createElement('input');
-        total.type = 'hidden';
-        total.name = 'total_lineas';
-        total.value = lineas.length;
-        form.appendChild(total);
+        document.getElementById('fechaSalida').addEventListener('change', cargarVueltas);
+        document.getElementById('btnAgregarLinea').addEventListener('click', () => agregarLinea());
 
-        document.getElementById('btnGuardarSec').disabled = true;
-        document.getElementById('btnGuardarSec').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
-        form.submit();
-    }
+        // Carga inicial: stock + capacidades (si hay unidad preseleccionada) + vueltas + líneas
+        Promise.all([cargarStock(), cargarCapacidades()]).then(() => {
+            if (PREV_LINEAS && PREV_LINEAS.length > 0) {
+                PREV_LINEAS.forEach(l => agregarLinea(l));
+            } else {
+                agregarLinea();
+            }
+            recalcularTodasLasLineas();
+        });
 
-    function escapar(s) {
-        if (s === null || s === undefined) return '';
-        return String(s)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, "\\'");
-    }
+        // Si venía unidad preseleccionada, cargar sus vueltas
+        if (document.getElementById('selectUnidad').value && document.getElementById('fechaSalida').value) {
+            cargarVueltas();
+        }
+
+        // Validación pre-submit
+        document.getElementById('formSec').addEventListener('submit', function (e) {
+            if (document.querySelectorAll('.linea-empresa').length === 0) {
+                e.preventDefault();
+                alert('Debe agregar al menos una línea de empresa destino.');
+                return false;
+            }
+            if (document.querySelectorAll('.campo-cantidad.stock-excedido').length > 0) {
+                e.preventDefault();
+                alert('Hay líneas que exceden el stock disponible. Corrígelas antes de guardar.');
+                return false;
+            }
+        });
+    })();
     </script>
 </body>
 </html>

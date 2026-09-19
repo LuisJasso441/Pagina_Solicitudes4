@@ -246,3 +246,71 @@ if (!function_exists('es_almacen_residuos')) {
         return $departamento === 'almacen_residuos';
     }
 }
+
+// ====================================
+// PERMISOS SEC EXTENDIDOS (Bloque 9)
+// Reparto de responsabilidades por depto:
+//   - Tipos de Envase:      Almacén de Residuos administra; Log/Ventas solo leen
+//   - Unidades Transporte:  Logística administra; Log/Ventas/Almacén pueden ver
+// ====================================
+
+/**
+ * Solo Almacén de Residuos puede administrar el catálogo de Tipos de Envase.
+ * Logística y Ventas solo tienen lectura (ven el listado pero sin botones CRUD).
+ * @return bool
+ */
+if (!function_exists('puede_administrar_tipos_envase')) {
+    function puede_administrar_tipos_envase() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'almacen_residuos';
+    }
+}
+
+/**
+ * Ver el listado de Unidades de Transporte y sus capacidades:
+ * Logística, Ventas y Almacén de Residuos.
+ * @return bool
+ */
+if (!function_exists('puede_ver_unidades_transporte')) {
+    function puede_ver_unidades_transporte() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return in_array($departamento, ['logistica', 'ventas', 'almacen_residuos'], true);
+    }
+}
+
+/**
+ * Administrar (crear/editar/eliminar) Unidades de Transporte y sus capacidades:
+ * solo Logística.
+ * @return bool
+ */
+if (!function_exists('puede_administrar_unidades_transporte')) {
+    function puede_administrar_unidades_transporte() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'logistica';
+    }
+}
+
+/**
+ * Ver Inventario y Movimientos de Inventario (solo lectura):
+ * Logística, Ventas y Almacén de Residuos.
+ * @return bool
+ */
+if (!function_exists('puede_ver_inventario')) {
+    function puede_ver_inventario() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return in_array($departamento, ['logistica', 'ventas', 'almacen_residuos'], true);
+    }
+}
+
+/**
+ * Administrar Inventario (ajustar stock, registrar movimientos manuales,
+ * subir/bajar inventario inicial): solo Almacén de Residuos.
+ * Logística y Ventas solo consultan.
+ * @return bool
+ */
+if (!function_exists('puede_administrar_inventario')) {
+    function puede_administrar_inventario() {
+        $departamento = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        return $departamento === 'almacen_residuos';
+    }
+}

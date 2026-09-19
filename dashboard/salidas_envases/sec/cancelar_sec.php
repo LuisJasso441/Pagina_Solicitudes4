@@ -1,18 +1,16 @@
 <?php
 /**
- * Handler: cancelar SEC (sólo Logística)
+ * Handler POST: cancelación de una SEC en pendiente_firma_entrega.
+ * dashboard/salidas_envases/sec/cancelar_sec.php
  *
- * Ubicación: dashboard/salidas_envases/cancelar_sec.php
- *
- * Libera todos los slots ocupados por la SEC.
- * Las firmas existentes (Entrega/Recibe) se conservan en BD para auditoría.
+ * Revierte automáticamente el stock descontado.
  */
 
 session_start();
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../auth/verificar_sesion.php';
-require_once __DIR__ . '/../../includes/permisos_helper.php';
-require_once __DIR__ . '/../../includes/salidas_envases/sec_funciones.php';
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../auth/verificar_sesion.php';
+require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/sec_funciones.php';
 
 verificar_sesion();
 
@@ -24,28 +22,27 @@ if (sesion_expirada()) {
 }
 actualizar_sesion();
 
-if (!es_logistica()) {
-    establecer_alerta('error', 'Sólo Logística puede cancelar Salidas de Envases.');
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+if (!puede_crear_sec()) {
+    establecer_alerta('error', 'No tienes permisos para cancelar SECs.');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
 }
 
-$sec_id     = (int)($_POST['sec_id'] ?? 0);
-$usuario_id = (int)$_SESSION['usuario_id'];
+$sec_id     = (int) ($_POST['sec_id'] ?? 0);
 $motivo     = $_POST['motivo'] ?? '';
+$usuario_id = (int) $_SESSION['usuario_id'];
 
-if ($sec_id <= 0) {
-    redirigir(URL_BASE . 'dashboard/salidas_envases/salidas_envases.php');
+$res = cancelar_sec($sec_id, $motivo, $usuario_id);
+
+if (!$res['success']) {
+    $_SESSION['sec_ver_errores'] = $res['errores'];
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/ver_sec.php?id=' . $sec_id);
 }
 
-$resultado = cancelar_sec($sec_id, $motivo, $usuario_id);
+$sec = obtener_sec_por_id($sec_id);
+if ($sec) notificar_sec_cancelada($sec);
 
-if ($resultado['success']) {
-    redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$sec_id&msg=cancelada");
-} else {
-    $_SESSION['sec_errores'] = $resultado['errores'];
-    redirigir(URL_BASE . "dashboard/salidas_envases/ver_sec.php?id=$sec_id&msg=error_validacion");
-}
+redirigir(URL_BASE . 'dashboard/salidas_envases/sec/ver_sec.php?id=' . $sec_id . '&msg=cancelada');

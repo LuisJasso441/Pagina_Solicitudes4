@@ -1,69 +1,42 @@
 <?php
 /**
- * Handler: Desactivar / Reactivar Unidad de Transporte (soft delete)
- *
- * Ubicación: dashboard/salidas_envases/eliminar_unidad_transporte.php
- *
- * NOTA: No hay borrado físico. Las unidades sólo se marcan activa=0
- *       para preservar el histórico en SECs ya emitidas.
+ * Handler POST: elimina una unidad de transporte (y sus capacidades en cascada).
+ * dashboard/salidas_envases/unidades/eliminar_unidad_transporte.php
  */
 
 session_start();
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../auth/verificar_sesion.php';
-require_once __DIR__ . '/../../includes/permisos_helper.php';
-require_once __DIR__ . '/../../includes/salidas_envases/unidades_transporte_funciones.php';
 
-verificar_sesion();
+require_once __DIR__ . '/../../../config/config.php';
+require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/salidas_envases/unidades_transporte_funciones.php';
 
-if (sesion_expirada()) {
-    destruir_sesion();
-    session_start();
-    establecer_alerta('warning', 'Tu sesión ha expirado. Inicia sesión nuevamente.');
-    redirigir(URL_BASE . 'auth/InicioSesion.php');
+if (!isset($_SESSION['usuario_id'])) {
+    header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
+    exit;
 }
-actualizar_sesion();
-
 if (!es_logistica()) {
-    establecer_alerta('error', 'No tienes permisos para gestionar Unidades de Transporte.');
-    redirigir(URL_BASE . 'dashboard/index.php');
+    $_SESSION['flash_msg']  = 'Solo Logística puede eliminar unidades de transporte.';
+    $_SESSION['flash_tipo'] = 'danger';
+    header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+    exit;
 }
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirigir(URL_BASE . 'dashboard/salidas_envases/unidades_transporte.php');
+    header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+    exit;
 }
 
-$usuario_id = (int)$_SESSION['usuario_id'];
-$accion     = $_POST['accion'] ?? '';
-$id         = (int)($_POST['id'] ?? 0);
-$base_url   = URL_BASE . 'dashboard/salidas_envases/unidades_transporte.php';
-
+$id = (int) ($_POST['id'] ?? 0);
 if ($id <= 0) {
-    redirigir($base_url . '?msg=error');
+    $_SESSION['flash_msg']  = 'ID inválido.';
+    $_SESSION['flash_tipo'] = 'danger';
+    header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+    exit;
 }
 
-$unidad = obtener_unidad_transporte_por_id($id);
-if (!$unidad) {
-    establecer_alerta('error', 'La unidad de transporte no existe.');
-    redirigir($base_url);
-}
+$resultado = eliminar_unidad_transporte($id);
 
-if ($accion === 'desactivar') {
-    $resultado = desactivar_unidad_transporte($id, $usuario_id);
-    if ($resultado['success']) {
-        redirigir($base_url . '?msg=desactivada');
-    } else {
-        $_SESSION['unidad_errores'] = $resultado['errores'];
-        redirigir($base_url . '?msg=error');
-    }
-} elseif ($accion === 'reactivar') {
-    $resultado = reactivar_unidad_transporte($id, $usuario_id);
-    if ($resultado['success']) {
-        redirigir($base_url . '?msg=reactivada');
-    } else {
-        $_SESSION['unidad_errores'] = $resultado['errores'];
-        redirigir($base_url . '?msg=error');
-    }
-} else {
-    redirigir($base_url . '?msg=error');
-}
+$_SESSION['flash_msg']  = $resultado['msg'];
+$_SESSION['flash_tipo'] = $resultado['ok'] ? 'success' : 'danger';
+header('Location: ' . URL_BASE . 'dashboard/salidas_envases/unidades/unidades_transporte.php');
+exit;

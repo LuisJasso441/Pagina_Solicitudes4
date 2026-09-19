@@ -3,10 +3,23 @@
  * Sidebar para usuarios de Logística y Almacén de Residuos (módulo SEC)
  * includes/sidebar/sidebar_sec.php
  *
- * Logística ve: Salidas, Nueva SEC, Disponibilidad, Unidades de Transporte
- * Almacén ve:   Salidas, Disponibilidad
+ * Bloque 9 — Reorganización:
+ *   - Los ítems de "SALIDAS DE ENVASES" se separan según departamento:
  *
- * No incluye sección de Vacaciones.
+ *     LOGÍSTICA (o Ventas):
+ *       · Salidas de Envases
+ *       · Nueva SEC
+ *       · Tipos de Envase (solo lectura)
+ *       · Inventario (solo lectura)
+ *       · Vueltas
+ *       · Unidades de Transporte
+ *
+ *     ALMACÉN DE RESIDUOS:
+ *       · Salidas de Envases
+ *       · Tipos de Envase (CRUD)
+ *       · Inventario
+ *       · Movimientos de Inventario
+ *       · Unidades de Transporte (solo lectura)
  */
 
 // Protección de sesión
@@ -23,8 +36,9 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 require_once __DIR__ . '/../../config/database.php';
 
-$dept_sb     = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
-$es_log_sb   = ($dept_sb === 'logistica');
+$dept_sb   = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+$es_log_sb = ($dept_sb === 'logistica');
+$es_alm_sb = ($dept_sb === 'almacen_residuos');
 
 $pdo = conectarDB();
 
@@ -119,42 +133,101 @@ try {
                 </a>
             </li>
 
-            <hr class="text-white-50 my-2">
-            <small class="text-white-50 px-3 fw-bold">SALIDAS DE ENVASES</small>
+            <?php // =========================================================
+                  // SECCIÓN SALIDAS DE ENVASES — dividida por departamento
+                  // ========================================================= ?>
 
-            <li class="nav-item">
-                <a class="nav-link <?php echo in_array($current_page, ['salidas_envases.php', 'ver_sec.php', 'editar_sec.php']) ? 'active' : ''; ?>"
-                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/salidas_envases.php">
-                    <i class="bi bi-box-arrow-right"></i> Salidas de Envases
-                </a>
-            </li>
+            <?php if ($es_alm_sb): // ---- ALMACÉN DE RESIDUOS ---- ?>
+                <hr class="text-white-50 my-2">
+                <small class="text-white-50 px-3 fw-bold">
+                    <i class="bi bi-recycle"></i> SALIDAS DE ENVASES · ALMACÉN
+                </small>
 
-            <?php if ($es_log_sb): ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'nueva_sec.php' ? 'active' : ''; ?>"
-                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/nueva_sec.php">
-                    <i class="bi bi-plus-circle"></i> Nueva SEC
-                </a>
-            </li>
+                <li class="nav-item">
+                    <a class="nav-link <?php echo in_array($current_page, ['salidas_envases.php', 'ver_sec.php']) ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/sec/salidas_envases.php">
+                        <i class="bi bi-box-arrow-right"></i> Salidas de Envases
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'tipos_envase.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/catalogo/tipos_envase.php">
+                        <i class="bi bi-box2"></i> Tipos de Envase
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/inventario/inventario.php">
+                        <i class="bi bi-boxes"></i> Inventario
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'movimientos_inventario.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/inventario/movimientos_inventario.php">
+                        <i class="bi bi-arrow-left-right"></i> Movimientos de Inventario
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'unidades_transporte.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades/unidades_transporte.php">
+                        <i class="bi bi-truck-front"></i> Unidades de Transporte
+                    </a>
+                </li>
+
+            <?php else: // ---- LOGÍSTICA (default para sidebar_sec) ---- ?>
+                <hr class="text-white-50 my-2">
+                <small class="text-white-50 px-3 fw-bold">
+                    <i class="bi bi-truck"></i> SALIDAS DE ENVASES · LOGÍSTICA
+                </small>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo in_array($current_page, ['salidas_envases.php', 'ver_sec.php', 'editar_sec.php']) ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/sec/salidas_envases.php">
+                        <i class="bi bi-box-arrow-right"></i> Salidas de Envases
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'nueva_sec.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/sec/nueva_sec.php">
+                        <i class="bi bi-plus-circle"></i> Nueva SEC
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'tipos_envase.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/catalogo/tipos_envase.php">
+                        <i class="bi bi-box2"></i> Tipos de Envase
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'inventario.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/inventario/inventario.php">
+                        <i class="bi bi-boxes"></i> Inventario
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'vueltas.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/vueltas/vueltas.php">
+                        <i class="bi bi-arrow-repeat"></i> Vueltas
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link <?php echo $current_page == 'unidades_transporte.php' ? 'active' : ''; ?>"
+                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades/unidades_transporte.php">
+                        <i class="bi bi-truck-front"></i> Unidades de Transporte
+                    </a>
+                </li>
             <?php endif; ?>
 
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'disponibilidad_unidades.php' ? 'active' : ''; ?>"
-                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/disponibilidad_unidades.php">
-                    <i class="bi bi-calendar-event"></i> Disponibilidad
-                </a>
-            </li>
-
-            <?php if ($es_log_sb): ?>
-            <li class="nav-item">
-                <a class="nav-link <?php echo $current_page == 'unidades_transporte.php' ? 'active' : ''; ?>"
-                   href="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades_transporte.php">
-                    <i class="bi bi-truck-front"></i> Unidades de Transporte
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (!$es_log_sb): // Almacen de Residuos ?>
+            <?php if ($es_alm_sb): // Vale traje Tyvek solo para Almacén ?>
             <hr class="text-white-50 my-2">
             <small class="text-white-50 px-3 fw-bold">VALE TRAJE TYVEK</small>
 
