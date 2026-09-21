@@ -38,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($modo === 'existente') {
         $datos['inventario_epp_id'] = (int) ($_POST['inventario_epp_id'] ?? 0);
         $datos['cantidad'] = (int) ($_POST['cantidad_existente'] ?? 0);
+        $datos['nombre_proveedor'] = trim($_POST['nombre_proveedor'] ?? '');
         $es_nueva_talla = ($_POST['es_nueva_talla'] ?? '0') === '1';
         $datos['nueva_talla_nombre'] = trim($_POST['nueva_talla_nombre'] ?? '');
         
@@ -150,6 +151,7 @@ foreach ($articulos_existentes as $art) {
         'categoria' => $art['categoria'],
         'articulo' => $art['articulo'],
         'unidad' => $art['unidad'],
+        'nombre_proveedor' => $art['nombre_proveedor'] ?? '',
         'tallas' => $art['tallas_data']
     ];
 }
@@ -293,6 +295,13 @@ foreach ($articulos_existentes as $art) {
                             <div class="mb-3">
                                 <label class="form-label">Cantidad a agregar <span class="text-danger">*</span></label>
                                 <input type="number" name="cantidad_existente" class="form-control" min="1" required placeholder="0">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Proveedor <span class="text-muted">(opcional)</span></label>
+                                <input type="text" name="nombre_proveedor" id="inputProveedorExistente" class="form-control"
+                                       placeholder="Nombre del proveedor" autocomplete="off">
+                                <small class="text-muted">Si lo capturas, se actualizará el proveedor de este artículo.</small>
                             </div>
                             
                             <div class="mb-3">
@@ -477,6 +486,7 @@ foreach ($articulos_existentes as $art) {
     selectArticuloEx.addEventListener('change', function() {
         selectTallaEx.innerHTML = '<option value="">Seleccione una talla</option>';
         stockInfoEx.classList.remove('visible');
+        document.getElementById('inputProveedorExistente').value = '';
         document.getElementById('nuevaTallaToggle').style.display = 'none';
         document.getElementById('nuevaTallaFields').style.display = 'none';
         document.getElementById('esNuevaTalla').value = '0';
@@ -487,6 +497,8 @@ foreach ($articulos_existentes as $art) {
         
         const art = articulosData.find(a => a.id == this.value);
         if (!art) return;
+        
+        document.getElementById('inputProveedorExistente').value = art.nombre_proveedor || '';
         
         art.tallas.forEach(t => {
             const opt = document.createElement('option');

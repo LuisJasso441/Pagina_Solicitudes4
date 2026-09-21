@@ -351,6 +351,12 @@ function agregar_stock_existente($datos) {
         // Recalcular stock total del artículo
         recalcular_stock_epp($inventario_epp_id, $pdo);
         
+        // Actualizar el proveedor del artículo si se capturó uno
+        if (!empty($datos['nombre_proveedor'])) {
+            $pdo->prepare("UPDATE inventario_epp SET nombre_proveedor = :prov WHERE id = :id")
+                ->execute([':prov' => trim($datos['nombre_proveedor']), ':id' => $inventario_epp_id]);
+        }
+        
         // Registrar movimiento de entrada
         $pdo->prepare("
             INSERT INTO movimientos_epp (
