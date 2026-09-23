@@ -165,13 +165,6 @@ try {
                 </li>
 
                 <li class="nav-item">
-                    <a class="nav-link <?php echo $current_page == 'movimientos_inventario.php' ? 'active' : ''; ?>"
-                       href="<?php echo URL_BASE; ?>dashboard/salidas_envases/inventario/movimientos_inventario.php">
-                        <i class="bi bi-arrow-left-right"></i> Movimientos de Inventario
-                    </a>
-                </li>
-
-                <li class="nav-item">
                     <a class="nav-link <?php echo $current_page == 'unidades_transporte.php' ? 'active' : ''; ?>"
                        href="<?php echo URL_BASE; ?>dashboard/salidas_envases/unidades/unidades_transporte.php">
                         <i class="bi bi-truck-front"></i> Unidades de Transporte

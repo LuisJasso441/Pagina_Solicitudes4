@@ -15,7 +15,7 @@ if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
-if (!es_logistica()) {
+if (!puede_administrar_tipos_envase()) {
     $_SESSION['flash_msg'] = 'No tienes permisos para eliminar del catálogo.';
     $_SESSION['flash_tipo'] = 'danger';
     header('Location: ' . URL_BASE . 'dashboard/salidas_envases/catalogo/tipos_envase.php');

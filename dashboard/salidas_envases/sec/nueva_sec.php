@@ -73,6 +73,7 @@ $prev_lineas      = $datos_previos['lineas']            ?? [];
     <title>Nueva SEC | <?php echo defined('NOMBRE_SISTEMA') ? NOMBRE_SISTEMA : 'Verden'; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
@@ -381,7 +382,7 @@ $prev_lineas      = $datos_previos['lineas']            ?? [];
             Object.keys(porTipo).sort().forEach(tipoNombre => {
                 html += `<optgroup label="${escapeHtml(tipoNombre)}">`;
                 porTipo[tipoNombre].forEach(s => {
-                    html += `<option value="${s.id}">${escapeHtml(s.nombre)}</option>`;
+                    html += `<option value="${s.id}">${escapeHtml(tipoNombre + ' - ' + s.nombre)}</option>`;
                 });
                 html += '</optgroup>';
             });

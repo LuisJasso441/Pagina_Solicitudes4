@@ -31,13 +31,13 @@ require_once __DIR__ . '/sec_funciones.php';
 /**
  * ¿El usuario puede registrar una devolución en esta SEC?
  * D2: Logística y Almacén.
- * D1: Estados en_ruta, cerrada, cerrada_con_devolucion.
+ * D1: Estados en_ruta o devoluciones_parciales (pre-cierre).
  */
 function puede_registrar_devolucion_sec($dept, $sec) {
     if (!is_array($sec)) return false;
     $dept_lc = strtolower((string) $dept);
     if (!in_array($dept_lc, ['logistica', 'almacen_residuos'], true)) return false;
-    return in_array($sec['estado'], ['en_ruta', 'cerrada', 'cerrada_con_devolucion'], true);
+    return in_array($sec['estado'], ['en_ruta', 'devoluciones_parciales'], true);
 }
 
 // =====================================================================
@@ -141,7 +141,7 @@ function crear_devolucion_sec($sec_id, $linea_id, $cantidad, $motivo, $motivo_ot
     if (!$sec) return ['success' => false, 'errores' => ['La SEC no existe.']];
 
     // Validar estado
-    if (!in_array($sec['estado'], ['en_ruta', 'cerrada', 'cerrada_con_devolucion'], true)) {
+    if (!in_array($sec['estado'], ['en_ruta', 'devoluciones_parciales'], true)) {
         return ['success' => false, 'errores' => ['La SEC no está en un estado que permita devoluciones.']];
     }
 
@@ -218,11 +218,16 @@ function crear_devolucion_sec($sec_id, $linea_id, $cantidad, $motivo, $motivo_ot
             return ['success' => false, 'errores' => ['Error al reintegrar al inventario: ' . $res_mov['msg']]];
         }
 
-        // Cambio de estado a 'cerrada_con_devolucion' si es la primera devolución
-        $estado_antes = $sec['estado'];
-        if ($estado_antes !== 'cerrada_con_devolucion') {
-            $stmt = $pdo->prepare("UPDATE sec_salidas SET estado = 'cerrada_con_devolucion' WHERE id = ?");
-            $stmt->execute([(int) $sec_id]);
+        // Cambio de estado a 'devoluciones_parciales' solo si venía de 'en_ruta'.
+        // Si ya estaba 'devoluciones_parciales', se mantiene sin update.
+        // La SEC ya no se cierra automáticamente al primer registro: eso lo
+        // decide Logística/Almacén desde el botón "Cerrar SEC" cuando termine
+        // el proceso con todas las empresas.
+        $estado_antes   = $sec['estado'];
+        $estado_despues = ($estado_antes === 'en_ruta') ? 'devoluciones_parciales' : $estado_antes;
+        if ($estado_despues !== $estado_antes) {
+            $stmt = $pdo->prepare("UPDATE sec_salidas SET estado = ? WHERE id = ?");
+            $stmt->execute([$estado_despues, (int) $sec_id]);
         }
 
         $pdo->commit();
@@ -241,7 +246,7 @@ function crear_devolucion_sec($sec_id, $linea_id, $cantidad, $motivo, $motivo_ot
                 'motivo'           => $motivo,
                 'motivo_otro'      => $motivo_otro !== '' ? $motivo_otro : null,
                 'estado_antes'    => $estado_antes,
-                'estado_despues'  => 'cerrada_con_devolucion',
+                'estado_despues'  => $estado_despues,
             ]
         );
 

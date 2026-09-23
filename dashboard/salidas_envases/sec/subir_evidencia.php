@@ -28,6 +28,16 @@ if (!puede_leer_sec()) {
     redirigir(URL_BASE . 'dashboard/inicio.php');
 }
 
+// Solo Almacén de Residuos puede subir evidencias a una SEC.
+if (!es_almacen_residuos()) {
+    establecer_alerta('error', 'Solo Almacén de Residuos puede subir evidencias a una SEC.');
+    $sec_id_redir = (int) ($_POST['sec_id'] ?? 0);
+    if ($sec_id_redir > 0) {
+        redirigir(URL_BASE . 'dashboard/salidas_envases/sec/ver_sec.php?id=' . $sec_id_redir . '#evidencias');
+    }
+    redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     redirigir(URL_BASE . 'dashboard/salidas_envases/sec/salidas_envases.php');
 }

@@ -65,8 +65,9 @@ function info_estado_sec($estado) {
     $map = [
         'pendiente_firma_entrega' => ['bg-primary',             'Pendiente firma'],
         'en_ruta'                 => ['bg-info text-dark',      'En ruta'],
+        'devoluciones_parciales'  => ['bg-warning text-dark',   'Devoluciones parciales'],
         'cerrada'                 => ['bg-success',             'Cerrada'],
-        'cerrada_con_devolucion'  => ['bg-warning text-dark',   'Cerrada c/devolución'],
+        'cerrada_con_devolucion'  => ['bg-secondary',           'Cerrada c/devolución'],
         'cancelada'               => ['bg-dark',                'Cancelada'],
     ];
     return $map[$estado] ?? ['bg-light text-dark', $estado];
@@ -87,11 +88,11 @@ function sec_puede_firmar_entrega($sec) {
 function sec_puede_firmar_recibe($sec) {
     if (!is_array($sec)) return false;
     if (!empty($sec['recibe_firma_svg'])) return false; // ya firmada
-    return in_array($sec['estado'], ['en_ruta', 'cerrada', 'cerrada_con_devolucion'], true);
+    return in_array($sec['estado'], ['en_ruta', 'devoluciones_parciales', 'cerrada', 'cerrada_con_devolucion'], true);
 }
 
 function sec_puede_cerrarse($sec) {
-    return is_array($sec) && $sec['estado'] === 'en_ruta';
+    return is_array($sec) && in_array($sec['estado'], ['en_ruta', 'devoluciones_parciales'], true);
 }
 
 function sec_es_cancelable($sec) {
@@ -674,16 +675,27 @@ function cerrar_sec($sec_id, $usuario_id) {
     $sec = obtener_sec_por_id($sec_id);
     if (!$sec) return ['success' => false, 'errores' => ['La SEC no existe.']];
     if (!sec_puede_cerrarse($sec)) {
-        return ['success' => false, 'errores' => ['La SEC no está en estado En ruta.']];
+        return ['success' => false, 'errores' => ['La SEC no está en un estado que permita cierre.']];
     }
     try {
         $pdo = conectarDB();
+
+        // Determinar estado final según si hubo devoluciones
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM sec_devoluciones WHERE sec_id = ?");
+        $stmt->execute([(int) $sec_id]);
+        $tiene_devoluciones = (int) $stmt->fetchColumn() > 0;
+        $estado_final = $tiene_devoluciones ? 'cerrada_con_devolucion' : 'cerrada';
+
         $stmt = $pdo->prepare("
-            UPDATE sec_salidas SET estado = 'cerrada', cerrada_por = ?, cerrada_en = NOW()
+            UPDATE sec_salidas SET estado = ?, cerrada_por = ?, cerrada_en = NOW()
             WHERE id = ?
         ");
-        $stmt->execute([(int) $usuario_id, (int) $sec_id]);
-        registrar_historial_sec($sec_id, $usuario_id, 'sec_cerrada', 'SEC cerrada manualmente.');
+        $stmt->execute([$estado_final, (int) $usuario_id, (int) $sec_id]);
+
+        $desc = $tiene_devoluciones
+            ? 'SEC cerrada manualmente (con devoluciones registradas).'
+            : 'SEC cerrada manualmente.';
+        registrar_historial_sec($sec_id, $usuario_id, 'sec_cerrada', $desc);
         return ['success' => true, 'errores' => []];
     } catch (Exception $e) {
         error_log('cerrar_sec: ' . $e->getMessage());

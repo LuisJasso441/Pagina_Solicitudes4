@@ -357,7 +357,7 @@ if ($datos_previos && !empty($datos_previos['lineas'])) {
             Object.keys(porTipo).sort().forEach(tipoNombre => {
                 html += `<optgroup label="${escapeHtml(tipoNombre)}">`;
                 porTipo[tipoNombre].forEach(s => {
-                    html += `<option value="${s.id}">${escapeHtml(s.nombre)}</option>`;
+                    html += `<option value="${s.id}">${escapeHtml(tipoNombre + ' - ' + s.nombre)}</option>`;
                 });
                 html += '</optgroup>';
             });

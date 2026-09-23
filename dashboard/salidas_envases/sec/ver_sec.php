@@ -601,27 +601,38 @@ unset($_SESSION['sec_ver_errores']);
                         <div class="card card-detalle mb-3" id="evidencias">
                             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                 <h5 class="mb-0"><i class="bi bi-image"></i> Evidencias <span class="text-muted small">(<?php echo count($evidencias); ?>)</span></h5>
+                                <?php if (es_almacen_residuos()): ?>
                                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalSubirEvidencia">
                                     <i class="bi bi-upload"></i> Subir imágenes
                                 </button>
+                                <?php endif; ?>
                             </div>
                             <div class="card-body">
                                 <?php if (empty($evidencias)): ?>
-                                    <p class="text-muted small mb-0"><i class="bi bi-camera"></i> Sin evidencias adjuntas. Puedes subir fotos de la carga o descarga.</p>
+                                    <p class="text-muted small mb-0">
+                                        <i class="bi bi-camera"></i> Sin evidencias adjuntas.
+                                        <?php if (es_almacen_residuos()): ?>
+                                            Puedes subir fotos de la carga o descarga.
+                                        <?php else: ?>
+                                            Almacén de Residuos puede subir fotos de la carga o descarga.
+                                        <?php endif; ?>
+                                    </p>
                                 <?php else: ?>
                                     <div class="evidencia-grid">
                                         <?php foreach ($evidencias as $ev):
                                             $url_ev = URL_BASE . htmlspecialchars($ev['ruta_archivo']);
                                             $es_propia = ((int) $ev['subido_por'] === $usuario_id);
-                                        ?>
-                                            <div class="evidencia-item">
-                                                <img class="evidencia-thumb" src="<?php echo $url_ev; ?>" alt="<?php echo htmlspecialchars($ev['nombre_original']); ?>"
-                                                     data-fullsrc="<?php echo $url_ev; ?>"
-                                                     data-nombre="<?php echo htmlspecialchars($ev['nombre_original']); ?>"
-                                                     onclick="abrirLightbox(this)">
-                                                <?php if ($es_propia): ?>
-                                                    <button type="button" class="btn btn-sm btn-danger btn-eliminar-ev"
-                                                            data-bs-toggle="modal" data-bs-target="#modalEliminarEvidencia"
+                                            ?>
+                                                <div class="evidencia-item">
+                                                    <img class="evidencia-thumb"
+                                                        src="<?php echo $url_ev; ?>"
+                                                        alt="<?php echo htmlspecialchars($ev['nombre_original']); ?>"
+                                                        data-fullsrc="<?php echo $url_ev; ?>"
+                                                        data-nombre="<?php echo htmlspecialchars($ev['nombre_original']); ?>"
+                                                        onclick="abrirLightbox(this)">
+                                                    <?php if ($es_propia && es_almacen_residuos()): ?>
+                                                        <button type="button" class="btn btn-sm btn-danger btn-eliminar-ev"
+                                                                data-bs-toggle="modal" data-bs-target="#modalEliminarEvidencia"
                                                             data-ev-id="<?php echo (int) $ev['id']; ?>"
                                                             data-ev-nombre="<?php echo htmlspecialchars($ev['nombre_original']); ?>"
                                                             title="Eliminar evidencia">
@@ -920,7 +931,7 @@ unset($_SESSION['sec_ver_errores']);
                     <div class="modal-body">
                         <p>¿Cerrar la SEC <strong><?php echo htmlspecialchars($sec['folio']); ?></strong>?</p>
                         <p class="text-muted small mb-0">
-                            La SEC pasará a estado <strong>Cerrada</strong>. La firma de recibe podrá agregarse después si es necesario.
+                            La SEC pasará a estado <strong>Cerrada</strong>. Si tiene devoluciones registradas, quedará como <strong>Cerrada c/devolución</strong>. La firma de recibe podrá agregarse después si es necesario.
                         </p>
                     </div>
                     <div class="modal-footer">
@@ -964,7 +975,8 @@ unset($_SESSION['sec_ver_errores']);
     </div>
     <?php endif; ?>
 
-    <!-- MODAL SUBIR EVIDENCIAS -->
+    <!-- MODAL SUBIR EVIDENCIAS (solo Almacén) -->
+    <?php if (es_almacen_residuos()): ?>
     <div class="modal fade" id="modalSubirEvidencia" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -994,6 +1006,7 @@ unset($_SESSION['sec_ver_errores']);
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <!-- MODAL LIGHTBOX EVIDENCIA -->
     <div class="modal fade" id="modalEvidenciaViewer" tabindex="-1">
@@ -1007,7 +1020,8 @@ unset($_SESSION['sec_ver_errores']);
         </div>
     </div>
 
-    <!-- MODAL ELIMINAR EVIDENCIA -->
+    <!-- MODAL ELIMINAR EVIDENCIA (solo Almacén) -->
+    <?php if (es_almacen_residuos()): ?>
     <div class="modal fade" id="modalEliminarEvidencia" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -1030,6 +1044,7 @@ unset($_SESSION['sec_ver_errores']);
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <?php if ($puede_devolver && $hay_saldo):
         // Filtrar líneas con saldo > 0 para el modal

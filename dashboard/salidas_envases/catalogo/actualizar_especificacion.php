@@ -15,7 +15,7 @@ if (!isset($_SESSION['usuario_id'])) {
     header('Location: ' . URL_BASE . 'auth/InicioSesion.php');
     exit;
 }
-if (!es_logistica()) {
+if (!puede_administrar_tipos_envase()) {
     $_SESSION['flash_msg'] = 'No tienes permisos para modificar el catálogo.';
     $_SESSION['flash_tipo'] = 'danger';
     header('Location: ' . URL_BASE . 'dashboard/salidas_envases/catalogo/tipos_envase.php');
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $id     = (int) ($_POST['id'] ?? 0);
 $nombre = $_POST['nombre'] ?? '';
-$activo = isset($_POST['activo']) ? 1 : 0;
+$activo = (int) ($_POST['activo'] ?? 0);
 
 if ($id <= 0) {
     $_SESSION['flash_msg']  = 'ID inválido.';

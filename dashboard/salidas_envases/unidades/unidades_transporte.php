@@ -23,9 +23,9 @@ if (!isset($_SESSION['usuario_id'])) {
 }
 
 // ---- Autorización ----
-if (!puede_administrar_tipos_envase()) {
-    establecer_alerta('error', 'Solo Almacén de Residuos puede administrar tipos de envase.');
-    redirigir(URL_BASE . 'dashboard/salidas_envases/catalogo/tipos_envase.php');
+if (!puede_ver_unidades_transporte()) {
+    establecer_alerta('error', 'No tienes acceso a Unidades de Transporte.');
+    redirigir(URL_BASE . 'dashboard/inicio.php');
 }
 
 $puede_editar = puede_administrar_unidades_transporte();
@@ -62,10 +62,17 @@ foreach ($unidades as $u) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Unidades de Transporte - Verden</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/sidebar.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/dashboard.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/formularios.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/base/variables.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/sidebar.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/components/hamburger.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/layouts/dashboard-layout.css">
+    <link rel="stylesheet" href="<?php echo URL_BASE; ?>assets/css/utilities/responsive.css">
+    <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js" defer></script>
     <style>
         .unidad-card { transition: box-shadow 0.15s; }
         .unidad-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
