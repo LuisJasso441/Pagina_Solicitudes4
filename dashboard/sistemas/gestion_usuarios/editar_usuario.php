@@ -2,8 +2,6 @@
 /**
  * Editar Usuario
  * Solo accesible para usuarios del departamento de Sistemas
- * 
- * ⭐ ACTUALIZADO: Campos de Vacaciones (no_nomina, puesto, fecha_ingreso, es_admin_area)
  */
 
 session_start();
@@ -256,7 +254,13 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
-                                    <!-- FIN VACACIONES -->
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nómina</label>
+                                        <input type="text" name="no_nomina" class="form-control"
+                                               value="<?php echo htmlspecialchars($form_data['no_nomina'] ?? ''); ?>"
+                                               maxlength="20" placeholder="Ej: 1023, 95173, EMP-1234">
+                                        <small class="text-muted">Opcional. Aparecerá junto al nombre en los Vales de EPP.</small>
+                                    </div>
                                 </div>
                             </div>
 
@@ -406,39 +410,6 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                     <i class="bi bi-lightbulb me-1"></i>
                                     <strong>CQR:</strong> Creador = Ventas (crea solicitudes), Editor = Normatividad (responde solicitudes)
                                 </small>
-
-                                <!-- ⭐ VACACIONES: Rol Administrativo de Área -->
-                                <div class="mt-3 pt-3 border-top">
-                                    <div class="form-section-title">
-                                        <i class="bi bi-calendar-check me-2"></i>Vacaciones
-                                    </div>
-                                    <table class="table table-bordered permisos-table mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th style="width: 60%;">Rol</th>
-                                                <th style="width: 40%;">Asignado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <strong>Administrativo de Área</strong><br>
-                                                    <small class="text-muted">Jefe/Responsable del departamento — puede aprobar solicitudes de vacaciones</small>
-                                                </td>
-                                                <td>
-                                                    <div class="form-check d-flex justify-content-center">
-                                                        <input type="checkbox" name="es_admin_area" value="1" class="form-check-input" 
-                                                               id="es_admin_area" <?php echo ($form_data['es_admin_area'] ?? 0) ? 'checked' : ''; ?>>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                    <small class="text-muted mt-1 d-block">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        Al marcar esta casilla, el usuario podrá aprobar/rechazar solicitudes de vacaciones de su departamento.
-                                    </small>
-                                </div>
                             </div>
 
                             <!-- Botones de acción -->

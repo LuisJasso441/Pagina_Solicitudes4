@@ -4,9 +4,7 @@
  * Maneja: crear, editar, cambiar_estado
  * Solo accesible para usuarios del departamento de Sistemas
  * 
- * ACTUALIZADO: Auto-vinculacion con empleados_gth
- * Editar solo maneja: nombre, usuario, password, departamento, admin_area, permisos
- * Campos de GTH (nomina, puesto, ingreso, periodo, empresa) se gestionan desde GTH
+ * Crea y edita usuarios (nombre, usuario, correo, password, departamento, permisos)
  */
 
 session_start();
@@ -125,8 +123,7 @@ if ($accion === 'crear') {
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
     $activo = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
-    $es_admin_area = isset($_POST['es_admin_area']) ? 1 : 0;
-    $empleado_gth_id = intval($_POST['empleado_gth_id'] ?? 0);
+    $no_nomina = trim($_POST['no_nomina'] ?? '');
     
     // Permisos SSC
     $ssc_lector = 1;
@@ -148,20 +145,6 @@ if ($accion === 'crear') {
     $sec_creador = isset($_POST['sec_creador']) ? 1 : 0;
     $sec_editor = isset($_POST['sec_editor']) ? 1 : 0;
     
-    // Si se vincula con empleado, obtener datos del empleado
-    $empleado_datos = null;
-    if ($empleado_gth_id > 0) {
-        $stmt_emp = $pdo->prepare("SELECT * FROM empleados_gth WHERE id = ? AND usuario_id IS NULL AND activo = 1");
-        $stmt_emp->execute([$empleado_gth_id]);
-        $empleado_datos = $stmt_emp->fetch(PDO::FETCH_ASSOC);
-        if (!$empleado_datos) {
-            $errores[] = 'Empleado no encontrado o ya tiene cuenta vinculada.';
-        } else {
-            // Usar datos del empleado
-            $nombre_completo = $empleado_datos['nombre_completo'];
-            $departamento_id = (int)$empleado_datos['departamento_id'];
-        }
-    }
     
     // Validaciones
     if (empty($nombre_completo)) {
@@ -213,37 +196,23 @@ if ($accion === 'crear') {
     // Hash de la contrasena
     $password_hash = password_hash($password, PASSWORD_DEFAULT);
     
-    // Datos del empleado para INSERT (si se vincula, usa datos del empleado)
-    $no_nomina = $empleado_datos['no_nomina'] ?? null;
-    $puesto = $empleado_datos['puesto'] ?? null;
-    $fecha_ingreso = $empleado_datos['fecha_ingreso'] ?? null;
-    $periodo_pago = $empleado_datos['periodo_pago'] ?? null;
-    $empresa = $empleado_datos['empresa'] ?? null;
-    $jornada = $empleado_datos['jornada'] ?? null;
-    
     // Iniciar transaccion
     $pdo->beginTransaction();
     
     try {
         // Insertar usuario
-        $sql = "INSERT INTO usuarios (nombre_completo, no_nomina, puesto, fecha_ingreso, periodo_pago, empresa, jornada, usuario, correo, password, departamento, departamento_id, activo, es_admin_area, fecha_registro, created_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        $sql = "INSERT INTO usuarios (nombre_completo, usuario, correo, no_nomina, password, departamento, departamento_id, activo, fecha_registro, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $nombre_completo,
-            $no_nomina,
-            $puesto,
-            $fecha_ingreso,
-            $periodo_pago,
-            $empresa,
-            $jornada,
             strtoupper($usuario), 
             $correo !== '' ? $correo : null,
+            $no_nomina !== '' ? $no_nomina : null,
             $password_hash, 
             $departamento_codigo, 
             $departamento_id, 
             $activo,
-            $es_admin_area,
             $usuario_actual_id
         ]);
         
@@ -265,15 +234,10 @@ if ($accion === 'crear') {
         $pdo->prepare("INSERT INTO permisos_sec (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
             ->execute([$nuevo_usuario_id, $sec_lector, $sec_creador, $sec_editor]);
         
-        // Vincular con empleado_gth
-        if ($empleado_gth_id > 0 && $empleado_datos) {
-            $pdo->prepare("UPDATE empleados_gth SET usuario_id = ?, updated_at = NOW(), updated_by = ? WHERE id = ?")
-                ->execute([$nuevo_usuario_id, $usuario_actual_id, $empleado_gth_id]);
-        }
         
         $pdo->commit();
         
-        $msg = ($empleado_gth_id > 0) ? 'creado_vinculado' : 'creado';
+        $msg = 'creado';
         header('Location: ' . URL_BASE . 'dashboard/sistemas/gestion_usuarios/dashboard_usuarios.php?msg=' . $msg);
         exit;
         
@@ -288,8 +252,7 @@ if ($accion === 'crear') {
 
 // ============================================================
 // ACCION: EDITAR USUARIO
-// Solo: nombre, usuario, password, departamento, admin_area, permisos
-// Campos de GTH (nomina, puesto, ingreso, periodo, empresa) se gestionan desde GTH
+// Maneja: nombre, usuario, correo, password, departamento, permisos
 // ============================================================
 elseif ($accion === 'editar') {
     $errores = [];
@@ -308,7 +271,7 @@ elseif ($accion === 'editar') {
     $departamento_id = (int)($_POST['departamento_id'] ?? 0);
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
-    $es_admin_area = isset($_POST['es_admin_area']) ? 1 : 0;
+    $no_nomina = trim($_POST['no_nomina'] ?? '');
     
     // Permisos SSC
     $ssc_lector = 1;
@@ -390,10 +353,10 @@ elseif ($accion === 'editar') {
                         nombre_completo = ?,
                         usuario = ?, 
                         correo = ?,
+                        no_nomina = ?,
                         password = ?,
                         departamento = ?, 
                         departamento_id = ?,
-                        es_admin_area = ?,
                         updated_at = NOW(),
                         updated_by = ?
                     WHERE id = ?";
@@ -402,10 +365,10 @@ elseif ($accion === 'editar') {
                 $nombre_completo,
                 strtoupper($usuario),
                 $correo !== '' ? $correo : null,
+                $no_nomina !== '' ? $no_nomina : null,
                 $password_hash,
                 $departamento_codigo,
                 $departamento_id,
-                $es_admin_area,
                 $usuario_actual_id,
                 $id
             ]);
@@ -414,9 +377,9 @@ elseif ($accion === 'editar') {
                         nombre_completo = ?, 
                         usuario = ?, 
                         correo = ?,
+                        no_nomina = ?,
                         departamento = ?, 
                         departamento_id = ?,
-                        es_admin_area = ?,
                         updated_at = NOW(),
                         updated_by = ?
                     WHERE id = ?";
@@ -425,9 +388,9 @@ elseif ($accion === 'editar') {
                 $nombre_completo,
                 strtoupper($usuario),
                 $correo !== '' ? $correo : null,
+                $no_nomina !== '' ? $no_nomina : null,
                 $departamento_codigo,
                 $departamento_id,
-                $es_admin_area,
                 $usuario_actual_id,
                 $id
             ]);
