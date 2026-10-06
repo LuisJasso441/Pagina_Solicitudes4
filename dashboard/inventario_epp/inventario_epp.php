@@ -226,9 +226,9 @@ $stats = obtener_estadisticas_epp();
                                 <td class="text-center text-muted"><?php echo $index + 1; ?></td>
                                 
                                 <td>
-                                    <?php if ($permisos['puede_editar_tabla']): ?>
+                                    <?php if ($permisos['puede_editar_articulo']): ?>
                                     <div class="celda-editable">
-                                        <input type="text" value="<?php echo htmlspecialchars($item['articulo']); ?>" 
+                                        <input type="text" value="<?php echo htmlspecialchars($item['articulo']); ?>"
                                                data-original="<?php echo htmlspecialchars($item['articulo']); ?>"
                                                onchange="guardarCampo(<?php echo $item['id']; ?>, 'articulo', this.value, this)">
                                     </div>
@@ -285,6 +285,10 @@ $stats = obtener_estadisticas_epp();
                                 <td class="text-center">
                                     <a href="<?php echo URL_BASE; ?>dashboard/inventario_epp/ver_epp.php?id=<?php echo $item['id']; ?>" 
                                        class="btn btn-outline-info btn-accion" title="Ver detalle"><i class="bi bi-eye"></i></a>
+                                    <?php if ($permisos['puede_editar_tabla']): ?>
+                                    <button type="button" class="btn btn-outline-secondary btn-accion" title="Ajuste por conteo físico"
+                                            onclick="abrirConteoFisico(<?php echo $item['id']; ?>)"><i class="bi bi-clipboard-check"></i></button>
+                                    <?php endif; ?>
                                 </td>
                                 <?php endif; ?>
                             </tr>
@@ -401,7 +405,7 @@ $stats = obtener_estadisticas_epp();
     }
     </script>
     
-    <?php if ($permisos['puede_editar_tabla']): ?>
+    <?php if ($permisos['puede_editar_articulo']): ?>
     <script>
     function guardarCampo(id, campo, valor, el) {
         if (valor === el.dataset.original) return;
@@ -431,6 +435,93 @@ $stats = obtener_estadisticas_epp();
         m.textContent = msg; ind.querySelector('.alert').className = 'alert alert-'+tipo+' py-2 px-3 shadow';
         ind.style.display = 'block'; setTimeout(() => ind.style.display = 'none', 2500);
     }
+    </script>
+    <?php endif; ?>
+
+    <?php if ($permisos['puede_editar_tabla']): ?>
+    <!-- Modal: Ajuste por conteo físico -->
+    <div class="modal fade" id="modalConteoFisico" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-clipboard-check"></i> Ajuste por conteo físico</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-2" style="font-size:0.85rem;">Captura la cantidad <strong>contada físicamente</strong> de cada talla. No genera entrada ni salida; queda registrado en Historial.</p>
+                    <div class="fw-bold mb-2" id="cfArticulo" style="font-size:0.95rem;"></div>
+                    <div class="alert alert-danger py-2 d-none" id="cfError" style="font-size:0.85rem;"></div>
+                    <table class="table table-sm align-middle mb-0">
+                        <thead><tr><th>Talla</th><th class="text-center">Stock sistema</th><th class="text-center" style="width:120px;">Contado</th></tr></thead>
+                        <tbody id="cfTbody"></tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="cfGuardar">Aplicar conteo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    const API_INV_CF = '<?php echo URL_BASE; ?>dashboard/inventario_epp/api_inventario_epp.php';
+    const modalCF   = new bootstrap.Modal(document.getElementById('modalConteoFisico'));
+    const cfTbody   = document.getElementById('cfTbody');
+    const cfError   = document.getElementById('cfError');
+    const cfArticulo= document.getElementById('cfArticulo');
+    const cfGuardar = document.getElementById('cfGuardar');
+
+    async function abrirConteoFisico(id) {
+        cfError.classList.add('d-none'); cfError.textContent = '';
+        cfArticulo.textContent = '';
+        cfTbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Cargando...</td></tr>';
+        modalCF.show();
+        try {
+            const r = await fetch(API_INV_CF, {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({accion: 'obtener_articulo', id: id})
+            });
+            const data = await r.json();
+            if (!data.success) { cfTbody.innerHTML = ''; cfError.textContent = data.message || 'No se pudo cargar.'; cfError.classList.remove('d-none'); return; }
+            cfArticulo.textContent = data.data.articulo;
+            const tallas = data.data.tallas || [];
+            cfTbody.innerHTML = '';
+            tallas.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML =
+                    '<td>' + t.talla + '</td>' +
+                    '<td class="text-center">' + t.stock + '</td>' +
+                    '<td class="text-center"><input type="number" class="form-control form-control-sm cf-input" min="0" ' +
+                    'data-talla-id="' + t.id + '" data-sistema="' + t.stock + '" value="' + t.stock + '"></td>';
+                cfTbody.appendChild(tr);
+            });
+        } catch (e) {
+            cfTbody.innerHTML = ''; cfError.textContent = 'Error de conexión.'; cfError.classList.remove('d-none');
+        }
+    }
+
+    cfGuardar.addEventListener('click', async function() {
+        cfError.classList.add('d-none');
+        const inputs = Array.from(document.querySelectorAll('.cf-input'));
+        const cambios = inputs.filter(i => i.value !== '' && parseInt(i.value) !== parseInt(i.dataset.sistema));
+        if (cambios.length === 0) { cfError.textContent = 'No hay cambios que aplicar.'; cfError.classList.remove('d-none'); return; }
+        cfGuardar.disabled = true;
+        let ok = 0, fail = 0;
+        for (const inp of cambios) {
+            try {
+                const r = await fetch(API_INV_CF, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({accion: 'ajuste_conteo_fisico', talla_id: parseInt(inp.dataset.tallaId), stock_contado: parseInt(inp.value)})
+                });
+                const data = await r.json();
+                if (data.success) ok++; else fail++;
+            } catch (e) { fail++; }
+        }
+        cfGuardar.disabled = false;
+        modalCF.hide();
+        try { if (typeof mostrarIndicador === 'function') mostrarIndicador('Conteo aplicado: ' + ok + ' talla(s)' + (fail ? ', ' + fail + ' con error' : ''), fail ? 'danger' : 'success'); } catch (e) {}
+        setTimeout(() => location.reload(), 800);
+    });
     </script>
     <?php endif; ?>
 </body>

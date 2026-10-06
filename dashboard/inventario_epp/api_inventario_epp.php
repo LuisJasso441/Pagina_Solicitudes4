@@ -43,13 +43,17 @@ switch ($accion) {
     // Actualizar campo inline (artículo, unidad, etc.)
     // =====================================================
     case 'actualizar_campo':
-        if (!$permisos['puede_editar']) {
+        $campo = $input['campo'] ?? '';
+        // El ARTICULO lo puede editar Seguridad; las demas columnas, solo editores de tabla
+        $puede_este_campo = ($campo === 'articulo')
+            ? $permisos['puede_editar_articulo']
+            : $permisos['puede_editar_tabla'];
+        if (!$puede_este_campo) {
             echo json_encode(['success' => false, 'message' => 'Sin permiso de edición.']);
             exit;
         }
         
         $id = (int) ($input['id'] ?? 0);
-        $campo = $input['campo'] ?? '';
         $valor = $input['valor'] ?? '';
         
         if (!$id || !$campo) {
@@ -126,6 +130,23 @@ switch ($accion) {
     case 'listar_articulos':
         $articulos = obtener_articulos_dropdown_epp();
         echo json_encode(['success' => true, 'data' => $articulos]);
+        break;
+    
+    // =====================================================
+    // Ajuste por conteo físico (solo Almacén de Refacciones)
+    // =====================================================
+    case 'ajuste_conteo_fisico':
+        if (!$permisos['puede_editar_tabla']) {
+            echo json_encode(['success' => false, 'message' => 'Sin permiso para ajustes de inventario.']);
+            exit;
+        }
+        $talla_id = (int) ($input['talla_id'] ?? 0);
+        $contado  = $input['stock_contado'] ?? '';
+        if (!$talla_id || $contado === '' || !is_numeric($contado)) {
+            echo json_encode(['success' => false, 'message' => 'Datos incompletos.']);
+            exit;
+        }
+        echo json_encode(ajuste_conteo_fisico($talla_id, (int) $contado));
         break;
     
     default:

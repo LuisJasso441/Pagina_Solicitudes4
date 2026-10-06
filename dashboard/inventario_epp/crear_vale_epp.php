@@ -234,20 +234,27 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
                             <!-- Empleado -->
                             <div class="col-md-6">
                                 <label class="form-label">Empleado (ID) <span class="text-danger">*</span></label>
+                                <?php if ($es_modo_tyvek): ?>
                                 <select name="empleado_id" id="selectEmpleado" class="form-select" required>
-                                    <option value="">Seleccione primero un departamento</option>
-                                    <?php if ($es_modo_tyvek):
-                                        // Para modo Tyvek, mostrar solo empleados de Almacen de Residuos
-                                        foreach ($departamentos_empleados as $dep):
-                                            if ($dep['codigo'] === 'almacen_residuos'):
-                                                foreach ($dep['empleados'] as $emp): ?>
+                                    <option value="">Seleccione un empleado</option>
+                                    <?php foreach ($departamentos_empleados as $dep):
+                                        if ($dep['codigo'] === 'almacen_residuos'):
+                                            foreach ($dep['empleados'] as $emp): ?>
                                     <option value="<?php echo $emp['id']; ?>" data-nombre="<?php echo htmlspecialchars($emp['nombre']); ?>">
                                         <?php echo htmlspecialchars(($emp['id_display'] !== '' ? $emp['id_display'] . ' - ' : '') . $emp['nombre']); ?>
                                     </option>
-                                    <?php endforeach; endif; endforeach; endif; ?>
+                                    <?php endforeach; endif; endforeach; ?>
                                 </select>
                                 <input type="hidden" name="nombre_empleado" id="nombreEmpleadoHidden" value="">
-                                <?php if (!$es_modo_tyvek): ?>
+                                <?php else: ?>
+                                <div class="autocomplete-wrapper">
+                                    <input type="text" class="form-control" id="buscarEmpleado"
+                                           placeholder="Seleccione primero un departamento" autocomplete="off" disabled
+                                           oninput="filtrarEmpleados()" onfocus="filtrarEmpleados()">
+                                    <div class="autocomplete-list" id="listaEmpleado"></div>
+                                </div>
+                                <input type="hidden" name="empleado_id" id="empleadoIdHidden" value="">
+                                <input type="hidden" name="nombre_empleado" id="nombreEmpleadoHidden" value="">
                                 <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="btnNuevoEmpleado">
                                     <i class="bi bi-person-plus"></i> Nuevo empleado
                                 </button>
@@ -338,7 +345,7 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
                         <input type="text" class="form-control campo-fijo" id="nuevoEmpDepto" readonly>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label">ID / Nómina <span class="text-danger">*</span></label>
+                        <label class="form-label">ID / N�mina <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="nuevoEmpNomina" maxlength="30" placeholder="Ej. EMP-1234" autocomplete="off">
                     </div>
                     <div class="mb-2">
@@ -367,38 +374,16 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
     const esModoTyvek = <?php echo $es_modo_tyvek ? 'true' : 'false'; ?>;
     
     const selectDepto = document.getElementById('selectDepartamento');
-    const selectEmpleado = document.getElementById('selectEmpleado');
     const nombreHidden = document.getElementById('nombreEmpleadoHidden');
-    
-    // ============================================
-    // Departamento -> cargar empleados
-    // ============================================
-    if (selectDepto) {
-        selectDepto.addEventListener('change', function() {
-            selectEmpleado.innerHTML = '<option value="">Seleccione un empleado</option>';
-            nombreHidden.value = '';
-            
-            if (!this.value) return;
-            
-            const codigoDepto = this.options[this.selectedIndex].dataset.codigo;
-            const depto = departamentosData.find(d => d.codigo === codigoDepto);
-            if (!depto) return;
-            
-            depto.empleados.forEach(emp => {
-                const opt = document.createElement('option');
-                opt.value = emp.id;
-                opt.textContent = etiquetaEmpleado(emp.id_display, emp.nombre);
-                opt.dataset.nombre = emp.nombre;
-                selectEmpleado.appendChild(opt);
-            });
+
+    // Modo Tyvek: el empleado sigue siendo un <select>
+    const selectEmpleadoTyvek = document.getElementById('selectEmpleado');
+    if (selectEmpleadoTyvek) {
+        selectEmpleadoTyvek.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            nombreHidden.value = (opt && opt.dataset.nombre) ? opt.dataset.nombre : '';
         });
     }
-    
-    // Al seleccionar empleado -> guardar nombre
-    selectEmpleado.addEventListener('change', function() {
-        const opt = this.options[this.selectedIndex];
-        nombreHidden.value = (opt && opt.dataset.nombre) ? opt.dataset.nombre : '';
-    });
     
     <?php if (!$es_modo_tyvek): ?>
     // ============================================
@@ -410,6 +395,87 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
         return idDisplay || nombre || '';
     }
 
+    // ============================================
+    // Autocompletado de empleado (busqueda por ID o nombre)
+    // ============================================
+    let empleadosDelDepto = [];
+    let deptoCodigoActual = '';
+    const buscarEmpleado = document.getElementById('buscarEmpleado');
+    const listaEmpleado = document.getElementById('listaEmpleado');
+    const empleadoIdHidden = document.getElementById('empleadoIdHidden');
+
+    // Departamento -> habilita el buscador y define la lista a buscar
+    if (selectDepto) {
+        selectDepto.addEventListener('change', function() {
+            buscarEmpleado.value = '';
+            empleadoIdHidden.value = '';
+            nombreHidden.value = '';
+            listaEmpleado.classList.remove('visible');
+
+            if (!this.value) {
+                buscarEmpleado.disabled = true;
+                buscarEmpleado.placeholder = 'Seleccione primero un departamento';
+                empleadosDelDepto = [];
+                deptoCodigoActual = '';
+                return;
+            }
+            deptoCodigoActual = this.options[this.selectedIndex].dataset.codigo || '';
+            const depto = departamentosData.find(d => d.codigo === deptoCodigoActual);
+            empleadosDelDepto = depto ? depto.empleados : [];
+            buscarEmpleado.disabled = false;
+            buscarEmpleado.placeholder = 'Escriba ID o nombre...';
+        });
+    }
+
+    function filtrarEmpleados() {
+        if (buscarEmpleado.disabled) return;
+        const query = buscarEmpleado.value.toLowerCase().trim();
+
+        let html = '';
+        const filtrados = empleadosDelDepto.filter(e => {
+            if (!query) return true;
+            const texto = ((e.id_display || '') + ' ' + (e.nombre || '')).toLowerCase();
+            return query.split(/\s+/).every(palabra => texto.includes(palabra));
+        });
+
+        if (filtrados.length === 0) {
+            html = '<div class="autocomplete-item text-muted" style="pointer-events:none;">Sin resultados</div>';
+        } else {
+            filtrados.forEach(e => {
+                let display = etiquetaEmpleado(e.id_display, e.nombre);
+                if (query) {
+                    query.split(/\s+/).forEach(palabra => {
+                        if (palabra) {
+                            const regex = new RegExp('(' + palabra.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                            display = display.replace(regex, '<mark>$1</mark>');
+                        }
+                    });
+                }
+                html += `<div class="autocomplete-item" onclick="elegirEmpleado('${e.id}')">${display}</div>`;
+            });
+        }
+        listaEmpleado.innerHTML = html;
+        listaEmpleado.classList.add('visible');
+    }
+
+    function elegirEmpleado(id) {
+        const e = empleadosDelDepto.find(x => x.id == id);
+        if (!e) return;
+        buscarEmpleado.value = etiquetaEmpleado(e.id_display, e.nombre);
+        listaEmpleado.classList.remove('visible');
+        empleadoIdHidden.value = e.id;
+        nombreHidden.value = e.nombre || '';
+    }
+
+    // Validar que se haya elegido un empleado al enviar
+    document.getElementById('formVale').addEventListener('submit', function(ev) {
+        if (!empleadoIdHidden.value) {
+            ev.preventDefault();
+            alert('Seleccione un empleado de la lista.');
+            buscarEmpleado.focus();
+        }
+    });
+
     const modalNuevoEmp    = new bootstrap.Modal(document.getElementById('modalNuevoEmpleado'));
     const btnNuevoEmpleado = document.getElementById('btnNuevoEmpleado');
     const nuevoEmpDepto    = document.getElementById('nuevoEmpDepto');
@@ -417,7 +483,6 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
     const nuevoEmpNomina   = document.getElementById('nuevoEmpNomina');
     const errorNuevoEmp    = document.getElementById('errorNuevoEmp');
     const btnGuardarNuevoEmp = document.getElementById('btnGuardarNuevoEmp');
-    let deptoCodigoActual  = '';
 
     btnNuevoEmpleado.addEventListener('click', function() {
         if (!selectDepto.value) {
@@ -436,7 +501,7 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
     btnGuardarNuevoEmp.addEventListener('click', async function() {
         const nomina = nuevoEmpNomina.value.trim();
         if (!nomina) {
-            errorNuevoEmp.textContent = 'El ID / nómina es obligatorio.';
+            errorNuevoEmp.textContent = 'El ID / n�mina es obligatorio.';
             errorNuevoEmp.classList.remove('d-none');
             return;
         }
@@ -460,19 +525,19 @@ $depto_actual = $_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['d
                 return;
             }
             const emp = data.empleado;
-            const opt = document.createElement('option');
-            opt.value = emp.value;
-            opt.textContent = etiquetaEmpleado(emp.id_display, emp.nombre);
-            opt.dataset.nombre = emp.nombre;
-            selectEmpleado.appendChild(opt);
-            selectEmpleado.value = emp.value;
-            nombreHidden.value = emp.nombre;
+            const nuevoEmp = { id: emp.value, nombre: emp.nombre, id_display: emp.id_display };
+            // Agregarlo a la lista del departamento (y por referencia, a la busqueda)
             const depto = departamentosData.find(d => d.codigo === deptoCodigoActual);
-            if (depto) depto.empleados.push({ id: emp.value, nombre: emp.nombre, id_display: emp.id_display });
+            if (depto) depto.empleados.push(nuevoEmp);
+            if (empleadosDelDepto.indexOf(nuevoEmp) === -1) empleadosDelDepto.push(nuevoEmp);
+            // Seleccionarlo en el buscador
+            buscarEmpleado.value = etiquetaEmpleado(emp.id_display, emp.nombre);
+            empleadoIdHidden.value = emp.value;
+            nombreHidden.value = emp.nombre;
             modalNuevoEmp.hide();
             btnGuardarNuevoEmp.disabled = false;
         } catch (e) {
-            errorNuevoEmp.textContent = 'Error de conexión.';
+            errorNuevoEmp.textContent = 'Error de conexi�n.';
             errorNuevoEmp.classList.remove('d-none');
             btnGuardarNuevoEmp.disabled = false;
         }

@@ -39,7 +39,7 @@ function verificar_permisos_epp($user_id) {
     if (!$permisos) {
         return [
             'tiene_acceso' => false, 'puede_crear' => false, 'puede_editar' => false,
-            'puede_editar_tabla' => false, 'puede_eliminar' => false,
+            'puede_editar_tabla' => false, 'puede_editar_articulo' => false, 'puede_eliminar' => false,
             'lector' => 0, 'creador' => 0, 'editor' => 0
         ];
     }
@@ -50,8 +50,10 @@ function verificar_permisos_epp($user_id) {
         'tiene_acceso' => (bool) $permisos['lector'],
         'puede_crear'  => (bool) $permisos['creador'],
         'puede_editar' => $es_editor,
-        // Seguridad NO edita tabla general (articulo, unidad, etc.)
+        // Seguridad NO edita la tabla general (unidad, precio, categoria, etc.)
         'puede_editar_tabla' => $es_editor && ($depto !== 'seguridad'),
+        // ...pero SI puede editar la columna ARTICULO
+        'puede_editar_articulo' => $es_editor || ($depto === 'seguridad'),
         // Solo Almacen de Refacciones puede eliminar
         'puede_eliminar' => $es_editor && ($depto === 'almacen_refacciones'),
         'lector' => (int) $permisos['lector'],
@@ -511,6 +513,47 @@ function actualizar_stock_talla($talla_id, $nuevo_stock) {
         }
         
         return ['success' => true, 'message' => 'Stock actualizado.', 'stock_total' => $stock_total];
+    } catch (Exception $e) {
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+
+/**
+ * Ajuste por conteo físico: fija el stock de una talla al valor contado.
+ * NO genera entrada ni salida; queda registrado en el Historial.
+ */
+function ajuste_conteo_fisico($talla_id, $stock_contado) {
+    $pdo = conectarDB();
+    try {
+        $talla = obtener_talla_por_id($talla_id, $pdo);
+        if (!$talla) return ['success' => false, 'message' => 'Talla no encontrada.'];
+
+        $stock_anterior = (int) $talla['stock'];
+        $stock_contado  = (int) $stock_contado;
+        if ($stock_contado < 0) return ['success' => false, 'message' => 'La cantidad contada no puede ser negativa.'];
+        if ($stock_contado === $stock_anterior) {
+            return ['success' => true, 'message' => 'Sin cambios.', 'sin_cambio' => true];
+        }
+
+        // Fijar el stock contado y recalcular el total del artículo
+        $pdo->prepare("UPDATE inventario_epp_tallas SET stock = :s WHERE id = :id")
+            ->execute([':s' => $stock_contado, ':id' => $talla_id]);
+        $stock_total = recalcular_stock_epp($talla['inventario_epp_id'], $pdo);
+
+        // Registrar en HISTORIAL (no en movimientos)
+        $pdo->prepare("
+            INSERT INTO historial_articulos_epp (inventario_epp_id, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre)
+            VALUES (:epp_id, :campo, :anterior, :nuevo, :uid, :uname)
+        ")->execute([
+            ':epp_id'   => $talla['inventario_epp_id'],
+            ':campo'    => "Conteo físico (Talla: {$talla['talla']})",
+            ':anterior' => (string) $stock_anterior,
+            ':nuevo'    => (string) $stock_contado,
+            ':uid'      => $_SESSION['usuario_id'] ?? null,
+            ':uname'    => $_SESSION['nombre_completo'] ?? 'Sistema'
+        ]);
+
+        return ['success' => true, 'message' => 'Conteo aplicado.', 'stock_total' => $stock_total];
     } catch (Exception $e) {
         return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
     }

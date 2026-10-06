@@ -71,7 +71,8 @@ function crear_vale_epp($datos) {
         
         $vale_id = $pdo->lastInsertId();
         
-        // Validar que ninguna linea deje el stock bajo el umbral
+        $advertencias = [];
+        // Validar stock; el umbral minimo ya NO bloquea, solo avisa
         foreach ($datos['lineas'] as $linea) {
             if (!empty($linea['talla_id'])) {
                 $chk = $pdo->prepare("
@@ -93,10 +94,9 @@ function crear_vale_epp($datos) {
                         return ['success' => false, 'message' => "Stock insuficiente para {$info['articulo']}. Disponible: {$info['stock_talla']}, solicitado: {$linea['cantidad']}"];
                     }
                     
-                    // Bloquear si quedaria bajo umbral
+                    // Avisar (sin bloquear) si queda en o por debajo del umbral minimo
                     if ($minimo > 0 && $stock_despues < $minimo) {
-                        $pdo->rollBack();
-                        return ['success' => false, 'message' => "No se puede crear el vale: {$info['articulo']} quedaria con {$stock_despues} unidades, por debajo del umbral minimo de {$minimo}."];
+                        $advertencias[] = "{$info['articulo']}: quedaria con {$stock_despues} unidad(es), por debajo del minimo de {$minimo}.";
                     }
                 }
             }
@@ -127,7 +127,7 @@ function crear_vale_epp($datos) {
         }
         
         $pdo->commit();
-        return ['success' => true, 'message' => "Vale {$folio} creado correctamente.", 'id' => $vale_id, 'folio' => $folio];
+        return ['success' => true, 'message' => "Vale {$folio} creado correctamente.", 'id' => $vale_id, 'folio' => $folio, 'advertencias' => $advertencias];
     } catch (Exception $e) {
         $pdo->rollBack();
         return ['success' => false, 'message' => 'Error al crear vale: ' . $e->getMessage()];
