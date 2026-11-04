@@ -1,5 +1,5 @@
 /**
- * JavaScript para edición de documentos colaborativos
+ * JavaScript para ediciÃƒÂ³n de documentos colaborativos
  * Maneja formularios de Apartado 1, Apartado 2 y completar documento
  */
 
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Envío del formulario Apartado 1
+        // EnvÃƒÂ­o del formulario Apartado 1
         formApartado1.addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const servicioSeleccionado = document.querySelector('input[name="servicio_solicitado"]:checked');
             if (servicioSeleccionado && servicioSeleccionado.value === 'otro') {
                 if (!campoOtroEspecificar.value.trim()) {
-                    mostrarAlerta('warning', 'Atención', 'Por favor especifique el servicio cuando selecciona "Otro"');
+                    mostrarAlerta('warning', 'Atenci\u00F3n', 'Por favor especifique el servicio cuando selecciona "Otro"');
                     campoOtroEspecificar.focus();
                     return;
                 }
@@ -57,9 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    mostrarAlerta('success', 'Éxito', data.message);
+                    mostrarAlerta('success', '\u00C9xito', data.message);
                     
-                    // Recargar después de 1.5 segundos
+                    // Recargar despuÃƒÂ©s de 1.5 segundos
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
@@ -101,9 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    mostrarAlerta('success', 'Éxito', data.message);
+                    mostrarAlerta('success', '\u00C9xito', data.message);
                     
-                    // Recargar después de 1.5 segundos
+                    // Recargar despuÃƒÂ©s de 1.5 segundos
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
@@ -123,21 +123,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ============================================
-    // BOTÓN COMPLETAR DOCUMENTO
+    // BOTÃƒâ€œN COMPLETAR DOCUMENTO
     // ============================================
     const btnCompletarDocumento = document.getElementById('btnCompletarDocumento');
     if (btnCompletarDocumento) {
         btnCompletarDocumento.addEventListener('click', function() {
             const documentoId = this.getAttribute('data-documento-id');
             
-            // Confirmación con advertencia
+            // ConfirmaciÃƒÂ³n con advertencia
             const confirmar = confirm(
-                '⚠️ ATENCIÓN\n\n' +
+                '\u26A0\uFE0F ATENCI\u00D3N\n\n' +
                 'Al completar el documento:\n' +
-                '• Se moverá a la Base Global\n' +
-                '• No se podrán hacer más cambios\n' +
-                '• Los comentarios se bloquearán\n\n' +
-                '¿Estás seguro de completar este documento?'
+                '\u2022 Se mover\u00E1 a la Base Global\n' +
+                '\u2022 No se podr\u00E1n hacer m\u00E1s cambios\n' +
+                '\u2022 Los comentarios se bloquear\u00E1n\n\n' +
+                '\u00BFEst\u00E1s seguro de completar este documento?'
             );
             
             if (confirmar) {
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ============================================
-    // VALIDACIÓN DE FECHAS EN TIEMPO REAL
+    // VALIDACIÃƒâ€œN DE FECHAS EN TIEMPO REAL
     // ============================================
     const fechaEntrega = document.querySelector('input[name="fecha_hora_entrega"]');
     if (fechaEntrega) {
@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================
-// FUNCIÓN: COMPLETAR DOCUMENTO
+// FUNCIÃƒâ€œN: COMPLETAR DOCUMENTO
 // ============================================
 function completarDocumento(documentoId, boton) {
     const textoOriginal = boton.innerHTML;
@@ -223,10 +223,10 @@ function completarDocumento(documentoId, boton) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Mostrar mensaje de éxito con confetti (opcional)
-            mostrarAlerta('success', '🎉 Documento Completado', data.message);
+            // Mostrar mensaje de ÃƒÂ©xito con confetti (opcional)
+            mostrarAlerta('success', '\uD83C\uDF89 Documento Completado', data.message);
             
-            // Recargar después de 2 segundos
+            // Recargar despuÃƒÂ©s de 2 segundos
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
@@ -245,10 +245,10 @@ function completarDocumento(documentoId, boton) {
 }
 
 // ============================================
-// FUNCIÓN: MOSTRAR ALERTAS
+// FUNCIÃƒâ€œN: MOSTRAR ALERTAS
 // ============================================
 function mostrarAlerta(tipo, titulo, mensaje) {
-    // Icono según tipo
+    // Icono segÃƒÂºn tipo
     const iconos = {
         success: 'check-circle-fill',
         danger: 'exclamation-triangle-fill',
@@ -275,7 +275,7 @@ function mostrarAlerta(tipo, titulo, mensaje) {
     
     document.body.insertAdjacentHTML('beforeend', alertaHTML);
     
-    // Auto-cerrar después de 5 segundos
+    // Auto-cerrar despuÃƒÂ©s de 5 segundos
     setTimeout(() => {
         const alertas = document.querySelectorAll('.alert');
         if (alertas.length > 0) {
@@ -291,7 +291,7 @@ function mostrarAlerta(tipo, titulo, mensaje) {
 }
 
 // ============================================
-// FUNCIÓN: VALIDAR FORMULARIO ANTES DE ENVIAR
+// FUNCIÃƒâ€œN: VALIDAR FORMULARIO ANTES DE ENVIAR
 // ============================================
 function validarFormulario(form) {
     const camposRequeridos = form.querySelectorAll('[required]');
@@ -302,7 +302,7 @@ function validarFormulario(form) {
             valido = false;
             campo.classList.add('is-invalid');
             
-            // Remover clase después de 3 segundos
+            // Remover clase despuÃƒÂ©s de 3 segundos
             setTimeout(() => {
                 campo.classList.remove('is-invalid');
             }, 3000);
@@ -317,7 +317,7 @@ function validarFormulario(form) {
 }
 
 // ============================================
-// PREVENIR PÉRDIDA DE CAMBIOS SIN GUARDAR
+// PREVENIR PÃƒâ€°RDIDA DE CAMBIOS SIN GUARDAR
 // ============================================
 let cambiosSinGuardar = false;
 
@@ -351,6 +351,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // DEBUG: Log de eventos (solo en desarrollo)
 // ============================================
 if (window.location.hostname === 'localhost') {
-    console.log('🔧 Módulo de edición de documentos cargado');
-    console.log('📄 Formularios encontrados:', document.querySelectorAll('form').length);
+    console.log('Ã°Å¸â€�Â§ MÃƒÂ³dulo de ediciÃƒÂ³n de documentos cargado');
+    console.log('Ã°Å¸â€œâ€ž Formularios encontrados:', document.querySelectorAll('form').length);
 }

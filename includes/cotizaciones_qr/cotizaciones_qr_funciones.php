@@ -191,7 +191,6 @@ function obtener_estadisticas_cqr($usuario_id = null, $departamento = null) {
             SUM(CASE WHEN estado = 'rechazada' THEN 1 ELSE 0 END) as rechazadas,
             SUM(CASE WHEN estado_normatividad IS NULL OR estado_normatividad = '' THEN 1 ELSE 0 END) as pendientes_respuesta
         FROM cotizaciones_quimicos_residuos
-        WHERE ubicacion = 'local'
     ";
     
     $stmt = $pdo->query($sql);
@@ -468,13 +467,13 @@ function marcar_en_revision_cqr($cotizacion_id, $usuario_id) {
                 'en_revision',
                 'enviada',
                 'en_revision',
-                'Normatividad comenz? la revisi?n'
+                'Normatividad comenzó la revisión'
             );
         }
         
         return true;
     } catch (Exception $e) {
-        error_log("Error al marcar en revisi?n CQR: " . $e->getMessage());
+        error_log("Error al marcar en revisión CQR: " . $e->getMessage());
         return false;
     }
 }
@@ -753,12 +752,12 @@ function procesar_archivo_cqr($archivo, $tipo) {
     if ($tipo === 'ficha') {
         // Ficha T?cnica: SOLO PDF
         $extensiones_permitidas = ['pdf'];
-        $mensaje_error = 'La Ficha T?cnica solo permite archivos PDF';
+        $mensaje_error = 'La Ficha Técnica solo permite archivos PDF';
         $subcarpeta = 'Documentos';
     } elseif ($tipo === 'formato') {
         // Formato Descripci?n: SOLO PDF y Excel
         $extensiones_permitidas = ['pdf', 'xlsx'];
-        $mensaje_error = 'El Formato Descripci?n solo permite archivos PDF y Excel (.xlsx)';
+        $mensaje_error = 'El Formato Descripción solo permite archivos PDF y Excel (.xlsx)';
         $subcarpeta = 'Documentos';
     } elseif ($tipo === 'imagen') {
         // Im?genes del Residuo: cualquier formato de imagen
@@ -778,7 +777,7 @@ function procesar_archivo_cqr($archivo, $tipo) {
     
     $max_size = 10 * 1024 * 1024; // 10MB
     if ($archivo['size'] > $max_size) {
-        return ['error' => 'El archivo excede el tama?o m?ximo permitido (10MB)'];
+        return ['error' => 'El archivo excede el tamaño máximo permitido (10MB)'];
     }
     
     // Directorio de destino con subcarpeta
@@ -949,7 +948,7 @@ function generar_folio_cqr() {
 function obtener_badge_estado_cqr($estado) {
     $badges = [
         'enviada' => '<span class="badge bg-primary">Enviada</span>',
-        'en_revision' => '<span class="badge bg-warning text-dark">En Revisi?n</span>',
+        'en_revision' => '<span class="badge bg-warning text-dark">En Revisi&oacute;n</span>',
         'aceptada' => '<span class="badge bg-success">Aceptada</span>',
         'rechazada' => '<span class="badge bg-danger">Rechazada</span>'
     ];

@@ -37,17 +37,7 @@ $usuario_id = $_SESSION['usuario_id'];
 try {
     $pdo = conectarDB();
     
-    // Estadísticas generales
-    $stmt = $pdo->query("
-        SELECT 
-            SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes,
-            SUM(CASE WHEN estado = 'en_proceso' THEN 1 ELSE 0 END) as en_proceso,
-            SUM(CASE WHEN estado = 'finalizada' THEN 1 ELSE 0 END) as finalizadas,
-            COUNT(*) as total,
-            SUM(CASE WHEN prioridad = 'critica' THEN 1 ELSE 0 END) as criticas
-        FROM solicitudes_atencion
-    ");
-    $stats = $stmt->fetch();
+        // Estadísticas y gráficas: se cargan vía AJAX desde estadisticas_solicitudes.php
     
     // Solicitudes pendientes recientes (últimas 10)
     $stmt = $pdo->query("
@@ -79,21 +69,10 @@ try {
     $stmt->execute([$usuario_id]);
     $mis_asignadas = $stmt->fetchAll();
     
-    // Solicitudes finalizadas hoy
-    $stmt = $pdo->query("
-        SELECT COUNT(*) as total
-        FROM solicitudes_atencion
-        WHERE estado = 'finalizada' 
-        AND DATE(fecha_actualizacion) = CURDATE()
-    ");
-    $finalizadas_hoy = $stmt->fetch()['total'];
-    
 } catch (Exception $e) {
     establecer_alerta('error', 'Error al cargar estadísticas: ' . $e->getMessage());
-    $stats = ['pendientes' => 0, 'en_proceso' => 0, 'finalizadas' => 0, 'total' => 0, 'criticas' => 0];
     $pendientes = [];
     $mis_asignadas = [];
-    $finalizadas_hoy = 0;
 }
 ?>
 <!DOCTYPE html>
@@ -609,6 +588,129 @@ try {
             .sis-stat__num { font-size: 1.5rem; }
             .sis-stat__icon { width: 36px; height: 36px; font-size: 1.05rem; }
         }
+
+        /* ---------- Filtros del tablero ---------- */
+        .sis-filtros {
+            background: var(--sis-panel-bg);
+            border: 1px solid var(--sis-border);
+            border-radius: 18px;
+            box-shadow: var(--sis-shadow);
+            padding: 1rem 1.2rem;
+        }
+        .sis-filtros__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.85rem;
+        }
+        .sis-filtros__title {
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--sis-text);
+        }
+        .sis-filtros__title i { color: #06b6d4; }
+        .sis-btn-reset {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.8rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--sis-text-muted);
+            background: transparent;
+            border: 1px solid var(--sis-border);
+            transition: color .2s ease, border-color .2s ease;
+        }
+        .sis-btn-reset:hover { color: #6366f1; border-color: #6366f1; }
+        .sis-filtros__grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.7rem 0.9rem;
+        }
+        .sis-field { display: flex; flex-direction: column; gap: 0.3rem; margin: 0; }
+        .sis-field > span {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--sis-text-muted);
+        }
+        .sis-filtros .form-select,
+        .sis-filtros .form-control {
+            background-color: var(--sis-card-bg);
+            color: var(--sis-text);
+            border-color: var(--sis-border);
+            border-radius: 10px;
+            font-size: 0.85rem;
+        }
+        .sis-filtros .form-select:focus,
+        .sis-filtros .form-control:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.18);
+        }
+        body[data-theme="dark"] .sis-filtros .form-select,
+        body[data-theme="dark"] .sis-filtros .form-control { color-scheme: dark; }
+        .sis-filtros__resumen {
+            margin: 0.85rem 0 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            color: var(--sis-text-muted);
+        }
+        .sis-filtros__resumen strong { color: var(--sis-text); font-family: var(--sis-mono); }
+
+        /* ---------- Gráficas ---------- */
+        .sis-charts {
+            position: relative;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            transition: opacity .2s ease;
+        }
+        .sis-charts.is-loading { opacity: 0.55; pointer-events: none; }
+        .sis-chart__canvas { position: relative; height: 300px; padding: 0.5rem 0.6rem 0.3rem; }
+        .sis-chart__hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.72rem;
+            opacity: 0.85;
+            white-space: nowrap;
+        }
+        .sis-charts__vacio {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border-radius: 18px;
+            background: color-mix(in srgb, var(--sis-panel-bg) 82%, transparent);
+            backdrop-filter: blur(2px);
+            color: var(--sis-text-muted);
+            font-weight: 500;
+        }
+        .sis-charts__vacio[hidden] { display: none; }
+        .sis-charts__vacio i { font-size: 2.2rem; opacity: 0.5; }
+
+        @media (max-width: 992px) {
+            .sis-charts { grid-template-columns: 1fr; }
+            .sis-filtros__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 560px) {
+            .sis-chart__canvas { height: 260px; }
+            .sis-chart__hint { display: none; }
+        }
     </style>
     
     <!-- Sistema de notificaciones -->
@@ -655,14 +757,78 @@ try {
 
                     <?php echo mostrar_alerta(); ?>
 
-                    <!-- Tarjetas de estadísticas -->
+                   <!-- Filtros del tablero -->
+                    <form class="sis-filtros" id="sisFiltros" autocomplete="off">
+                        <div class="sis-filtros__head">
+                            <h3 class="sis-filtros__title"><i class="bi bi-sliders"></i> Tablero de Solicitudes de Atenci&oacute;n</h3>
+                            <button type="button" class="sis-btn-reset" id="fReset">
+                                <i class="bi bi-arrow-counterclockwise"></i> Restablecer
+                            </button>
+                        </div>
+                        <div class="sis-filtros__grid">
+                            <label class="sis-field"><span>Periodo</span>
+                                <select id="fPeriodo" class="form-select form-select-sm">
+                                    <option value="mes_actual" selected>Mes actual</option>
+                                    <option value="mes_anterior">Mes anterior</option>
+                                    <option value="ultimos_30">&Uacute;ltimos 30 d&iacute;as</option>
+                                    <option value="trimestre">Trimestre actual</option>
+                                    <option value="anio_actual">A&ntilde;o actual</option>
+                                    <option value="personalizado">Personalizado</option>
+                                </select>
+                            </label>
+                            <label class="sis-field"><span>Desde</span>
+                                <input type="date" id="fDesde" class="form-control form-control-sm">
+                            </label>
+                            <label class="sis-field"><span>Hasta</span>
+                                <input type="date" id="fHasta" class="form-control form-control-sm">
+                            </label>
+                            <label class="sis-field"><span>Departamento</span>
+                                <select id="fDepartamento" class="form-select form-select-sm">
+                                    <option value="">Todos</option>
+                                </select>
+                            </label>
+                            <label class="sis-field"><span>Tipo de soporte</span>
+                                <select id="fTipo" class="form-select form-select-sm">
+                                    <option value="">Todos</option>
+                                    <option value="Apoyo">Apoyo</option>
+                                    <option value="Problema">Problema</option>
+                                </select>
+                            </label>
+                            <label class="sis-field"><span>Prioridad</span>
+                                <select id="fPrioridad" class="form-select form-select-sm">
+                                    <option value="">Todas</option>
+                                    <option value="critica">Cr&iacute;tica</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="media">Media</option>
+                                    <option value="baja">Baja</option>
+                                </select>
+                            </label>
+                            <label class="sis-field"><span>Estado</span>
+                                <select id="fEstado" class="form-select form-select-sm">
+                                    <option value="">Todos</option>
+                                    <option value="pendiente">Pendiente</option>
+                                    <option value="en_proceso">En Proceso</option>
+                                    <option value="finalizada">Finalizada</option>
+                                    <option value="cancelada">Cancelada</option>
+                                </select>
+                            </label>
+                            <label class="sis-field"><span>T&eacute;cnico</span>
+                                <select id="fTecnico" class="form-select form-select-sm">
+                                    <option value="">Todos</option>
+                                </select>
+                            </label>
+                        </div>
+                        <p class="sis-filtros__resumen" id="sisResumen">Cargando estad&iacute;sticas&hellip;</p>
+                    </form>
+
+                    <!-- Tarjetas de estadísticas (dinámicas según filtros) -->
                     <div class="sis-grid">
                         <div class="sis-stat sis-stat--amber">
                             <div class="sis-stat__top">
                                 <div class="sis-stat__icon"><i class="bi bi-clock-history"></i></div>
                                 <span class="sis-stat__dot"></span>
                             </div>
-                            <h2 class="sis-stat__num"><?php echo $stats['pendientes']; ?></h2>
+                            <h2 class="sis-stat__num" id="kpiPendientes">&mdash;</h2>
                             <p class="sis-stat__label">Pendientes</p>
                         </div>
 
@@ -671,7 +837,7 @@ try {
                                 <div class="sis-stat__icon"><i class="bi bi-gear"></i></div>
                                 <span class="sis-stat__dot"></span>
                             </div>
-                            <h2 class="sis-stat__num"><?php echo $stats['en_proceso']; ?></h2>
+                            <h2 class="sis-stat__num" id="kpiProceso">&mdash;</h2>
                             <p class="sis-stat__label">En Proceso</p>
                         </div>
 
@@ -680,7 +846,7 @@ try {
                                 <div class="sis-stat__icon"><i class="bi bi-check-circle"></i></div>
                                 <span class="sis-stat__dot"></span>
                             </div>
-                            <h2 class="sis-stat__num"><?php echo $stats['finalizadas']; ?></h2>
+                            <h2 class="sis-stat__num" id="kpiFinalizadas">&mdash;</h2>
                             <p class="sis-stat__label">Finalizadas</p>
                         </div>
 
@@ -689,8 +855,48 @@ try {
                                 <div class="sis-stat__icon"><i class="bi bi-exclamation-triangle"></i></div>
                                 <span class="sis-stat__dot"></span>
                             </div>
-                            <h2 class="sis-stat__num"><?php echo $stats['criticas']; ?></h2>
+                            <h2 class="sis-stat__num" id="kpiCriticas">&mdash;</h2>
                             <p class="sis-stat__label">Cr&iacute;ticas</p>
+                        </div>
+                    </div>
+
+                    <!-- Gráficas -->
+                    <div class="sis-charts" id="sisCharts">
+                        <div class="sis-panel">
+                            <div class="sis-panel__head">
+                                <h3 class="sis-panel__title"><i class="bi bi-bar-chart"></i> Solicitudes por Estado</h3>
+                                <span class="sis-chart__hint"><i class="bi bi-hand-index"></i> Clic para filtrar</span>
+                            </div>
+                            <div class="sis-chart__canvas"><canvas id="chEstado"></canvas></div>
+                        </div>
+
+                        <div class="sis-panel">
+                            <div class="sis-panel__head">
+                                <h3 class="sis-panel__title"><i class="bi bi-pie-chart"></i> Tipo de Soporte</h3>
+                                <span class="sis-chart__hint"><i class="bi bi-hand-index"></i> Clic para filtrar</span>
+                            </div>
+                            <div class="sis-chart__canvas"><canvas id="chTipo"></canvas></div>
+                        </div>
+
+                        <div class="sis-panel">
+                            <div class="sis-panel__head">
+                                <h3 class="sis-panel__title"><i class="bi bi-building"></i> Solicitudes por Departamento</h3>
+                                <span class="sis-chart__hint"><i class="bi bi-hand-index"></i> Clic para filtrar</span>
+                            </div>
+                            <div class="sis-chart__canvas"><canvas id="chDepartamento"></canvas></div>
+                        </div>
+
+                        <div class="sis-panel">
+                            <div class="sis-panel__head">
+                                <h3 class="sis-panel__title"><i class="bi bi-bar-chart-steps"></i> Solicitudes por Tipo y Prioridad</h3>
+                                <span class="sis-chart__hint"><i class="bi bi-hand-index"></i> Clic para filtrar</span>
+                            </div>
+                            <div class="sis-chart__canvas"><canvas id="chTipoPrioridad"></canvas></div>
+                        </div>
+
+                        <div class="sis-charts__vacio" id="sisSinDatos" hidden>
+                            <i class="bi bi-funnel"></i>
+                            No hay solicitudes con estos filtros
                         </div>
                     </div>
 
@@ -838,6 +1044,253 @@ try {
             bodyElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
         });
+    </script>
+
+    <!-- Gráficas dinámicas del tablero -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script>
+    (() => {
+        const ENDPOINT  = '<?php echo URL_BASE; ?>dashboard/sistemas/estadisticas_solicitudes.php';
+        const URL_LOGIN = '<?php echo URL_BASE; ?>auth/InicioSesion.php';
+
+        Chart.register(ChartDataLabels);
+
+        const $ = (id) => document.getElementById(id);
+        const f = {
+            periodo: $('fPeriodo'), desde: $('fDesde'), hasta: $('fHasta'),
+            departamento: $('fDepartamento'), tipo_soporte: $('fTipo'),
+            prioridad: $('fPrioridad'), estado: $('fEstado'), tecnico: $('fTecnico')
+        };
+        const graficas = {};
+        let datos = null;
+        let catalogosListos = false;
+        let peticion = null;
+
+        const COLOR = {
+            estados:  ['#f59e0b', '#06b6d4', '#10b981', '#94a3b8'],
+            apoyo:    '#6366f1',
+            problema: '#ef4444',
+            depto:    '#0891b2'
+        };
+
+        // ---------- Fechas (hora local, no UTC) ----------
+        const aISO = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const aMX  = (iso) => iso.split('-').reverse().join('/');
+
+        function rangoDePeriodo(p) {
+            const hoy = new Date(), y = hoy.getFullYear(), m = hoy.getMonth();
+            switch (p) {
+                case 'mes_actual':   return [new Date(y, m, 1), new Date(y, m + 1, 0)];
+                case 'mes_anterior': return [new Date(y, m - 1, 1), new Date(y, m, 0)];
+                case 'ultimos_30':   return [new Date(y, m, hoy.getDate() - 29), hoy];
+                case 'trimestre':    { const q = Math.floor(m / 3) * 3; return [new Date(y, q, 1), new Date(y, q + 3, 0)]; }
+                case 'anio_actual':  return [new Date(y, 0, 1), new Date(y, 11, 31)];
+                default:             return null;
+            }
+        }
+        function aplicarPeriodo() {
+            const r = rangoDePeriodo(f.periodo.value);
+            if (r) { f.desde.value = aISO(r[0]); f.hasta.value = aISO(r[1]); }
+        }
+
+        function duracion(min) {
+            if (min === null || min === undefined) return '—';
+            const d = Math.floor(min / 1440), h = Math.floor((min % 1440) / 60), m = Math.round(min % 60);
+            const partes = [];
+            if (d) partes.push(`${d} d`);
+            if (h) partes.push(`${h} h`);
+            if (m || !partes.length) partes.push(`${m} min`);
+            return partes.join(' ');
+        }
+
+        // ---------- Tema (lee las variables --sis-* del modo actual) ----------
+        function tema() {
+            const cs = getComputedStyle(document.querySelector('.sis-dash'));
+            const v = (n) => cs.getPropertyValue(n).trim();
+            return { texto: v('--sis-text'), muted: v('--sis-text-muted'), linea: v('--sis-border'), panel: v('--sis-panel-bg') };
+        }
+
+        // ---------- Interacción: clic en gráfica = filtro (segundo clic lo quita) ----------
+        function alternarFiltro(select, valor) {
+            select.value = (select.value === String(valor)) ? '' : String(valor);
+            cargar();
+        }
+        const cursorMano = (e, el) => { e.native.target.style.cursor = el.length ? 'pointer' : 'default'; };
+
+        function dibujar(id, config) {
+            if (graficas[id]) graficas[id].destroy();
+            graficas[id] = new Chart($(id), config);
+        }
+
+        function render(d) {
+            const t = tema();
+            Chart.defaults.color = t.muted;
+            Chart.defaults.borderColor = t.linea;
+            Chart.defaults.font.family = "'Poppins', system-ui, sans-serif";
+
+            const etiquetas = { anchor: 'end', align: 'end', offset: 2, color: t.texto, font: { weight: '600', size: 11 } };
+            const ejes = {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, grace: '15%', ticks: { precision: 0 } }
+            };
+
+            // 1) Por estado
+            dibujar('chEstado', {
+                type: 'bar',
+                data: {
+                    labels: d.por_estado.labels,
+                    datasets: [{ label: 'Solicitudes', data: d.por_estado.valores, backgroundColor: COLOR.estados, borderRadius: 6, maxBarThickness: 56 }]
+                },
+                options: {
+                    maintainAspectRatio: false, scales: ejes,
+                    plugins: { legend: { display: false }, datalabels: etiquetas },
+                    onHover: cursorMano,
+                    onClick: (e, el) => el.length && alternarFiltro(f.estado, d.por_estado.claves[el[0].index])
+                }
+            });
+
+            // 2) Tipo de soporte
+            const totalTipo = d.por_tipo.valores.reduce((a, b) => a + b, 0) || 1;
+            dibujar('chTipo', {
+                type: 'doughnut',
+                data: {
+                    labels: d.por_tipo.labels,
+                    datasets: [{ data: d.por_tipo.valores, backgroundColor: [COLOR.apoyo, COLOR.problema], borderColor: t.panel, borderWidth: 3 }]
+                },
+                options: {
+                    maintainAspectRatio: false, cutout: '55%',
+                    plugins: {
+                        legend: { position: 'right' },
+                        datalabels: {
+                            color: '#fff', font: { weight: '600', size: 12 },
+                            display: (c) => c.dataset.data[c.dataIndex] > 0,
+                            formatter: (v) => `${v} · ${Math.round(v * 100 / totalTipo)}%`
+                        }
+                    },
+                    onHover: cursorMano,
+                    onClick: (e, el) => el.length && alternarFiltro(f.tipo_soporte, d.por_tipo.claves[el[0].index])
+                }
+            });
+
+            // 3) Por departamento
+            dibujar('chDepartamento', {
+                type: 'bar',
+                data: {
+                    labels: d.por_departamento.labels,
+                    datasets: [{ label: 'Solicitudes', data: d.por_departamento.valores, backgroundColor: COLOR.depto, borderRadius: 6, maxBarThickness: 40 }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: { ...ejes, x: { grid: { display: false }, ticks: { autoSkip: false, maxRotation: 45 } } },
+                    plugins: { legend: { display: false }, datalabels: etiquetas },
+                    onHover: cursorMano,
+                    onClick: (e, el) => el.length && alternarFiltro(f.departamento, d.por_departamento.claves[el[0].index])
+                }
+            });
+
+            // 4) Tipo × prioridad
+            const tp = d.tipo_prioridad;
+            dibujar('chTipoPrioridad', {
+                type: 'bar',
+                data: {
+                    labels: tp.labels,
+                    datasets: [
+                        { label: 'Apoyo',    data: tp.apoyo,    backgroundColor: COLOR.apoyo,    borderRadius: 6, maxBarThickness: 34 },
+                        { label: 'Problema', data: tp.problema, backgroundColor: COLOR.problema, borderRadius: 6, maxBarThickness: 34 }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false, scales: ejes,
+                    plugins: { legend: { position: 'bottom' }, datalabels: etiquetas },
+                    onHover: cursorMano,
+                    onClick: (e, el) => {
+                        if (!el.length) return;
+                        const prio = tp.claves[el[0].index];
+                        const tipo = el[0].datasetIndex === 0 ? 'Apoyo' : 'Problema';
+                        const mismo = f.prioridad.value === prio && f.tipo_soporte.value === tipo;
+                        f.prioridad.value    = mismo ? '' : prio;
+                        f.tipo_soporte.value = mismo ? '' : tipo;
+                        cargar();
+                    }
+                }
+            });
+
+            // KPIs y resumen
+            const k = d.kpis;
+            $('kpiPendientes').textContent  = k.pendientes;
+            $('kpiProceso').textContent     = k.en_proceso;
+            $('kpiFinalizadas').textContent = k.finalizadas;
+            $('kpiCriticas').textContent    = k.criticas;
+            $('sisResumen').innerHTML =
+                `<i class="bi bi-calendar-range"></i> ${aMX(d.periodo.desde)} – ${aMX(d.periodo.hasta)}` +
+                ` <span>·</span> <strong>${k.total}</strong> solicitud(es)` +
+                ` <span>·</span> Tiempo prom. de resolución: <strong>${duracion(k.prom_resolucion_min)}</strong>`;
+            $('sisSinDatos').hidden = k.total > 0;
+        }
+
+        function llenarCatalogos(c) {
+            const llenar = (select, items, val, txt) => {
+                const actual = select.value;
+                select.length = 1; // conserva "Todos"
+                items.forEach((i) => select.add(new Option(i[txt], i[val])));
+                select.value = actual;
+            };
+            llenar(f.departamento, c.departamentos, 'clave', 'label');
+            llenar(f.tecnico, c.tecnicos, 'id', 'nombre_completo');
+            catalogosListos = true;
+        }
+
+        async function cargar() {
+            const qs = new URLSearchParams();
+            ['desde', 'hasta', 'departamento', 'tipo_soporte', 'prioridad', 'estado', 'tecnico']
+                .forEach((k) => { if (f[k].value) qs.set(k, f[k].value); });
+            if (!catalogosListos) qs.set('catalogos', '1');
+
+            if (peticion) peticion.abort();
+            const actual = peticion = new AbortController();
+            $('sisCharts').classList.add('is-loading');
+
+            try {
+                const res = await fetch(`${ENDPOINT}?${qs}`, {
+                    signal: actual.signal, credentials: 'same-origin', headers: { 'Accept': 'application/json' }
+                });
+                if (res.status === 401) { window.location.href = URL_LOGIN; return; }
+                const json = await res.json();
+                if (!res.ok || !json.ok) throw new Error(json.error || 'Respuesta inválida');
+                if (json.catalogos) llenarCatalogos(json.catalogos);
+                datos = json;
+                render(json);
+            } catch (err) {
+                if (err.name === 'AbortError') return;
+                console.error(err);
+                $('sisResumen').innerHTML = '<i class="bi bi-exclamation-triangle"></i> No se pudieron cargar las estadísticas.';
+            } finally {
+                if (peticion === actual) $('sisCharts').classList.remove('is-loading');
+            }
+        }
+
+        // ---------- Eventos ----------
+        $('sisFiltros').addEventListener('change', (e) => {
+            if (e.target === f.periodo) aplicarPeriodo();
+            else if (e.target === f.desde || e.target === f.hasta) f.periodo.value = 'personalizado';
+            cargar();
+        });
+        $('sisFiltros').addEventListener('submit', (e) => e.preventDefault());
+        $('fReset').addEventListener('click', () => {
+            Object.values(f).forEach((el) => { if (el.tagName === 'SELECT') el.value = ''; });
+            f.periodo.value = 'mes_actual';
+            aplicarPeriodo();
+            cargar();
+        });
+
+        // Redibujar al cambiar modo claro/oscuro
+        new MutationObserver(() => { if (datos) render(datos); })
+            .observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+
+        aplicarPeriodo();
+        cargar();
+    })();
     </script>
 
     <!-- Modal de Anuncios -->

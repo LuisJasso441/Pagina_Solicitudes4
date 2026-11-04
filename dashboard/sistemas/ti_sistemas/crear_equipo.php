@@ -152,19 +152,20 @@ $tipos_equipo = [
                                         </div>
                                         <div class="row g-3">
                                             <div class="col-md-6">
-                                                <label class="form-label required">Hostname</label>
-                                                <input type="text" name="hostname" class="form-control" 
-                                                       value="<?php echo htmlspecialchars($form_data['hostname'] ?? ''); ?>"
-                                                       required maxlength="50" placeholder="Ej: GVTESO01, GVSIST02"
-                                                       style="text-transform:uppercase; font-family:monospace;">
-                                                <small class="text-muted">Identificador &uacute;nico del equipo en la red</small>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">C&oacute;digo Interno</label>
+                                                <label class="form-label required">C&oacute;digo Interno</label>
                                                 <input type="text" name="codigo_interno" class="form-control" 
                                                        value="<?php echo htmlspecialchars($form_data['codigo_interno'] ?? ''); ?>"
-                                                       maxlength="50" placeholder="Opcional (se usa hostname si est&aacute; vac&iacute;o)"
+                                                       required maxlength="50" placeholder="Ej: GVSIS01, GVINV02"
                                                        style="text-transform:uppercase;">
+                                                <small class="text-muted">Identificador &uacute;nico interno del equipo</small>
+                                            </div>
+                                            <div class="col-md-6" id="grupoHostname" style="display:none;">
+                                                <label class="form-label">Hostname</label>
+                                                <input type="text" name="hostname" id="inputHostname" class="form-control" 
+                                                       value="<?php echo htmlspecialchars($form_data['hostname'] ?? ''); ?>"
+                                                       maxlength="50" placeholder="Ej: GVTESO01, GVSIST02"
+                                                       style="text-transform:uppercase; font-family:monospace;">
+                                                <small class="text-muted">Opcional. Identificador del equipo en la red</small>
                                             </div>
                                             <div class="col-md-4">
                                                 <label class="form-label">N&uacute;mero de Serie</label>
@@ -215,22 +216,22 @@ $tipos_equipo = [
                                                     <?php endforeach; ?>
                                                 </select>
                                             </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Personal Asignado (Hostname padre)</label>
-                                                <input type="text" name="personal_asignado" class="form-control" 
+                                            <div class="col-md-6" id="grupoEquipoPrincipal" style="display:none;">
+                                                <label class="form-label">Id equipo principal</label>
+                                                <input type="text" name="personal_asignado" id="inputEquipoPrincipal" class="form-control" 
                                                        value="<?php echo htmlspecialchars($form_data['personal_asignado'] ?? ''); ?>"
-                                                       maxlength="50" placeholder="Ej: GVCONT01 (para perif&eacute;ricos)"
+                                                       maxlength="50" placeholder="Ej: GVCONT01"
                                                        list="listaEquiposPadre" style="text-transform:uppercase; font-family:monospace;">
                                                 <datalist id="listaEquiposPadre">
                                                     <?php foreach ($equipos_padre as $ep): ?>
                                                         <option value="<?php echo htmlspecialchars($ep); ?>">
                                                     <?php endforeach; ?>
                                                 </datalist>
-                                                <small class="text-muted">Para perif&eacute;ricos: hostname del equipo al que pertenece</small>
+                                                <small class="text-muted">Hostname del equipo al que est&aacute; conectado este perif&eacute;rico</small>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label">Usuario Asignado (Plataforma)</label>
-                                                <select name="usuario_asignado_id" class="form-select">
+                                                <select name="usuario_asignado_id" id="usuario_asignado_id" class="form-select">
                                                     <option value="">Sin asignar</option>
                                                     <?php foreach ($usuarios as $u): ?>
                                                         <option value="<?php echo $u['id']; ?>"
@@ -239,6 +240,19 @@ $tipos_equipo = [
                                                         </option>
                                                     <?php endforeach; ?>
                                                 </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label">Segundo Usuario Asignado</label>
+                                                <select name="usuario_asignado_2_id" id="usuario_asignado_2_id" class="form-select">
+                                                    <option value="">Sin asignar</option>
+                                                    <?php foreach ($usuarios as $u): ?>
+                                                        <option value="<?php echo $u['id']; ?>"
+                                                                <?php echo (($form_data['usuario_asignado_2_id'] ?? '') == $u['id']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($u['nombre_completo']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                                <small class="text-muted">Opcional. S&oacute;lo si el equipo es compartido por dos personas.</small>
                                             </div>
                                         </div>
                                     </div>
@@ -314,11 +328,45 @@ $tipos_equipo = [
     <script src="<?php echo URL_BASE; ?>assets/js/notificaciones.js"></script>
     
     <script>
+    // Tipos que pueden depender de un equipo principal (periféricos)
+    const TIPOS_PERIFERICOS = ['monitor', 'mouse', 'teclado'];
+
+    // Muestra el campo "Id equipo principal" solo para periféricos;
+    // para cualquier otro tipo lo oculta y lo vacía para no guardar datos basura.
+    function actualizarCampoEquipoPrincipal(tipo) {
+        const grupo = document.getElementById('grupoEquipoPrincipal');
+        const input = document.getElementById('inputEquipoPrincipal');
+        if (!grupo || !input) return;
+        const esPeriferico = TIPOS_PERIFERICOS.includes(tipo);
+        grupo.style.display = esPeriferico ? '' : 'none';
+        if (!esPeriferico) input.value = '';
+    }
+
+    // Tipos que tienen hostname en la red (equipos de cómputo)
+    const TIPOS_CON_HOSTNAME = ['all_in_one', 'pc', 'laptop'];
+
+    // Muestra el campo "Hostname" solo para PC, All In One y Laptop;
+    // para cualquier otro tipo lo oculta y lo vacía.
+    function actualizarCampoHostname(tipo) {
+        const grupo = document.getElementById('grupoHostname');
+        const input = document.getElementById('inputHostname');
+        if (!grupo || !input) return;
+        const tieneHostname = TIPOS_CON_HOSTNAME.includes(tipo);
+        grupo.style.display = tieneHostname ? '' : 'none';
+        if (!tieneHostname) input.value = '';
+    }
+
     function seleccionarTipo(tipo) {
         document.querySelectorAll('.tipo-card').forEach(c => c.classList.remove('selected'));
         event.currentTarget.closest('.tipo-card').classList.add('selected');
         document.getElementById('inputTipoEquipo').value = tipo;
+        actualizarCampoEquipoPrincipal(tipo);
+        actualizarCampoHostname(tipo);
     }
+
+    // Al cargar (p. ej. si el formulario regresa con errores) respetar el tipo ya elegido
+    actualizarCampoEquipoPrincipal(document.getElementById('inputTipoEquipo').value);
+    actualizarCampoHostname(document.getElementById('inputTipoEquipo').value);
     
     // Validar antes de enviar
     document.getElementById('formCrearEquipo').addEventListener('submit', function(e) {
@@ -327,6 +375,34 @@ $tipos_equipo = [
             alert('Debe seleccionar un tipo de equipo.');
         }
     });
+
+    // =====================================================================
+    // VALIDACIÓN: los dos usuarios asignados no pueden ser la misma persona
+    // (Ayuda visual; la validación real está en procesar_equipo.php)
+    // =====================================================================
+    (function () {
+        const u1 = document.getElementById('usuario_asignado_id');
+        const u2 = document.getElementById('usuario_asignado_2_id');
+        if (!u1 || !u2) return;
+
+        function validarUsuarios() {
+            const iguales = u1.value !== '' && u1.value === u2.value;
+            u2.setCustomValidity(iguales ? 'El segundo usuario debe ser distinto al primero.' : '');
+            u2.classList.toggle('is-invalid', iguales);
+        }
+
+        u1.addEventListener('change', validarUsuarios);
+        u2.addEventListener('change', function () {
+            // Si se elige un segundo usuario sin el principal, se promueve
+            if (u1.value === '' && u2.value !== '') {
+                u1.value = u2.value;
+                u2.value = '';
+            }
+            validarUsuarios();
+        });
+
+        validarUsuarios();
+    })();
     </script>
 </body>
 </html>

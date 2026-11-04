@@ -435,7 +435,8 @@ if (file_exists($logo_path_fs)) {
                                     <?php foreach ($registros as $reg):
                                         $activo    = ($reg['estado'] === 'activo');
                                         $es_mio    = ((int)$reg['usuario_id'] === $usuario_id);
-                                        $clickable = $activo && $es_mio;
+                                        // El dueño o Sistemas (excepción administrativa) pueden cerrar el préstamo
+                                        $clickable = $activo && ($es_mio || $es_ti);
 
                                         $fecha_fmt = date('d/m/Y', strtotime($reg['fecha_prestamo']));
                                         $hora_p    = $reg['hora_prestamo'] ? substr($reg['hora_prestamo'], 0, 5) : '';
@@ -462,7 +463,7 @@ if (file_exists($logo_path_fs)) {
                                             <?php if ($hora_e): ?>
                                                 <?php echo htmlspecialchars($hora_e); ?>
                                             <?php elseif ($clickable): ?>
-                                                <span class="ba-return-hint">Clic para devolver</span>
+                                                <span class="ba-return-hint"><?php echo $es_mio ? 'Clic para devolver' : 'Clic para cerrar'; ?></span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -546,6 +547,10 @@ if (file_exists($logo_path_fs)) {
           </div>
           <div class="modal-body">
             <p class="text-muted small mb-3">Firma para registrar la devolución del control.</p>
+            <div class="alert alert-info small py-2 mb-3 d-none" id="devAvisoSistemas">
+                <i class="bi bi-shield-check me-1"></i>
+                Estás cerrando este préstamo como <strong>Sistemas</strong>. La firma registrada será la tuya como receptor del control.
+            </div>
 
             <div class="ba-field-grid">
                 <div>
@@ -613,13 +618,15 @@ if (file_exists($logo_path_fs)) {
     // Mapa de registros con datos completos (para modal de devolución)
     const BA_REGISTROS = {
         <?php foreach ($registros as $reg):
-            if ($reg['estado'] !== 'activo' || (int)$reg['usuario_id'] !== $usuario_id) continue;
+            $es_mio_js = ((int)$reg['usuario_id'] === $usuario_id);
+            if ($reg['estado'] !== 'activo' || (!$es_mio_js && !$es_ti)) continue;
         ?>
         <?php echo (int)$reg['id']; ?>: {
             id: <?php echo (int)$reg['id']; ?>,
             nombre: <?php echo json_encode($reg['nombre_completo']); ?>,
             area: <?php echo json_encode($reg['departamento_nombre']); ?>,
-            fecha: <?php echo json_encode(date('d/m/Y', strtotime($reg['fecha_prestamo']))); ?>
+            fecha: <?php echo json_encode(date('d/m/Y', strtotime($reg['fecha_prestamo']))); ?>,
+            ajeno: <?php echo $es_mio_js ? 'false' : 'true'; ?>
         },
         <?php endforeach; ?>
     };
@@ -750,6 +757,7 @@ if (file_exists($logo_path_fs)) {
         document.getElementById('devHora').textContent   = formatearHora(ahora);
         document.getElementById('devNombre').textContent = reg.nombre;
         document.getElementById('devArea').textContent   = reg.area;
+        document.getElementById('devAvisoSistemas').classList.toggle('d-none', !reg.ajeno);
         document.getElementById('inputRegistroId').value = registroId;
         document.getElementById('btnEnviarDev').disabled = true;
 

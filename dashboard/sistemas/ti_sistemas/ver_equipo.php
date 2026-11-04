@@ -35,11 +35,13 @@ $pdo = conectarDB();
 
 $sql = "SELECT ie.*, d.nombre as departamento_nombre,
                u1.nombre_completo as registrado_por_nombre,
-               ua.nombre_completo as usuario_asignado_nombre
+               ua.nombre_completo as usuario_asignado_nombre,
+               ua2.nombre_completo as usuario_asignado_2_nombre
         FROM inventario_equipos ie
         LEFT JOIN departamentos d ON ie.departamento_id = d.id
         LEFT JOIN usuarios u1 ON ie.registrado_por = u1.id
         LEFT JOIN usuarios ua ON ie.usuario_asignado_id = ua.id
+        LEFT JOIN usuarios ua2 ON ie.usuario_asignado_2_id = ua2.id
         WHERE ie.id = ?";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$equipo_id]);
@@ -62,7 +64,7 @@ if ($equipo['hostname']) {
 // Obtener periféricos vinculados a este equipo (via personal_asignado)
 $perifericos = [];
 if ($equipo['hostname']) {
-    $stmt_per = $pdo->prepare("SELECT id, hostname, tipo_equipo, marca, modelo, estado FROM inventario_equipos WHERE personal_asignado = ? ORDER BY tipo_equipo");
+    $stmt_per = $pdo->prepare("SELECT id, hostname, codigo_interno, tipo_equipo, marca, modelo, estado FROM inventario_equipos WHERE personal_asignado = ? ORDER BY tipo_equipo");
     $stmt_per->execute([$equipo['hostname']]);
     $perifericos = $stmt_per->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -96,6 +98,12 @@ $tipos_config = [
 ];
 
 $tc = $tipos_config[$equipo['tipo_equipo']] ?? ['nombre' => ucfirst($equipo['tipo_equipo']), 'icono' => 'bi-question-circle', 'color' => 'secondary'];
+
+// Tipos que pueden depender de un equipo principal / tipos que tienen hostname
+$tipos_perifericos  = ['monitor', 'mouse', 'teclado'];
+$tipos_con_hostname = ['all_in_one', 'pc', 'laptop', 'computadora'];
+$es_periferico  = in_array($equipo['tipo_equipo'], $tipos_perifericos, true);
+$tiene_hostname = in_array($equipo['tipo_equipo'], $tipos_con_hostname, true);
 
 $badges_estado = ['activo' => 'bg-success', 'inactivo' => 'bg-secondary', 'en_reparacion' => 'bg-warning text-dark', 'dado_de_baja' => 'bg-danger'];
 $nombres_estado = ['activo' => 'Activo', 'inactivo' => 'Inactivo', 'en_reparacion' => 'En Reparaci&oacute;n', 'dado_de_baja' => 'Dado de Baja'];
@@ -169,6 +177,16 @@ $current_page = basename(__FILE__);
                                 <div class="section-title"><i class="bi bi-info-circle me-2"></i>Informaci&oacute;n del Equipo</div>
                                 <div class="row">
                                     <div class="col-md-4">
+                                        <div class="detail-label">C&oacute;digo Interno</div>
+                                        <div class="detail-value"><code><?php echo htmlspecialchars($equipo['codigo_interno'] ?: '—'); ?></code></div>
+                                    </div>
+                                    <?php if ($tiene_hostname): ?>
+                                    <div class="col-md-4">
+                                        <div class="detail-label">Hostname</div>
+                                        <div class="detail-value"><code><?php echo htmlspecialchars($equipo['hostname'] ?: '—'); ?></code></div>
+                                    </div>
+                                    <?php endif; ?>
+                                    <div class="col-md-4">
                                         <div class="detail-label">Marca</div>
                                         <div class="detail-value"><?php echo htmlspecialchars($equipo['marca'] ?: '—'); ?></div>
                                     </div>
@@ -188,13 +206,20 @@ $current_page = basename(__FILE__);
                                         <div class="detail-label">Ubicaci&oacute;n</div>
                                         <div class="detail-value"><?php echo htmlspecialchars($equipo['ubicacion'] ?: '—'); ?></div>
                                     </div>
+                                    <?php if ($es_periferico): ?>
                                     <div class="col-md-4">
-                                        <div class="detail-label">Personal Asignado</div>
+                                        <div class="detail-label">Id equipo principal</div>
+                                        <div class="detail-value"><code><?php echo htmlspecialchars($equipo['personal_asignado'] ?: '—'); ?></code></div>
+                                    </div>
+                                    <?php endif; ?>
+                                    <div class="col-md-4">
+                                        <div class="detail-label">Usuario Asignado</div>
                                         <div class="detail-value">
-                                            <?php if ($equipo['personal_asignado']): ?>
-                                                <code><?php echo htmlspecialchars($equipo['personal_asignado']); ?></code>
-                                            <?php elseif ($equipo['usuario_asignado_nombre']): ?>
+                                            <?php if ($equipo['usuario_asignado_nombre']): ?>
                                                 <?php echo htmlspecialchars($equipo['usuario_asignado_nombre']); ?>
+                                                <?php if (!empty($equipo['usuario_asignado_2_nombre'])): ?>
+                                                    <br><?php echo htmlspecialchars($equipo['usuario_asignado_2_nombre']); ?>
+                                                <?php endif; ?>
                                             <?php else: ?>
                                                 —
                                             <?php endif; ?>
@@ -259,7 +284,8 @@ $current_page = basename(__FILE__);
                         </div>
                         <?php endif; ?>
                         
-                        <!-- Periféricos vinculados -->
+                        <!-- Periféricos vinculados (solo equipos de cómputo) -->
+                        <?php if ($tiene_hostname): ?>
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -277,7 +303,7 @@ $current_page = basename(__FILE__);
                                     <div class="periferico-item" id="per-<?php echo $per['id']; ?>">
                                         <i class="bi <?php echo $ptc['icono']; ?> text-<?php echo $ptc['color']; ?>" style="font-size:1.2rem;"></i>
                                         <div class="flex-grow-1">
-                                            <strong style="font-family:monospace;"><?php echo htmlspecialchars($per['hostname']); ?></strong>
+                                            <strong style="font-family:monospace;"><?php echo htmlspecialchars($per['hostname'] ?: $per['codigo_interno']); ?></strong>
                                             <small class="text-muted ms-1"><?php echo $ptc['nombre']; ?></small>
                                             <?php if ($per['marca'] || $per['modelo']): ?>
                                                 <small class="text-muted d-block"><?php echo htmlspecialchars(trim($per['marca'] . ' ' . $per['modelo'])); ?></small>
@@ -291,7 +317,7 @@ $current_page = basename(__FILE__);
                                         <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $per['id']; ?>" 
                                            class="btn btn-sm btn-outline-secondary" title="Editar"><i class="bi bi-pencil"></i></a>
                                         <button class="btn btn-sm btn-outline-danger" title="Desvincular" 
-                                                onclick="desvincular(<?php echo $per['id']; ?>, '<?php echo htmlspecialchars($per['hostname'], ENT_QUOTES); ?>')">
+                                                onclick="desvincular(<?php echo $per['id']; ?>, '<?php echo htmlspecialchars($per['hostname'] ?: $per['codigo_interno'], ENT_QUOTES); ?>')">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     </div>
@@ -299,6 +325,7 @@ $current_page = basename(__FILE__);
                                 <?php endif; ?>
                             </div>
                         </div>
+                        <?php endif; ?>
                         
                         <!-- Historial de mantenimientos -->
                         <?php if (!empty($mantenimientos)): ?>
@@ -461,11 +488,11 @@ $current_page = basename(__FILE__);
                     html += `<div class="d-flex align-items-center gap-3 p-2 border-bottom" style="cursor:pointer;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background=''">
                         <i class="bi ${ic}" style="font-size:1.1rem;color:#64748b;"></i>
                         <div class="flex-grow-1">
-                            <strong style="font-family:monospace;font-size:0.88rem;">${p.hostname}</strong>
+                            <strong style="font-family:monospace;font-size:0.88rem;">${p.hostname || p.codigo_interno || ''}</strong>
                             <small class="text-muted ms-1">${p.tipo_equipo}</small>
                             ${desc ? '<small class="text-muted d-block">' + desc + '</small>' : ''}
                         </div>
-                        <button class="btn btn-sm btn-success" onclick="vincular(${p.id}, '${p.hostname}')">
+                        <button class="btn btn-sm btn-success" onclick="vincular(${p.id}, '${p.hostname || p.codigo_interno || ''}')">
                             <i class="bi bi-link-45deg me-1"></i>Vincular
                         </button>
                     </div>`;

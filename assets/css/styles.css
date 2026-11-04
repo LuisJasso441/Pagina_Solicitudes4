@@ -95,3 +95,19 @@ body {
     font-size: 1.5rem;
   }
 }
+
+/* ==========================================================
+   Barra de navegación fija al hacer scroll
+========================================================== */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* El encabezado de días del calendario (FullCalendar) también se pega
+   arriba al hacer scroll; se baja para que no quede oculto tras la barra */
+.fc .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > * {
+    top: 80px; /* = alto de la barra de navegación */
+}
