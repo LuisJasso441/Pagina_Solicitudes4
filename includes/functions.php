@@ -590,4 +590,48 @@ function obtener_fecha_actual_espanol() {
     return "$dia_semana, $dia de $mes de $anio";
 }
 
+if (!function_exists('incluir_sidebar_apropiado')) {
+    /**
+     * Incluye el sidebar correspondiente al usuario logueado, según su rol.
+     *
+     * @param string $ruta_base Path absoluto a la carpeta 'includes/sidebar/'.
+     *                          Ejemplo: __DIR__ . '/../includes/sidebar/'
+     *                          (ajusta el número de '..' según la profundidad del archivo llamador)
+     */
+    function incluir_sidebar_apropiado($ruta_base) {
+        $ruta_base = rtrim($ruta_base, '/') . '/';
+
+        // Detección de rol (más específico primero)
+        if (function_exists('es_usuario_ti') && es_usuario_ti()) {
+            include $ruta_base . 'sidebar_ti.php';
+            return;
+        }
+        if (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
+            include $ruta_base . 'sidebar_colaborativo.php';
+            return;
+        }
+        if (function_exists('es_usuario_epp') && es_usuario_epp()) {
+            include $ruta_base . 'sidebar_inventario.php';
+            return;
+        }
+        if (function_exists('es_mantenimiento') && es_mantenimiento()) {
+            include $ruta_base . 'sidebar_mantenimiento.php';
+            return;
+        }
+
+        // Logística y Almacén de Residuos usan sidebar_sec.php
+        // Fallback a sidebar_normal.php si el módulo SEC aún no está desplegado.
+        $depto = strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? '');
+        if (in_array($depto, ['logistica', 'almacen_residuos'], true)) {
+            $sidebar_sec = $ruta_base . 'sidebar_sec.php';
+            if (file_exists($sidebar_sec)) {
+                include $sidebar_sec;
+                return;
+            }
+        }
+
+        include $ruta_base . 'sidebar_normal.php';
+    }
+}
+
 ?>

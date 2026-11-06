@@ -102,8 +102,6 @@ $current_page = basename(__FILE__);
         include __DIR__ . '/../../../../includes/sidebar/sidebar_ti.php';
     } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
         include __DIR__ . '/../../../../includes/sidebar/sidebar_colaborativo.php';
-    } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_gth.php';
     } else {
         include __DIR__ . '/../../../../includes/sidebar/sidebar_normal.php';
     }

@@ -23,6 +23,33 @@ if ($departamento !== 'sistemas') {
     exit;
 }
 
+// --- Recordar filtros del inventario durante la sesión ---
+// Si el usuario va a Ver/Editar un equipo y regresa a inventario.php sin parámetros,
+// se restauran los últimos filtros usados. El botón de limpiar (?limpiar=1) los borra.
+$url_inventario = URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php';
+$claves_filtro  = ['tipo', 'estado', 'departamento', 'busqueda', 'mostrar', 'pagina', 'grupo'];
+
+if (isset($_GET['limpiar'])) {
+    unset($_SESSION['filtros_inventario']);
+    header('Location: ' . $url_inventario);
+    exit;
+}
+
+$filtros_en_url = array_intersect_key($_GET, array_flip($claves_filtro));
+if (!empty($filtros_en_url)) {
+    // Se enviaron filtros (aunque sea "Todos"): guardar solo los que tienen valor
+    $filtros_guardar = array_filter($filtros_en_url, function ($v) { return is_string($v) && $v !== ''; });
+    if ($filtros_guardar) {
+        $_SESSION['filtros_inventario'] = $filtros_guardar;
+    } else {
+        unset($_SESSION['filtros_inventario']);
+    }
+} elseif (!empty($_SESSION['filtros_inventario'])) {
+    // Llegó sin filtros pero hay unos guardados: restaurarlos
+    header('Location: ' . $url_inventario . '?' . http_build_query($_SESSION['filtros_inventario']));
+    exit;
+}
+
 $pdo = conectarDB();
 
 // Filtros
@@ -64,20 +91,14 @@ if ($filtro_grupo && isset($grupos_tipos[$filtro_grupo])) {
     $params[] = $filtro_tipo;
 }
 
-if ($filtro_estado && in_array($filtro_estado, ['activo', 'inactivo', 'en_reparacion', 'dado_de_baja'])) {
+if ($filtro_estado && in_array($filtro_estado, ['activo', 'inactivo', 'resguardado', 'dispuesto'])) {
     $where[] = "ie.estado = ?";
     $params[] = $filtro_estado;
 }
 
 if ($filtro_departamento) {
-    $depto_nombre = '';
-    foreach ($departamentos as $d) {
-        if ($d['id'] == intval($filtro_departamento)) { $depto_nombre = $d['nombre']; break; }
-    }
-    if ($depto_nombre) {
-        $where[] = "ie.departamento_id IN (SELECT id FROM departamentos WHERE nombre = ?)";
-        $params[] = $depto_nombre;
-    }
+    $where[] = "ie.departamento_id = ?";
+    $params[] = intval($filtro_departamento);
 }
 
 if ($filtro_busqueda) {
@@ -97,19 +118,45 @@ $offset = ($pagina_actual - 1) * $registros_por_pagina;
 
 // Obtener equipos
 $sql = "SELECT ie.*, d.nombre as departamento_nombre,
-               ua.nombre_completo as usuario_asignado_nombre
+               ua.nombre_completo as usuario_asignado_nombre,
+               ua2.nombre_completo as usuario_asignado_2_nombre
         FROM inventario_equipos ie
         LEFT JOIN departamentos d ON ie.departamento_id = d.id
         LEFT JOIN usuarios ua ON ie.usuario_asignado_id = ua.id
+        LEFT JOIN usuarios ua2 ON ie.usuario_asignado_2_id = ua2.id
         WHERE {$where_clause}
-        ORDER BY ie.fecha_registro DESC
+        ORDER BY
+            -- 1) Por grupo y tipo, en el mismo orden que las tarjetas de arriba
+            FIELD(ie.tipo_equipo,
+                  'all_in_one','pc','laptop','computadora',
+                  'monitor','mouse','teclado',
+                  'impresora',
+                  'access_point','switch',
+                  'camara','celular','telefono',
+                  'pantalla_tv','nobreak') = 0,
+            FIELD(ie.tipo_equipo,
+                  'all_in_one','pc','laptop','computadora',
+                  'monitor','mouse','teclado',
+                  'impresora',
+                  'access_point','switch',
+                  'camara','celular','telefono',
+                  'pantalla_tv','nobreak'),
+            -- 2) Dentro de cada tipo, por código interno (GVTEC01, GVTEC02 ... GVTEC35)
+            ie.codigo_interno ASC,
+            ie.id ASC
         LIMIT {$registros_por_pagina} OFFSET {$offset}";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $equipos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Departamentos para filtro
-$departamentos = $pdo->query("SELECT MIN(id) as id, nombre FROM departamentos WHERE activo = 1 GROUP BY nombre ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+$departamentos = $pdo->query("
+    SELECT d.id, d.nombre, COALESCE(c.color_hex, '#f1f5f9') as color_hex 
+    FROM departamentos d 
+    LEFT JOIN colores_departamento c ON d.id = c.departamento_id 
+    WHERE d.activo = 1 
+    ORDER BY d.nombre
+")->fetchAll(PDO::FETCH_ASSOC);
 
 // Contadores por tipo
 $contadores = $pdo->query("SELECT tipo_equipo, COUNT(*) as total FROM inventario_equipos GROUP BY tipo_equipo")->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -283,7 +330,7 @@ $current_page = basename(__FILE__);
                             <div class="col-md-3">
                                 <label class="form-label" style="font-size:0.8rem;">Buscar</label>
                                 <input type="text" name="busqueda" class="form-control form-control-sm" 
-                                       placeholder="Hostname, marca, modelo, serie..."
+                                       placeholder="C&oacute;digo, hostname, marca, modelo, serie..."
                                        value="<?php echo htmlspecialchars($filtro_busqueda); ?>">
                             </div>
                             <div class="col-md-2">
@@ -305,8 +352,8 @@ $current_page = basename(__FILE__);
                                     <option value="">Todos</option>
                                     <option value="activo" <?php echo $filtro_estado === 'activo' ? 'selected' : ''; ?>>Activo</option>
                                     <option value="inactivo" <?php echo $filtro_estado === 'inactivo' ? 'selected' : ''; ?>>Inactivo</option>
-                                    <option value="en_reparacion" <?php echo $filtro_estado === 'en_reparacion' ? 'selected' : ''; ?>>En Reparaci&oacute;n</option>
-                                    <option value="dado_de_baja" <?php echo $filtro_estado === 'dado_de_baja' ? 'selected' : ''; ?>>Dado de Baja</option>
+                                    <option value="resguardado" <?php echo $filtro_estado === 'resguardado' ? 'selected' : ''; ?>>Resguardado</option>
+                                    <option value="dispuesto" <?php echo $filtro_estado === 'dispuesto' ? 'selected' : ''; ?>>Dispuesto</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
@@ -324,7 +371,7 @@ $current_page = basename(__FILE__);
                                 <button type="submit" class="btn btn-sm btn-primary flex-fill">
                                     <i class="bi bi-search me-1"></i>Filtrar
                                 </button>
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php" class="btn btn-sm btn-outline-secondary">
+                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php?limpiar=1" class="btn btn-sm btn-outline-secondary" title="Limpiar filtros">
                                     <i class="bi bi-x-circle"></i>
                                 </a>
                             </div>
@@ -339,7 +386,7 @@ $current_page = basename(__FILE__);
                             <table class="table table-hover table-sm mb-0 table-inventario">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Hostname</th>
+                                        <th>C&oacute;digo Interno</th>
                                         <th>Tipo</th>
                                         <th>Marca / Modelo</th>
                                         <th>N&uacute;mero de Serie</th>
@@ -364,18 +411,21 @@ $current_page = basename(__FILE__);
                                             $tc = $tipos_config[$eq['tipo_equipo']] ?? ['nombre' => ucfirst($eq['tipo_equipo']), 'icono' => 'bi-question-circle', 'color' => 'secondary'];
                                             $badges_estado = [
                                                 'activo' => 'bg-success', 'inactivo' => 'bg-secondary',
-                                                'en_reparacion' => 'bg-warning text-dark', 'dado_de_baja' => 'bg-danger'
+                                                'resguardado' => 'bg-info text-dark', 'dispuesto' => 'bg-danger'
                                             ];
                                             $nombres_estado = [
                                                 'activo' => 'Activo', 'inactivo' => 'Inactivo',
-                                                'en_reparacion' => 'En Reparaci&oacute;n', 'dado_de_baja' => 'Dado de Baja'
+                                                'resguardado' => 'Resguardado', 'dispuesto' => 'Dispuesto'
                                             ];
                                             ?>
                                             <tr>
                                                 <td>
                                                     <span class="hostname-badge text-<?php echo $tc['color']; ?>">
-                                                        <?php echo htmlspecialchars($eq['hostname'] ?: $eq['codigo_interno']); ?>
+                                                        <?php echo htmlspecialchars($eq['codigo_interno'] ?: $eq['hostname']); ?>
                                                     </span>
+                                                    <?php if (!empty($eq['hostname']) && !empty($eq['codigo_interno']) && $eq['hostname'] !== $eq['codigo_interno']): ?>
+                                                        <small class="d-block text-muted" style="font-family:monospace; font-size:0.72rem;"><?php echo htmlspecialchars($eq['hostname']); ?></small>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
                                                     <i class="bi <?php echo $tc['icono']; ?> text-<?php echo $tc['color']; ?> me-1"></i>
@@ -406,6 +456,9 @@ $current_page = basename(__FILE__);
                                                         </span>
                                                     <?php elseif ($eq['usuario_asignado_nombre']): ?>
                                                         <small><?php echo htmlspecialchars($eq['usuario_asignado_nombre']); ?></small>
+                                                        <?php if (!empty($eq['usuario_asignado_2_nombre'])): ?>
+                                                            <br><small><?php echo htmlspecialchars($eq['usuario_asignado_2_nombre']); ?></small>
+                                                        <?php endif; ?>
                                                     <?php else: ?>
                                                         <span class="text-muted">—</span>
                                                     <?php endif; ?>
@@ -426,7 +479,7 @@ $current_page = basename(__FILE__);
                                                             <i class="bi bi-pencil"></i>
                                                         </a>
                                                         <button type="button" class="btn btn-outline-danger btn-sm" title="Eliminar"
-                                                                onclick="confirmarEliminar(<?php echo $eq['id']; ?>, '<?php echo htmlspecialchars($eq['hostname'] ?: $eq['codigo_interno'], ENT_QUOTES); ?>')">
+                                                                onclick="confirmarEliminar(<?php echo $eq['id']; ?>, '<?php echo htmlspecialchars($eq['codigo_interno'] ?: $eq['hostname'], ENT_QUOTES); ?>')">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
                                                     </div>

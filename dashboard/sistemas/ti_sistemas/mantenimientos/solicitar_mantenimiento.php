@@ -33,14 +33,6 @@ if (!$es_sistemas) {
 
 $pdo = conectarDB();
 
-// ------- Cargar departamentos -------
-$departamentos = $pdo->query("
-    SELECT id, codigo, nombre 
-    FROM departamentos 
-    WHERE activo = 1 
-    ORDER BY nombre
-")->fetchAll(PDO::FETCH_ASSOC);
-
 // ------- Datos previos en caso de error -------
 $form_data = $_SESSION['form_data'] ?? [];
 $errores   = $_SESSION['form_errors'] ?? [];
@@ -237,48 +229,46 @@ $current_page = basename(__FILE__);
                             </div>
                         </div>
 
-                        <!-- 2) Departamento -> Usuario -> Equipo -->
+                        <!-- 2) Equipo -> Departamento y Usuario (automáticos) -->
                         <div class="form-section">
                             <div class="form-section-title">
-                                <i class="bi bi-building me-2"></i>Destinatario y equipo
+                                <i class="bi bi-pc-display-horizontal me-2"></i>Equipo y destinatario
                             </div>
 
                             <div class="row g-3">
-                                <!-- Departamento (PRIMERO) -->
-                                <div class="col-md-6">
-                                    <label class="form-label required">Departamento</label>
-                                    <select name="departamento_id" id="departamento_id"
-                                            class="form-select" required>
-                                        <option value="">-- Seleccionar Departamento --</option>
-                                        <?php foreach ($departamentos as $d): ?>
-                                            <option value="<?php echo $d['id']; ?>"
-                                                <?php echo (($form_data['departamento_id'] ?? '') == $d['id']) ? 'selected' : ''; ?>>
-                                                <?php echo htmlspecialchars($d['nombre']); ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <!-- Usuario (depende del Departamento) -->
-                                <div class="col-md-6">
-                                    <label class="form-label required">Usuario</label>
-                                    <select name="usuario_id" id="usuario_id"
-                                            class="form-select" required disabled>
-                                        <option value="">-- Seleccione un departamento primero --</option>
-                                    </select>
-                                    <small class="text-muted" id="usuariosHint"></small>
-                                </div>
-
-                                <!-- Equipo Electrónico (depende de Departamento + Grupo) -->
+                                <!-- Equipo Electrónico (PRIMERO, depende del tipo de equipo) -->
                                 <div class="col-12">
                                     <label class="form-label required">Equipo Electrónico</label>
+                                    <div class="input-group input-group-sm mb-2">
+                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="buscarEquipo" class="form-control"
+                                               placeholder="Buscar por código interno, hostname, marca, modelo, departamento o usuario..."
+                                               autocomplete="off" disabled>
+                                    </div>
                                     <select name="equipo_id" id="equipo_id"
                                             class="form-select" required disabled>
-                                        <option value="">-- Seleccione departamento y tipo de equipo --</option>
+                                        <option value="">-- Seleccione primero el tipo de equipo --</option>
                                     </select>
                                     <small class="text-muted" id="equiposHint">
-                                        El listado se filtra por el departamento y el tipo de equipo seleccionado.
+                                        Seleccione el tipo de equipo para ver el listado.
                                     </small>
+                                </div>
+
+                                <!-- Departamento (automático según el equipo) -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Departamento</label>
+                                    <input type="text" id="departamento_nombre" class="form-control bg-light"
+                                           placeholder="Se asigna según el equipo" readonly tabindex="-1">
+                                    <input type="hidden" name="departamento_id" id="departamento_id" value="">
+                                </div>
+
+                                <!-- Usuario (automático según el equipo, editable) -->
+                                <div class="col-md-6">
+                                    <label class="form-label">Usuario</label>
+                                    <select name="usuario_id" id="usuario_id" class="form-select" disabled>
+                                        <option value="">-- Seleccione un equipo primero --</option>
+                                    </select>
+                                    <small class="text-muted" id="usuariosHint"></small>
                                 </div>
                             </div>
                         </div>
@@ -372,13 +362,13 @@ $current_page = basename(__FILE__);
                         <!-- 6) Descripción -->
                         <div class="form-section">
                             <div class="form-section-title">
-                                <i class="bi bi-chat-left-text me-2"></i>Descripción del problema
+                                <i class="bi bi-chat-left-text me-2"></i>Descripción del mantenimiento
                             </div>
-                            <label class="form-label required">Describa el problema o motivo del mantenimiento</label>
+                            <label class="form-label required">Describa el mantenimiento a realizar</label>
                             <textarea name="descripcion_problema" id="descripcion_problema"
                                       class="form-control" rows="5" required
                                       minlength="10" maxlength="2000"
-                                      placeholder="Describa el motivo del mantenimiento, síntomas observados, mensajes de error, etc."><?php echo htmlspecialchars($form_data['descripcion_problema'] ?? ''); ?></textarea>
+                                      placeholder="Ej. Mantenimiento preventivo correspondiente al mes de marzo."><?php echo htmlspecialchars($form_data['descripcion_problema'] ?? ''); ?></textarea>
                             <div class="d-flex justify-content-between mt-1">
                                 <small class="text-muted">Mínimo 10 caracteres.</small>
                                 <small class="text-muted"><span id="charCount">0</span>/2000</small>
@@ -451,118 +441,193 @@ $current_page = basename(__FILE__);
 const URL_API = '<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/api_mantenimiento.php';
 
 const PRESELECCION = {
-    departamento_id: '<?php echo intval($form_data['departamento_id'] ?? 0); ?>',
-    usuario_id:      '<?php echo intval($form_data['usuario_id'] ?? 0); ?>',
-    equipo_id:       '<?php echo intval($form_data['equipo_id'] ?? 0); ?>',
-    grupo_equipo:    '<?php echo htmlspecialchars($form_data['grupo_equipo'] ?? ''); ?>'
+    // Si no hay preselección se imprime cadena vacía, NO '0'.
+    // En JavaScript la cadena '0' es truthy y provocaba llamadas con id 0.
+    usuario_id:   '<?php echo !empty($form_data['usuario_id']) ? intval($form_data['usuario_id']) : ''; ?>',
+    equipo_id:    '<?php echo !empty($form_data['equipo_id'])  ? intval($form_data['equipo_id'])  : ''; ?>',
+    grupo_equipo: '<?php echo htmlspecialchars($form_data['grupo_equipo'] ?? ''); ?>'
 };
 
 // =====================================================================
-// CASCADA DEPARTAMENTO -> USUARIO -> EQUIPO
+// FLUJO: TIPO DE EQUIPO -> EQUIPO -> (DEPARTAMENTO + USUARIO automáticos)
 // =====================================================================
-const selDepto   = document.getElementById('departamento_id');
-const selUsuario = document.getElementById('usuario_id');
-const selEquipo  = document.getElementById('equipo_id');
-const inpGrupo   = document.getElementById('grupo_equipo');
+const selEquipo      = document.getElementById('equipo_id');
+const inpBuscar      = document.getElementById('buscarEquipo');
+const inpDeptoId     = document.getElementById('departamento_id');
+const inpDeptoNombre = document.getElementById('departamento_nombre');
+const selUsuario     = document.getElementById('usuario_id');
+const inpGrupo       = document.getElementById('grupo_equipo');
+const hintEquipos    = document.getElementById('equiposHint');
+const hintUsuarios   = document.getElementById('usuariosHint');
 
-selDepto.addEventListener('change', async function() {
-    const deptoId = this.value;
-    resetUsuario();
-    resetEquipo();
-    if (deptoId) {
-        await cargarUsuarios(deptoId);
-        if (inpGrupo.value) {
-            await cargarEquipos(deptoId, inpGrupo.value, '');
-        }
-    }
+let equiposCache = [];   // equipos del grupo seleccionado (respuesta de la API)
+
+selEquipo.addEventListener('change', function () {
+    aplicarEquipo(this.value, null);
 });
 
-selUsuario.addEventListener('change', async function() {
-    const deptoId = selDepto.value;
-    const userId  = this.value;
-    if (deptoId && inpGrupo.value) {
-        await cargarEquipos(deptoId, inpGrupo.value, userId);
-    }
+inpBuscar.addEventListener('input', function () {
+    renderEquipos(this.value);
 });
 
-function resetUsuario() {
-    selUsuario.innerHTML = '<option value="">-- Seleccione un departamento primero --</option>';
+function resetDestinatario() {
+    inpDeptoId.value = '';
+    inpDeptoNombre.value = '';
+    selUsuario.innerHTML = '<option value="">-- Seleccione un equipo primero --</option>';
     selUsuario.disabled = true;
-    document.getElementById('usuariosHint').textContent = '';
+    hintUsuarios.textContent = '';
 }
 
-function resetEquipo() {
-    selEquipo.innerHTML = '<option value="">-- Seleccione departamento y tipo de equipo --</option>';
-    selEquipo.disabled = true;
-}
-
-async function cargarUsuarios(deptoId) {
-    selUsuario.innerHTML = '<option value="">Cargando...</option>';
-    selUsuario.disabled = true;
-    try {
-        const r = await fetch(URL_API + '?accion=usuarios&departamento_id=' + encodeURIComponent(deptoId));
-        const j = await r.json();
-        if (!j.success) throw new Error(j.message || 'Error al cargar usuarios');
-
-        if (!j.data.length) {
-            selUsuario.innerHTML = '<option value="">-- Sin usuarios activos en este departamento --</option>';
-            document.getElementById('usuariosHint').textContent = 'No hay usuarios activos asignados a este departamento.';
-            return;
-        }
-        let html = '<option value="">-- Seleccionar Usuario --</option>';
-        j.data.forEach(u => {
-            const sel = (String(u.id) === String(PRESELECCION.usuario_id)) ? 'selected' : '';
-            html += `<option value="${u.id}" ${sel}>${escapeHtml(u.nombre_completo)}</option>`;
-        });
-        selUsuario.innerHTML = html;
-        selUsuario.disabled = false;
-        document.getElementById('usuariosHint').textContent = `${j.data.length} usuario(s) disponibles.`;
-    } catch (err) {
-        console.error(err);
-        selUsuario.innerHTML = '<option value="">-- Error al cargar usuarios --</option>';
-    }
-}
-
-async function cargarEquipos(deptoId, grupo, usuarioId) {
+// ---------------------------------------------------------------------
+// Cargar equipos del grupo (todos los departamentos)
+// ---------------------------------------------------------------------
+async function cargarEquipos(grupo, restaurar = false) {
+    resetDestinatario();
+    equiposCache = [];
+    inpBuscar.value = '';
+    inpBuscar.disabled = true;
     selEquipo.innerHTML = '<option value="">Cargando...</option>';
     selEquipo.disabled = true;
-    try {
-        let url = URL_API + '?accion=equipos&departamento_id=' + encodeURIComponent(deptoId)
-                          + '&grupo=' + encodeURIComponent(grupo);
-        if (usuarioId) url += '&usuario_id=' + encodeURIComponent(usuarioId);
 
-        const r = await fetch(url);
+    try {
+        const r = await fetch(URL_API + '?accion=equipos&grupo=' + encodeURIComponent(grupo));
         const j = await r.json();
         if (!j.success) throw new Error(j.message || 'Error al cargar equipos');
 
-        if (!j.data.length) {
-            selEquipo.innerHTML = '<option value="">-- Sin equipos en este departamento para el tipo seleccionado --</option>';
-            document.getElementById('equiposHint').innerHTML =
-                '<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No hay equipos activos del tipo seleccionado en este departamento.</span>';
+        equiposCache = j.data;
+
+        if (!equiposCache.length) {
+            selEquipo.innerHTML = '<option value="">-- Sin equipos activos de este tipo --</option>';
+            hintEquipos.innerHTML =
+                '<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>No hay equipos activos del tipo seleccionado.</span>';
             return;
         }
 
-        let html = '<option value="">-- Seleccionar Equipo --</option>';
-        j.data.forEach(e => {
-            const partes = [];
-            if (e.hostname)       partes.push(e.hostname);
-            if (e.codigo_interno) partes.push(e.codigo_interno);
-            const ref = partes.join(' / ') || '(sin identificador)';
-            const tipo = e.tipo_equipo || '';
-            const marca_modelo = [e.marca, e.modelo].filter(Boolean).join(' ');
-            const ubic = e.ubicacion ? ' - ' + e.ubicacion : '';
-            const star = e.asignado_al_usuario ? '⭐ ' : '';
-            const texto = `${star}${ref} (${tipo})${marca_modelo ? ' · ' + marca_modelo : ''}${ubic}`;
-            const sel = (String(e.id) === String(PRESELECCION.equipo_id)) ? 'selected' : '';
-            html += `<option value="${e.id}" ${sel}>${escapeHtml(texto)}</option>`;
-        });
-        selEquipo.innerHTML = html;
+        renderEquipos('');
         selEquipo.disabled = false;
-        document.getElementById('equiposHint').innerHTML =
-            `<span class="text-muted">${j.data.length} equipo(s). ⭐ = asignado al usuario seleccionado.</span>`;
+        inpBuscar.disabled = false;
+        hintEquipos.innerHTML = `<span class="text-muted">${equiposCache.length} equipo(s) disponibles. Al elegir uno se asignan su departamento y usuario.</span>`;
+
+        // Restaurar selección tras un error de validación
+        if (restaurar && PRESELECCION.equipo_id &&
+            equiposCache.some(e => String(e.id) === PRESELECCION.equipo_id)) {
+            selEquipo.value = PRESELECCION.equipo_id;
+            await aplicarEquipo(PRESELECCION.equipo_id, PRESELECCION.usuario_id);
+        }
     } catch (err) {
         console.error(err);
         selEquipo.innerHTML = '<option value="">-- Error al cargar equipos --</option>';
+    }
+}
+
+function textoEquipo(e) {
+    const id   = e.codigo_interno || e.hostname || '(sin identificador)';
+    const host = (e.hostname && e.codigo_interno &&
+                  e.hostname.toLowerCase() !== e.codigo_interno.toLowerCase()) ? ` (${e.hostname})` : '';
+    const marcaModelo = [e.marca, e.modelo].filter(Boolean).join(' ');
+    const depto = e.departamento_nombre ? ' — ' + e.departamento_nombre : '';
+    return `${id}${host} · ${e.tipo_equipo || ''}${marcaModelo ? ' · ' + marcaModelo : ''}${depto}`;
+}
+
+// Pinta el select aplicando el filtro de búsqueda
+function renderEquipos(filtro) {
+    const f = (filtro || '').trim().toLowerCase();
+    const actual = selEquipo.value;
+
+    const lista = !f ? equiposCache : equiposCache.filter(e =>
+        [e.codigo_interno, e.hostname, e.marca, e.modelo, e.ubicacion,
+         e.departamento_nombre, e.usuario_asignado_nombre, e.usuario_asignado_2_nombre]
+            .filter(Boolean).join(' ').toLowerCase().includes(f)
+    );
+
+    let html = `<option value="">-- Seleccionar Equipo (${lista.length}) --</option>`;
+    lista.forEach(e => {
+        const sel = String(e.id) === actual ? 'selected' : '';
+        html += `<option value="${e.id}" ${sel}>${escapeHtml(textoEquipo(e))}</option>`;
+    });
+    selEquipo.innerHTML = html;
+
+    if (f && lista.length === 1) {
+        // Un solo resultado: se selecciona solo
+        selEquipo.value = String(lista[0].id);
+        if (String(lista[0].id) !== actual) aplicarEquipo(selEquipo.value, null);
+    } else if (actual && selEquipo.value !== actual) {
+        // El equipo que estaba elegido quedó fuera del filtro
+        resetDestinatario();
+    }
+}
+
+// ---------------------------------------------------------------------
+// Al elegir un equipo: llenar departamento y usuario
+// usuarioPre = null  -> usar la regla automática (1er usuario asignado)
+// usuarioPre = 'N'/'' -> restaurar lo que venía en el formulario
+// ---------------------------------------------------------------------
+async function aplicarEquipo(equipoId, usuarioPre) {
+    const eq = equiposCache.find(e => String(e.id) === String(equipoId));
+    if (!eq) { resetDestinatario(); return; }
+
+    inpDeptoId.value     = eq.departamento_id || '';
+    inpDeptoNombre.value = eq.departamento_nombre || '(Sin departamento en inventario)';
+
+    await cargarUsuarios(eq, usuarioPre);
+}
+
+async function cargarUsuarios(eq, usuarioPre) {
+    selUsuario.innerHTML = '<option value="">Cargando...</option>';
+    selUsuario.disabled = true;
+
+    // Usuarios asignados al equipo (solo activos), en orden: 1ro y 2do
+    const asignados = [];
+    if (eq.usuario_asignado_id && String(eq.usuario_asignado_activo) === '1') {
+        asignados.push({ id: String(eq.usuario_asignado_id), nombre: eq.usuario_asignado_nombre });
+    }
+    if (eq.usuario_asignado_2_id && String(eq.usuario_asignado_2_activo) === '1') {
+        asignados.push({ id: String(eq.usuario_asignado_2_id), nombre: eq.usuario_asignado_2_nombre });
+    }
+
+    // Resto de usuarios del departamento (para poder cambiarlo manualmente)
+    let usuariosDepto = [];
+    if (eq.departamento_id) {
+        try {
+            const r = await fetch(URL_API + '?accion=usuarios&departamento_id=' + encodeURIComponent(eq.departamento_id));
+            const j = await r.json();
+            if (j.success) usuariosDepto = j.data;
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    const idsAsignados = asignados.map(a => a.id);
+    const otros = usuariosDepto.filter(u => !idsAsignados.includes(String(u.id)));
+
+    let html = '<option value="">-- Sin usuario --</option>';
+    if (asignados.length) {
+        html += '<optgroup label="Asignados al equipo">';
+        asignados.forEach(a => html += `<option value="${a.id}">⭐ ${escapeHtml(a.nombre)}</option>`);
+        html += '</optgroup>';
+    }
+    if (otros.length) {
+        html += '<optgroup label="Otros usuarios del departamento">';
+        otros.forEach(u => html += `<option value="${u.id}">${escapeHtml(u.nombre_completo)}</option>`);
+        html += '</optgroup>';
+    }
+    selUsuario.innerHTML = html;
+    selUsuario.disabled = false;
+
+    // Selección por defecto
+    if (usuarioPre !== null) {
+        selUsuario.value = usuarioPre;                      // restaurar formulario
+    } else {
+        selUsuario.value = asignados.length ? asignados[0].id : '';
+    }
+
+    // Mensaje de ayuda
+    if (asignados.length === 2) {
+        hintUsuarios.innerHTML = '<span class="text-info"><i class="bi bi-people me-1"></i>Equipo con 2 usuarios: se eligió el principal, puedes cambiar al segundo (⭐).</span>';
+    } else if (asignados.length === 1) {
+        hintUsuarios.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Usuario asignado al equipo seleccionado automáticamente.</span>';
+    } else {
+        hintUsuarios.innerHTML = '<span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>El equipo no tiene usuario asignado. Puedes enviarla sin usuario o elegir uno del departamento.</span>';
     }
 }
 
@@ -574,11 +639,7 @@ function seleccionarGrupo(grupo) {
     const card = document.querySelector(`.grupo-card[data-grupo="${grupo}"]`);
     if (card) card.classList.add('selected');
     inpGrupo.value = grupo;
-
-    const deptoId = selDepto.value;
-    if (deptoId) {
-        cargarEquipos(deptoId, grupo, selUsuario.value || '');
-    }
+    cargarEquipos(grupo);
 }
 
 // =====================================================================
@@ -620,25 +681,25 @@ document.getElementById('formMantenimiento').addEventListener('submit', function
         alert('Selecciona el tipo de equipo (Cómputo, Periféricos, Impresoras, Red u Otros).');
         return false;
     }
-    if (!selDepto.value) {
-        e.preventDefault();
-        alert('Selecciona un departamento.');
-        return false;
-    }
-    if (!selUsuario.value) {
-        e.preventDefault();
-        alert('Selecciona un usuario destinatario.');
-        return false;
-    }
     if (!selEquipo.value) {
         e.preventDefault();
         alert('Selecciona un equipo del inventario.');
+        return false;
+    }
+    if (!inpDeptoId.value) {
+        e.preventDefault();
+        alert('El equipo seleccionado no tiene departamento asignado en el inventario. Corrígelo en el inventario antes de crear la solicitud.');
         return false;
     }
     const tipoMant = document.querySelector('input[name="tipo_mantenimiento"]:checked');
     if (!tipoMant) {
         e.preventDefault();
         alert('Selecciona el tipo de mantenimiento (Lógico o Físico).');
+        return false;
+    }
+    if (!selUsuario.value &&
+        !confirm('La solicitud se enviará sin usuario destinatario y nadie recibirá la notificación. ¿Deseas continuar?')) {
+        e.preventDefault();
         return false;
     }
 });
@@ -651,15 +712,8 @@ function escapeHtml(s) {
 }
 
 (async function init() {
-    if (PRESELECCION.departamento_id) {
-        await cargarUsuarios(PRESELECCION.departamento_id);
-        if (PRESELECCION.grupo_equipo) {
-            await cargarEquipos(
-                PRESELECCION.departamento_id,
-                PRESELECCION.grupo_equipo,
-                PRESELECCION.usuario_id
-            );
-        }
+    if (PRESELECCION.grupo_equipo) {
+        await cargarEquipos(PRESELECCION.grupo_equipo, true);
     }
 })();
 </script>

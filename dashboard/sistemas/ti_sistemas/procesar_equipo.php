@@ -62,15 +62,27 @@ function validarDatosEquipo($pdo, $datos, $equipo_id = 0) {
         $errores[] = 'Debe seleccionar un tipo de equipo v&aacute;lido.';
     }
     
-    if (empty($datos['hostname'])) {
-        $errores[] = 'El hostname es obligatorio.';
-    } elseif (!preg_match('/^[A-Z0-9\-_]+$/i', $datos['hostname'])) {
-        $errores[] = 'El hostname solo puede contener letras, n&uacute;meros, guiones y guiones bajos.';
+    // C�digo Interno: OBLIGATORIO y �nico
+    if (empty($datos['codigo_interno'])) {
+        $errores[] = 'El c&oacute;digo interno es obligatorio.';
     } else {
-        $stmt = $pdo->prepare("SELECT id FROM inventario_equipos WHERE hostname = ? AND id != ?");
-        $stmt->execute([strtoupper($datos['hostname']), $equipo_id]);
+        $stmt = $pdo->prepare("SELECT id FROM inventario_equipos WHERE codigo_interno = ? AND id != ?");
+        $stmt->execute([strtoupper($datos['codigo_interno']), $equipo_id]);
         if ($stmt->fetch()) {
-            $errores[] = 'El hostname ya existe en otro equipo.';
+            $errores[] = 'El c&oacute;digo interno ya existe en otro equipo.';
+        }
+    }
+    
+    // Hostname: OPCIONAL, pero si se captura debe ser v�lido y �nico
+    if (!empty($datos['hostname'])) {
+        if (!preg_match('/^[A-Z0-9\-_]+$/i', $datos['hostname'])) {
+            $errores[] = 'El hostname solo puede contener letras, n&uacute;meros, guiones y guiones bajos.';
+        } else {
+            $stmt = $pdo->prepare("SELECT id FROM inventario_equipos WHERE hostname = ? AND id != ?");
+            $stmt->execute([strtoupper($datos['hostname']), $equipo_id]);
+            if ($stmt->fetch()) {
+                $errores[] = 'El hostname ya existe en otro equipo.';
+            }
         }
     }
     
@@ -78,11 +90,22 @@ function validarDatosEquipo($pdo, $datos, $equipo_id = 0) {
         $errores[] = 'La ubicaci&oacute;n es obligatoria.';
     }
     
-    $estados_validos = ['activo', 'inactivo', 'en_reparacion', 'dado_de_baja'];
+    $estados_validos = ['activo', 'inactivo', 'resguardado', 'dispuesto'];
     if (!in_array($datos['estado'], $estados_validos)) {
         $errores[] = 'El estado seleccionado no es v&aacute;lido.';
     }
-    
+
+    // Los dos usuarios asignados no pueden ser la misma persona
+    if (!empty($datos['usuario_asignado_id']) && !empty($datos['usuario_asignado_2_id'])
+        && $datos['usuario_asignado_id'] === $datos['usuario_asignado_2_id']) {
+        $errores[] = 'El segundo usuario asignado debe ser distinto al primero.';
+    }
+
+    // No se puede asignar un segundo usuario sin haber asignado el primero
+    if (empty($datos['usuario_asignado_id']) && !empty($datos['usuario_asignado_2_id'])) {
+        $errores[] = 'Para asignar un segundo usuario primero debe asignar el usuario principal.';
+    }
+
     return $errores;
 }
 
@@ -100,6 +123,7 @@ function extraerDatosPost() {
         'ubicacion'         => trim($_POST['ubicacion'] ?? ''),
         'departamento_id'   => !empty($_POST['departamento_id']) ? intval($_POST['departamento_id']) : null,
         'usuario_asignado_id' => !empty($_POST['usuario_asignado_id']) ? intval($_POST['usuario_asignado_id']) : null,
+        'usuario_asignado_2_id' => !empty($_POST['usuario_asignado_2_id']) ? intval($_POST['usuario_asignado_2_id']) : null,
         'personal_asignado' => trim($_POST['personal_asignado'] ?? ''),
         'correo_asignado'   => trim($_POST['correo_asignado'] ?? ''),
         'fecha_adquisicion' => !empty($_POST['fecha_adquisicion']) ? $_POST['fecha_adquisicion'] : null,
@@ -123,22 +147,20 @@ function crearEquipo($pdo) {
         exit;
     }
     
-    // Si no se proporcionó codigo_interno, usar hostname
-    if (empty($datos['codigo_interno'])) {
-        $datos['codigo_interno'] = $datos['hostname'];
-    }
+    // El hostname es opcional: se guarda NULL si viene vac�o (respeta el �ndice UNIQUE)
+    $hostname_val = !empty($datos['hostname']) ? $datos['hostname'] : null;
     
     try {
         $sql = "INSERT INTO inventario_equipos 
                 (tipo_equipo, hostname, codigo_interno, numero_serie, marca, modelo, 
-                 ubicacion, departamento_id, usuario_asignado_id, personal_asignado,
+                 ubicacion, departamento_id, usuario_asignado_id, usuario_asignado_2_id, personal_asignado,
                  correo_asignado, estado, fecha_adquisicion, notas, registrado_por) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $datos['tipo_equipo'],
-            $datos['hostname'],
+            $hostname_val,
             $datos['codigo_interno'],
             $datos['numero_serie'] ?: null,
             $datos['marca'] ?: null,
@@ -146,6 +168,7 @@ function crearEquipo($pdo) {
             $datos['ubicacion'],
             $datos['departamento_id'],
             $datos['usuario_asignado_id'],
+            $datos['usuario_asignado_2_id'],
             $datos['personal_asignado'] ?: null,
             $datos['correo_asignado'] ?: null,
             $datos['estado'],
@@ -155,9 +178,10 @@ function crearEquipo($pdo) {
         ]);
         
         $equipo_id = $pdo->lastInsertId();
-        crearNotificacionEquipo($pdo, $equipo_id, $datos['hostname'], $datos['tipo_equipo'], 'nuevo');
+        $nombre_mostrar = $hostname_val ?: $datos['codigo_interno'];
+        crearNotificacionEquipo($pdo, $equipo_id, $nombre_mostrar, $datos['tipo_equipo'], 'nuevo');
         
-        establecer_alerta('success', "Equipo {$datos['hostname']} registrado exitosamente.");
+        establecer_alerta('success', "Equipo {$nombre_mostrar} registrado exitosamente.");
         
         if ($agregar_otro) {
             header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/crear_equipo.php');
@@ -180,6 +204,10 @@ function crearEquipo($pdo) {
  */
 function editarEquipo($pdo) {
     $equipo_id = intval($_POST['equipo_id'] ?? 0);
+    // Navegaci�n: a qu� vista regresar al terminar (la env�a editar_equipo.php)
+    $volver_id = intval($_POST['volver_id'] ?? 0);
+    $desde_id  = intval($_POST['desde_id'] ?? 0);
+    $params_regreso = ($volver_id ? '&volver=' . $volver_id : '') . ($desde_id ? '&desde=' . $desde_id : '');
     if (!$equipo_id) {
         establecer_alerta('error', 'ID de equipo no v&aacute;lido.');
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
@@ -192,26 +220,25 @@ function editarEquipo($pdo) {
     if (!empty($errores)) {
         $_SESSION['form_errors'] = $errores;
         $_SESSION['form_data'] = $_POST;
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/editar_equipo.php?id=' . $equipo_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/editar_equipo.php?id=' . $equipo_id . $params_regreso);
         exit;
     }
     
-    if (empty($datos['codigo_interno'])) {
-        $datos['codigo_interno'] = $datos['hostname'];
-    }
+    // El hostname es opcional: se guarda NULL si viene vac�o (respeta el �ndice UNIQUE)
+    $hostname_val = !empty($datos['hostname']) ? $datos['hostname'] : null;
     
     try {
         $sql = "UPDATE inventario_equipos SET 
                 tipo_equipo = ?, hostname = ?, codigo_interno = ?, numero_serie = ?, 
                 marca = ?, modelo = ?, ubicacion = ?, departamento_id = ?, 
-                usuario_asignado_id = ?, personal_asignado = ?, correo_asignado = ?,
+                usuario_asignado_id = ?, usuario_asignado_2_id = ?, correo_asignado = ?,
                 fecha_adquisicion = ?, estado = ?, notas = ?
                 WHERE id = ?";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $datos['tipo_equipo'],
-            $datos['hostname'],
+            $hostname_val,
             $datos['codigo_interno'],
             $datos['numero_serie'] ?: null,
             $datos['marca'] ?: null,
@@ -219,7 +246,7 @@ function editarEquipo($pdo) {
             $datos['ubicacion'],
             $datos['departamento_id'],
             $datos['usuario_asignado_id'],
-            $datos['personal_asignado'] ?: null,
+            $datos['usuario_asignado_2_id'],
             $datos['correo_asignado'] ?: null,
             $datos['fecha_adquisicion'],
             $datos['estado'],
@@ -227,15 +254,21 @@ function editarEquipo($pdo) {
             $equipo_id
         ]);
         
-        establecer_alerta('success', "Equipo {$datos['hostname']} actualizado exitosamente.");
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
+        establecer_alerta('success', "Equipo " . ($hostname_val ?: $datos['codigo_interno']) . " actualizado exitosamente.");
+        // Regresar a la vista desde donde se abri� la edici�n; si no hay, al inventario
+        if ($volver_id) {
+            header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_equipo.php?id=' . $volver_id
+                . ($desde_id ? '&desde=' . $desde_id : ''));
+        } else {
+            header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php');
+        }
         exit;
         
     } catch (PDOException $e) {
         error_log("Error al editar equipo: " . $e->getMessage());
         $_SESSION['form_errors'] = ['Error al actualizar el equipo: ' . $e->getMessage()];
         $_SESSION['form_data'] = $_POST;
-        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/editar_equipo.php?id=' . $equipo_id);
+        header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/editar_equipo.php?id=' . $equipo_id . $params_regreso);
         exit;
     }
 }

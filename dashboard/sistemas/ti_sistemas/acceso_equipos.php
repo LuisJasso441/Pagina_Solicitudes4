@@ -25,6 +25,9 @@ if ($departamento !== 'sistemas') {
 
 $pdo = conectarDB();
 
+// Obtener departamentos PRIMERO (se usa en filtros y en el HTML)
+$departamentos = $pdo->query("SELECT MIN(id) as id, nombre FROM departamentos WHERE activo = 1 GROUP BY nombre ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
+
 $filtro_depto = $_GET['departamento'] ?? '';
 $filtro_busqueda = trim($_GET['busqueda'] ?? '');
 $filtro_estado = $_GET['estado'] ?? '';
@@ -33,14 +36,8 @@ $where = ["1=1"];
 $params = [];
 
 if ($filtro_depto) {
-    $depto_nombre = '';
-    foreach ($departamentos as $d) {
-        if ($d['id'] == intval($filtro_departamento)) { $depto_nombre = $d['nombre']; break; }
-    }
-    if ($depto_nombre) {
-        $where[] = "ie.departamento_id IN (SELECT id FROM departamentos WHERE nombre = ?)";
-        $params[] = $depto_nombre;
-    }
+    $where[] = "ae.departamento_id = ?";
+    $params[] = intval($filtro_depto);
 }
 if ($filtro_estado && in_array($filtro_estado, ['activo', 'inactivo'])) {
     $where[] = "ae.estado = ?";
@@ -62,8 +59,6 @@ $sql = "SELECT ae.*, d.nombre as departamento_nombre
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $accesos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$departamentos = $pdo->query("SELECT MIN(id) as id, nombre FROM departamentos WHERE activo = 1 GROUP BY nombre ORDER BY nombre")->fetchAll(PDO::FETCH_ASSOC);
 
 $total_accesos = count($accesos);
 

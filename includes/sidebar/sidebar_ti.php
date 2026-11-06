@@ -200,12 +200,18 @@ try {
             <small class="text-white-50 px-3 fw-bold">Mantenimientos TI</small>
             
             <li class="nav-item">
-                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php', 'solicitar_mantenimiento.php', 'crear_mantenimiento_historico.php', 'ver_mantenimiento_historico.php', 'editar_mantenimiento_historico.php']) ? 'active' : ''; ?>" 
+                <a class="nav-link <?php echo in_array($current_page, ['mantenimientos.php', 'ver_mantenimiento.php', 'solicitar_mantenimiento.php', 'crear_mantenimiento_historico.php', 'ver_mantenimiento_historico.php', 'editar_mantenimiento_historico.php', 'calendario_mantenimientos.php']) ? 'active' : ''; ?>" 
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php">
                     <i class="bi bi-tools"></i> Mantenimientos
                     <?php if ($mant_pendientes > 0): ?>
                     <span class="badge bg-warning text-dark ms-2"><?php echo $mant_pendientes; ?></span>
                     <?php endif; ?>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'programacion_mantenimientos.php' ? 'active' : ''; ?>" 
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/programacion_mantenimientos.php">
+                    <i class="bi bi-calendar-plus"></i> Programación
                 </a>
             </li>
 

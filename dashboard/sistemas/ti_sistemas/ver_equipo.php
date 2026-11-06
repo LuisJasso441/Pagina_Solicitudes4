@@ -31,6 +31,14 @@ if (!$equipo_id) {
     exit;
 }
 
+// --- Navegación: ¿desde qué equipo llegamos? (p. ej. de un All In One a su mouse) ---
+$desde_id = intval($_GET['desde'] ?? 0);
+if ($desde_id === $equipo_id) $desde_id = 0;
+$param_desde = $desde_id ? '&desde=' . $desde_id : '';
+$url_volver  = $desde_id
+    ? URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_equipo.php?id=' . $desde_id
+    : URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php';
+
 $pdo = conectarDB();
 
 $sql = "SELECT ie.*, d.nombre as departamento_nombre,
@@ -62,10 +70,14 @@ if ($equipo['hostname']) {
 }
 
 // Obtener periféricos vinculados a este equipo (via personal_asignado)
+// Ahora se vincula por CÓDIGO INTERNO. Se aceptan también los vínculos antiguos
+// hechos por hostname para no perder ninguna relación existente.
 $perifericos = [];
-if ($equipo['hostname']) {
-    $stmt_per = $pdo->prepare("SELECT id, hostname, codigo_interno, tipo_equipo, marca, modelo, estado FROM inventario_equipos WHERE personal_asignado = ? ORDER BY tipo_equipo");
-    $stmt_per->execute([$equipo['hostname']]);
+$claves_padre = array_values(array_unique(array_filter([$equipo['codigo_interno'], $equipo['hostname']])));
+if ($claves_padre) {
+    $marcadores = implode(',', array_fill(0, count($claves_padre), '?'));
+    $stmt_per = $pdo->prepare("SELECT id, hostname, codigo_interno, tipo_equipo, marca, modelo, estado FROM inventario_equipos WHERE personal_asignado IN ($marcadores) AND id != ? ORDER BY tipo_equipo");
+    $stmt_per->execute(array_merge($claves_padre, [$equipo_id]));
     $perifericos = $stmt_per->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -115,7 +127,7 @@ $current_page = basename(__FILE__);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?> - Inventario TI</title>
+    <title><?php echo htmlspecialchars($equipo['codigo_interno'] ?: $equipo['hostname']); ?> - Inventario TI</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -148,7 +160,7 @@ $current_page = basename(__FILE__);
                         <i class="bi <?php echo $tc['icono']; ?> text-<?php echo $tc['color']; ?>" style="font-size:2.5rem;"></i>
                         <div>
                             <h4 class="mb-0" style="font-family:monospace;">
-                                <?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?>
+                                <?php echo htmlspecialchars($equipo['codigo_interno'] ?: $equipo['hostname']); ?>
                             </h4>
                             <span class="badge <?php echo $badges_estado[$equipo['estado']] ?? 'bg-secondary'; ?> me-1">
                                 <?php echo $nombres_estado[$equipo['estado']] ?? $equipo['estado']; ?>
@@ -157,10 +169,10 @@ $current_page = basename(__FILE__);
                         </div>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $equipo_id; ?>" class="btn btn-outline-primary">
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $equipo_id; ?>&volver=<?php echo $equipo_id . $param_desde; ?>" class="btn btn-outline-primary">
                             <i class="bi bi-pencil me-1"></i>Editar
                         </a>
-                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php" class="btn btn-outline-secondary">
+                        <a href="<?php echo htmlspecialchars($url_volver); ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left me-1"></i>Volver
                         </a>
                     </div>
@@ -303,7 +315,7 @@ $current_page = basename(__FILE__);
                                     <div class="periferico-item" id="per-<?php echo $per['id']; ?>">
                                         <i class="bi <?php echo $ptc['icono']; ?> text-<?php echo $ptc['color']; ?>" style="font-size:1.2rem;"></i>
                                         <div class="flex-grow-1">
-                                            <strong style="font-family:monospace;"><?php echo htmlspecialchars($per['hostname'] ?: $per['codigo_interno']); ?></strong>
+                                            <strong style="font-family:monospace;"><?php echo htmlspecialchars($per['codigo_interno'] ?: $per['hostname']); ?></strong>
                                             <small class="text-muted ms-1"><?php echo $ptc['nombre']; ?></small>
                                             <?php if ($per['marca'] || $per['modelo']): ?>
                                                 <small class="text-muted d-block"><?php echo htmlspecialchars(trim($per['marca'] . ' ' . $per['modelo'])); ?></small>
@@ -312,12 +324,12 @@ $current_page = basename(__FILE__);
                                         <span class="badge <?php echo $badges_estado[$per['estado']] ?? 'bg-secondary'; ?>" style="font-size:0.7rem;">
                                             <?php echo $nombres_estado[$per['estado']] ?? $per['estado']; ?>
                                         </span>
-                                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $per['id']; ?>" 
+                                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $per['id']; ?>&desde=<?php echo $equipo_id; ?>" 
                                            class="btn btn-sm btn-outline-primary" title="Ver"><i class="bi bi-eye"></i></a>
-                                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $per['id']; ?>" 
+                                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $per['id']; ?>&volver=<?php echo $equipo_id . $param_desde; ?>" 
                                            class="btn btn-sm btn-outline-secondary" title="Editar"><i class="bi bi-pencil"></i></a>
                                         <button class="btn btn-sm btn-outline-danger" title="Desvincular" 
-                                                onclick="desvincular(<?php echo $per['id']; ?>, '<?php echo htmlspecialchars($per['hostname'] ?: $per['codigo_interno'], ENT_QUOTES); ?>')">
+                                                onclick="desvincular(<?php echo $per['id']; ?>, '<?php echo htmlspecialchars($per['codigo_interno'] ?: $per['hostname'], ENT_QUOTES); ?>')">
                                             <i class="bi bi-x-lg"></i>
                                         </button>
                                     </div>
@@ -360,7 +372,7 @@ $current_page = basename(__FILE__);
                             <div class="card-body text-center">
                                 <i class="bi <?php echo $tc['icono']; ?> text-<?php echo $tc['color']; ?>" style="font-size:4rem;"></i>
                                 <h5 class="mt-2 mb-1" style="font-family:monospace;">
-                                    <?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?>
+                                    <?php echo htmlspecialchars($equipo['codigo_interno'] ?: $equipo['hostname']); ?>
                                 </h5>
                                 <p class="text-muted mb-0"><?php echo $tc['nombre']; ?></p>
                             </div>
@@ -369,7 +381,7 @@ $current_page = basename(__FILE__);
                         <div class="card mb-3">
                             <div class="card-body">
                                 <h6 class="fw-bold mb-3">Acciones R&aacute;pidas</h6>
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $equipo_id; ?>" 
+                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/editar_equipo.php?id=<?php echo $equipo_id; ?>&volver=<?php echo $equipo_id . $param_desde; ?>" 
                                    class="btn btn-outline-primary w-100 mb-2 btn-sm">
                                     <i class="bi bi-pencil me-1"></i>Editar Equipo
                                 </a>
@@ -405,13 +417,13 @@ $current_page = basename(__FILE__);
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Agregar Perif&eacute;rico a <?php echo htmlspecialchars($equipo['hostname']); ?></h5>
+                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Agregar Perif&eacute;rico a <?php echo htmlspecialchars($equipo['codigo_interno'] ?: $equipo['hostname']); ?></h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Buscar perif&eacute;rico disponible</label>
-                        <input type="text" id="buscarPer" class="form-control" placeholder="Hostname, marca, modelo..." oninput="buscarPeriferico()">
+                        <input type="text" id="buscarPer" class="form-control" placeholder="C&oacute;digo interno, marca, modelo, serie..." oninput="buscarPeriferico()">
                     </div>
                     <div id="listaPerDisponibles" style="max-height: 350px; overflow-y: auto;">
                         <p class="text-muted text-center py-3">Escriba para buscar o deje vac&iacute;o para ver todos</p>
@@ -445,7 +457,9 @@ $current_page = basename(__FILE__);
     // Periféricos: Vincular / Desvincular
     // =====================================================
     const API_PER = '<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/api_perifericos.php';
-    const HOSTNAME_PADRE = '<?php echo htmlspecialchars($equipo['hostname']); ?>';
+    // El vínculo se guarda con el CÓDIGO INTERNO del equipo principal
+    const CODIGO_PADRE = <?php echo json_encode($equipo['codigo_interno']); ?>;
+    const EQUIPO_PADRE_ID = <?php echo (int)$equipo_id; ?>;
     let modalAgregarPer = null;
     let timerBuscar = null;
 
@@ -466,7 +480,7 @@ $current_page = basename(__FILE__);
             const busqueda = document.getElementById('buscarPer').value.trim();
             fetch(API_PER, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accion: 'disponibles', hostname_padre: HOSTNAME_PADRE, busqueda })
+                body: JSON.stringify({ accion: 'disponibles', codigo_padre: CODIGO_PADRE, padre_id: EQUIPO_PADRE_ID, busqueda })
             })
             .then(r => r.json())
             .then(res => {
@@ -488,11 +502,11 @@ $current_page = basename(__FILE__);
                     html += `<div class="d-flex align-items-center gap-3 p-2 border-bottom" style="cursor:pointer;" onmouseover="this.style.background='#f0f7ff'" onmouseout="this.style.background=''">
                         <i class="bi ${ic}" style="font-size:1.1rem;color:#64748b;"></i>
                         <div class="flex-grow-1">
-                            <strong style="font-family:monospace;font-size:0.88rem;">${p.hostname || p.codigo_interno || ''}</strong>
+                            <strong style="font-family:monospace;font-size:0.88rem;">${p.codigo_interno || p.hostname || ''}</strong>
                             <small class="text-muted ms-1">${p.tipo_equipo}</small>
                             ${desc ? '<small class="text-muted d-block">' + desc + '</small>' : ''}
                         </div>
-                        <button class="btn btn-sm btn-success" onclick="vincular(${p.id}, '${p.hostname || p.codigo_interno || ''}')">
+                        <button class="btn btn-sm btn-success" onclick="vincular(${p.id}, '${p.codigo_interno || p.hostname || ''}')">
                             <i class="bi bi-link-45deg me-1"></i>Vincular
                         </button>
                     </div>`;
@@ -505,7 +519,7 @@ $current_page = basename(__FILE__);
     function vincular(perIfericoId, hostname) {
         fetch(API_PER, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accion: 'vincular', periferico_id: perIfericoId, hostname_padre: HOSTNAME_PADRE })
+            body: JSON.stringify({ accion: 'vincular', periferico_id: perIfericoId, codigo_padre: CODIGO_PADRE, padre_id: EQUIPO_PADRE_ID })
         })
         .then(r => r.json())
         .then(res => {

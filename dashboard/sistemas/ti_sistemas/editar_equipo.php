@@ -28,6 +28,14 @@ if (!$equipo_id) {
     exit;
 }
 
+// --- Navegación: a qué vista regresar (Volver, Cancelar y después de guardar) ---
+// volver = id del equipo cuya vista abrir; desde = equipo del que venía esa vista
+$volver_id = intval($_GET['volver'] ?? 0);
+$desde_id  = intval($_GET['desde'] ?? 0);
+$url_regreso = $volver_id
+    ? URL_BASE . 'dashboard/sistemas/ti_sistemas/ver_equipo.php?id=' . $volver_id . ($desde_id ? '&desde=' . $desde_id : '')
+    : URL_BASE . 'dashboard/sistemas/ti_sistemas/inventario.php';
+
 $pdo = conectarDB();
 
 $stmt = $pdo->prepare("SELECT * FROM inventario_equipos WHERE id = ?");
@@ -110,7 +118,7 @@ $tipos_equipo = [
                         <h4 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Editar Equipo</h4>
                         <small class="text-muted"><?php echo htmlspecialchars($equipo['hostname'] ?: $equipo['codigo_interno']); ?></small>
                     </div>
-                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php" class="btn btn-outline-secondary">
+                    <a href="<?php echo htmlspecialchars($url_regreso); ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i>Volver
                     </a>
                 </div>
@@ -130,6 +138,8 @@ $tipos_equipo = [
                       method="POST" id="formEditarEquipo">
                     <input type="hidden" name="accion" value="editar">
                     <input type="hidden" name="equipo_id" value="<?php echo $equipo_id; ?>">
+                    <input type="hidden" name="volver_id" value="<?php echo $volver_id; ?>">
+                    <input type="hidden" name="desde_id" value="<?php echo $desde_id; ?>">
                     
                     <div class="row">
                         <div class="col-lg-8">
@@ -264,8 +274,8 @@ $tipos_equipo = [
                                                 <select name="estado" class="form-select">
                                                     <option value="activo" <?php echo ($form_data['estado'] ?? '') === 'activo' ? 'selected' : ''; ?>>Activo</option>
                                                     <option value="inactivo" <?php echo ($form_data['estado'] ?? '') === 'inactivo' ? 'selected' : ''; ?>>Inactivo</option>
-                                                    <option value="en_reparacion" <?php echo ($form_data['estado'] ?? '') === 'en_reparacion' ? 'selected' : ''; ?>>En Reparaci&oacute;n</option>
-                                                    <option value="dado_de_baja" <?php echo ($form_data['estado'] ?? '') === 'dado_de_baja' ? 'selected' : ''; ?>>Dado de Baja</option>
+                                                    <option value="resguardado" <?php echo ($form_data['estado'] ?? '') === 'resguardado' ? 'selected' : ''; ?>>Resguardado</option>
+                                                    <option value="dispuesto" <?php echo ($form_data['estado'] ?? '') === 'dispuesto' ? 'selected' : ''; ?>>Dispuesto</option>
                                                 </select>
                                             </div>
                                             <div class="col-md-4">
@@ -299,7 +309,7 @@ $tipos_equipo = [
                                     <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $equipo_id; ?>" class="btn btn-outline-info w-100 mb-2">
                                         <i class="bi bi-eye me-1"></i>Ver Detalle
                                     </a>
-                                    <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/inventario.php" class="btn btn-outline-secondary w-100">
+                                    <a href="<?php echo htmlspecialchars($url_regreso); ?>" class="btn btn-outline-secondary w-100">
                                         Cancelar
                                     </a>
                                 </div>

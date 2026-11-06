@@ -27,7 +27,7 @@ $departamentos = $pdo->query("SELECT id, codigo, nombre FROM departamentos WHERE
 $usuarios = $pdo->query("SELECT id, nombre_completo FROM usuarios WHERE activo = 1 ORDER BY nombre_completo")->fetchAll(PDO::FETCH_ASSOC);
 
 // Equipos existentes para el select de personal_asignado (solo equipos de cómputo)
-$equipos_padre = $pdo->query("SELECT hostname FROM inventario_equipos WHERE tipo_equipo IN ('all_in_one','pc','laptop','computadora') AND hostname IS NOT NULL ORDER BY hostname")->fetchAll(PDO::FETCH_COLUMN);
+$equipos_padre = $pdo->query("SELECT codigo_interno FROM inventario_equipos WHERE tipo_equipo IN ('all_in_one','pc','laptop','computadora') AND codigo_interno IS NOT NULL AND codigo_interno != '' ORDER BY codigo_interno")->fetchAll(PDO::FETCH_COLUMN);
 
 $form_data = $_SESSION['form_data'] ?? [];
 $errores = $_SESSION['form_errors'] ?? [];
@@ -220,14 +220,14 @@ $tipos_equipo = [
                                                 <label class="form-label">Id equipo principal</label>
                                                 <input type="text" name="personal_asignado" id="inputEquipoPrincipal" class="form-control" 
                                                        value="<?php echo htmlspecialchars($form_data['personal_asignado'] ?? ''); ?>"
-                                                       maxlength="50" placeholder="Ej: GVCONT01"
+                                                       maxlength="50" placeholder="Ej: GVAIO01"
                                                        list="listaEquiposPadre" style="text-transform:uppercase; font-family:monospace;">
                                                 <datalist id="listaEquiposPadre">
                                                     <?php foreach ($equipos_padre as $ep): ?>
                                                         <option value="<?php echo htmlspecialchars($ep); ?>">
                                                     <?php endforeach; ?>
                                                 </datalist>
-                                                <small class="text-muted">Hostname del equipo al que est&aacute; conectado este perif&eacute;rico</small>
+                                                <small class="text-muted">C&oacute;digo interno del equipo al que est&aacute; conectado este perif&eacute;rico</small>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label">Usuario Asignado (Plataforma)</label>

@@ -110,12 +110,8 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
     if (!isset($GRUPOS_TIPOS[$grupo_equipo])) {
         $errores[] = 'Debe seleccionar un tipo de equipo valido (Computo, Perifericos, Impresoras, Red u Otros).';
     }
-    if (!$departamento_id) {
-        $errores[] = 'Debe seleccionar un departamento.';
-    }
-    if (!$usuario_id) {
-        $errores[] = 'Debe seleccionar un usuario destinatario.';
-    }
+    // departamento_id se toma del equipo (ver validacion del equipo mas abajo)
+    // usuario_id es OPCIONAL: hay equipos sin usuario asignado (impresoras, red, etc.)
     if (!$equipo_id) {
         $errores[] = 'Debe seleccionar un equipo del inventario.';
     }
@@ -132,29 +128,18 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
         $errores[] = 'Hora programada no valida.';
     }
     if (strlen($descripcion_problema) < 10) {
-        $errores[] = 'La descripcion del problema debe tener al menos 10 caracteres.';
+        $errores[] = 'La descripcion del mantenimiento debe tener al menos 10 caracteres.';
     }
     if (strlen($descripcion_problema) > 2000) {
-        $errores[] = 'La descripcion del problema no puede exceder 2000 caracteres.';
+        $errores[] = 'La descripcion del mantenimiento no puede exceder 2000 caracteres.';
     }
 
-    // Validar usuario destino
-    $usuario_destino = null;
-    if ($usuario_id && empty($errores)) {
-        $stmt = $pdo->prepare("SELECT id, nombre_completo, departamento_id FROM usuarios WHERE id = ? AND activo = 1");
-        $stmt->execute([$usuario_id]);
-        $usuario_destino = $stmt->fetch(PDO::FETCH_ASSOC);
-        if (!$usuario_destino) {
-            $errores[] = 'El usuario seleccionado no existe o esta inactivo.';
-        } elseif ($usuario_destino['departamento_id'] != $departamento_id) {
-            $errores[] = 'El usuario seleccionado no pertenece al departamento indicado.';
-        }
-    }
-
-    // Validar equipo
+    // Validar equipo (PRIMERO: de aqui sale el departamento)
     $equipo = null;
     if ($equipo_id && empty($errores)) {
-        $stmt = $pdo->prepare("SELECT id, hostname, codigo_interno, tipo_equipo, departamento_id, estado FROM inventario_equipos WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT id, hostname, codigo_interno, tipo_equipo, departamento_id, estado,
+                                      usuario_asignado_id, usuario_asignado_2_id
+                               FROM inventario_equipos WHERE id = ?");
         $stmt->execute([$equipo_id]);
         $equipo = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$equipo) {
@@ -163,12 +148,34 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
             if ($equipo['estado'] !== 'activo') {
                 $errores[] = 'El equipo seleccionado no esta activo.';
             }
-            if ($equipo['departamento_id'] != $departamento_id) {
-                $errores[] = 'El equipo seleccionado no pertenece al departamento indicado.';
-            }
             if (!in_array($equipo['tipo_equipo'], $GRUPOS_TIPOS[$grupo_equipo] ?? [])) {
                 $errores[] = 'El equipo seleccionado no corresponde al tipo de equipo elegido.';
             }
+            // El departamento SIEMPRE es el del equipo en inventario
+            $departamento_id = intval($equipo['departamento_id']);
+            if (!$departamento_id) {
+                $errores[] = 'El equipo seleccionado no tiene departamento asignado en el inventario.';
+            }
+        }
+    }
+
+    // Validar usuario destino (opcional)
+    // Se acepta si pertenece al departamento del equipo o si es uno de sus usuarios asignados
+    $usuario_destino = null;
+    if ($usuario_id && empty($errores)) {
+        $stmt = $pdo->prepare("SELECT id, nombre_completo, departamento_id FROM usuarios WHERE id = ? AND activo = 1");
+        $stmt->execute([$usuario_id]);
+        $usuario_destino = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $es_asignado = in_array($usuario_id, [
+            intval($equipo['usuario_asignado_id'] ?? 0),
+            intval($equipo['usuario_asignado_2_id'] ?? 0),
+        ], true);
+
+        if (!$usuario_destino) {
+            $errores[] = 'El usuario seleccionado no existe o esta inactivo.';
+        } elseif ($usuario_destino['departamento_id'] != $departamento_id && !$es_asignado) {
+            $errores[] = 'El usuario seleccionado no pertenece al departamento del equipo ni esta asignado a el.';
         }
     }
 
@@ -205,7 +212,7 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
             $prioridad,
             $fecha_deseada,
             $hora_deseada,
-            $usuario_id,
+            $usuario_id ?: null,          // NULL si se envia sin usuario
             $departamento_id,
             $descripcion_problema,
             $_SESSION['usuario_id'], // atendido_por = quien crea (Sistemas)
@@ -220,12 +227,18 @@ function crearSolicitud($pdo, $GRUPOS_TIPOS) {
         $stmt = $pdo->prepare($sql_hist);
         $stmt->execute([$solicitud_id, $_SESSION['usuario_id']]);
 
-        // ---------- Notificar al usuario destinatario ----------
-        notificarUsuarioReceptor($pdo, $solicitud_id, $folio, $usuario_id, $_SESSION['nombre_completo']);
+        // ---------- Notificar al usuario destinatario (si hay) ----------
+        if ($usuario_id) {
+            notificarUsuarioReceptor($pdo, $solicitud_id, $folio, $usuario_id, $_SESSION['nombre_completo']);
+        }
 
         $pdo->commit();
 
-        establecer_alerta('success', "Solicitud {$folio} creada y enviada al usuario {$usuario_destino['nombre_completo']}.");
+        if ($usuario_destino) {
+            establecer_alerta('success', "Solicitud {$folio} creada y enviada al usuario {$usuario_destino['nombre_completo']}.");
+        } else {
+            establecer_alerta('success', "Solicitud {$folio} creada sin usuario destinatario.");
+        }
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 

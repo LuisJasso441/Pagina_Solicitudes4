@@ -274,8 +274,6 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
         include __DIR__ . '/../../../../includes/sidebar/sidebar_ti.php';
     } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
         include __DIR__ . '/../../../../includes/sidebar/sidebar_colaborativo.php';
-    } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_gth.php';
     } else {
         include __DIR__ . '/../../../../includes/sidebar/sidebar_normal.php';
     }
@@ -369,8 +367,12 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                                     <div class="detail-label">Equipo del Inventario</div>
                                     <div class="detail-value">
                                         <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/ver_equipo.php?id=<?php echo $solicitud['equipo_id']; ?>">
-                                            <?php echo htmlspecialchars($solicitud['equipo_hostname'] ?: $solicitud['equipo_codigo']); ?>
+                                            <?php echo htmlspecialchars($solicitud['equipo_codigo'] ?: $solicitud['equipo_hostname']); ?>
                                         </a>
+                                        <?php if ($solicitud['equipo_codigo'] && $solicitud['equipo_hostname']
+                                                  && strcasecmp(trim($solicitud['equipo_hostname']), trim($solicitud['equipo_codigo'])) !== 0): ?>
+                                            <br><small class="text-muted"><i class="bi bi-pc-display me-1"></i><?php echo htmlspecialchars($solicitud['equipo_hostname']); ?></small>
+                                        <?php endif; ?>
                                         <?php if ($solicitud['equipo_marca'] || $solicitud['equipo_modelo']): ?>
                                             <br><small class="text-muted">
                                                 <?php echo htmlspecialchars(trim($solicitud['equipo_marca'] . ' ' . $solicitud['equipo_modelo'])); ?>
@@ -400,7 +402,7 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                                 </div>
 
                                 <div class="col-12">
-                                    <div class="detail-label">Descripción del problema</div>
+                                    <div class="detail-label">Descripción del mantenimiento</div>
                                     <div class="detail-value" style="white-space: pre-wrap;">
                                         <?php echo htmlspecialchars($solicitud['descripcion_problema']); ?>
                                     </div>

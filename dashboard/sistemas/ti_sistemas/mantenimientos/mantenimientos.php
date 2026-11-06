@@ -26,6 +26,31 @@ $es_mantenimiento = ($departamento === 'mantenimiento');
 $es_ti            = in_array($departamento, ['ti', 'sistemas', 'ti_sistemas']);
 
 // ====================================================================
+// PERSISTENCIA DE FILTROS EN SESION
+// Al volver a mantenimientos.php sin parametros (desde Ver detalle,
+// Nueva Solicitud, Registrar historico, etc.) se restauran los ultimos
+// filtros usados. ?limpiar=1 los borra.
+// ====================================================================
+$claves_filtro = ['estado', 'grupo', 'prioridad', 'tipo_mant', 'registro', 'buscar', 'mes', 'pagina'];
+
+if (isset($_GET['limpiar'])) {
+    unset($_SESSION['filtros_mantenimientos']);
+    header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+    exit;
+}
+
+$filtros_get = array_intersect_key($_GET, array_flip($claves_filtro));
+
+if (!empty($filtros_get)) {
+    // Llegaron filtros por URL: se guardan como los ultimos usados
+    $_SESSION['filtros_mantenimientos'] = $filtros_get;
+} elseif (empty($_GET) && !empty($_SESSION['filtros_mantenimientos'])) {
+    // Se entro sin filtros: se restauran los guardados
+    header('Location: ?' . http_build_query($_SESSION['filtros_mantenimientos']));
+    exit;
+}
+
+// ====================================================================
 // FILTROS
 // ====================================================================
 $filtro_estado    = $_GET['estado']    ?? '';
@@ -34,6 +59,10 @@ $filtro_prioridad = $_GET['prioridad'] ?? '';
 $filtro_tipo_mant = $_GET['tipo_mant'] ?? '';
 $filtro_registro  = $_GET['registro']  ?? '';
 $busqueda         = trim($_GET['buscar'] ?? '');
+$filtro_mes       = $_GET['mes']       ?? '';   // formato YYYY-MM
+if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $filtro_mes)) {
+    $filtro_mes = '';
+}
 $pagina           = max(1, intval($_GET['pagina'] ?? 1));
 $por_pagina       = 10;
 
@@ -76,6 +105,15 @@ if ($filtro_registro === 'programado') {
     $where[] = "sm.es_historico = 1";
 }
 
+if ($filtro_mes) {
+    // Rango [primer día del mes, primer día del mes siguiente) -> aprovecha índices
+    $mes_inicio = $filtro_mes . '-01';
+    $mes_fin    = date('Y-m-d', strtotime($mes_inicio . ' +1 month'));
+    $where[] = "sm.fecha_deseada >= ? AND sm.fecha_deseada < ?";
+    $params[] = $mes_inicio;
+    $params[] = $mes_fin;
+}
+
 if ($busqueda) {
     $where[] = "(sm.folio LIKE ? OR sm.descripcion_problema LIKE ? OR u.nombre_completo LIKE ?)";
     $b = "%$busqueda%";
@@ -113,22 +151,7 @@ $sql = "SELECT sm.*,
         LEFT JOIN usuarios ua     ON sm.atendido_por = ua.id
         LEFT JOIN inventario_equipos ie ON sm.equipo_id = ie.id
         $where_sql
-        ORDER BY
-            CASE sm.estado
-                WHEN 'pendiente'  THEN 1
-                WHEN 'en_proceso' THEN 2
-                WHEN 'finalizada' THEN 3
-                WHEN 'cerrada'    THEN 4
-                WHEN 'cancelada'  THEN 5
-                ELSE 6
-            END,
-            CASE sm.prioridad
-                WHEN 'alta'  THEN 1
-                WHEN 'media' THEN 2
-                WHEN 'baja'  THEN 3
-                ELSE 4
-            END,
-            sm.fecha_solicitud DESC
+        ORDER BY sm.folio ASC
         LIMIT $por_pagina OFFSET $offset";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -170,6 +193,25 @@ if ($es_ti && $contadores['finalizadas'] > 0) {
                         AND TIMESTAMPDIFF(HOUR, fecha_finalizacion, NOW()) >= 48";
     $finalizadas_atascadas = intval($pdo->query($sql_atascadas)->fetchColumn());
 }
+
+// ====================================================================
+// MESES DISPONIBLES PARA EL FILTRO "MES PROGRAMADO"
+// (solo meses que tienen al menos una solicitud con fecha programada)
+// ====================================================================
+$sql_meses = "SELECT DISTINCT DATE_FORMAT(sm.fecha_deseada, '%Y-%m') AS mes
+              FROM solicitudes_mantenimiento_ti sm
+              WHERE sm.fecha_deseada IS NOT NULL"
+           . (!$es_ti ? " AND sm.usuario_id = ?" : "")
+           . " ORDER BY mes DESC";
+$stmt_m = $pdo->prepare($sql_meses);
+$stmt_m->execute(!$es_ti ? [$_SESSION['usuario_id']] : []);
+$meses_disponibles = $stmt_m->fetchAll(PDO::FETCH_COLUMN);
+
+$nombres_meses = [
+    '01' => 'Enero',   '02' => 'Febrero', '03' => 'Marzo',      '04' => 'Abril',
+    '05' => 'Mayo',    '06' => 'Junio',   '07' => 'Julio',      '08' => 'Agosto',
+    '09' => 'Septiembre', '10' => 'Octubre', '11' => 'Noviembre', '12' => 'Diciembre',
+];
 
 // ====================================================================
 // CONFIGURACIONES DE VISUALIZACION
@@ -324,23 +366,7 @@ $current_page = basename(__FILE__);
 
 <div class="dashboard-container">
 
-    <?php
-    if ($es_mantenimiento) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_mantenimiento.php';
-    } elseif ($es_ti) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_ti.php';
-    } elseif (es_usuario_epp()) {
-       include __DIR__ . '/../../../../includes/sidebar/sidebar_inventario.php';
-    } elseif (function_exists('es_usuario_colaborativo') && es_usuario_colaborativo()) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_colaborativo.php';
-    } elseif (function_exists('es_usuario_gth') && es_usuario_gth()) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_gth.php';
-    } elseif (in_array(strtolower($_SESSION['departamento_codigo'] ?? $_SESSION['departamento'] ?? ''), ['logistica', 'almacen_residuos'])) {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_sec.php';
-    } else {
-        include __DIR__ . '/../../../../includes/sidebar/sidebar_normal.php';
-    }
-    ?>
+    <?php incluir_sidebar_apropiado(__DIR__ . '/../../../../includes/sidebar/'); ?>
 
     <main class="main-content">
         <div class="content-wrapper">
@@ -358,6 +384,14 @@ $current_page = basename(__FILE__);
                 </div>
                 <?php if ($es_ti): ?>
                     <div class="d-flex gap-2 flex-wrap">
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/calendario_mantenimientos.php"
+                           class="btn btn-outline-success">
+                            <i class="bi bi-calendar3 me-1"></i>Calendario
+                        </a>
+                        <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/programacion_mantenimientos.php"
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-calendar-plus me-1"></i>Programar
+                        </a>
                         <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/crear_mantenimiento_historico.php"
                            class="btn btn-outline-info">
                             <i class="bi bi-clock-history me-1"></i>Registrar histórico
@@ -379,7 +413,8 @@ $current_page = basename(__FILE__);
                  ============================================================ -->
             <div class="row g-2 mb-3">
                 <div class="col-6 col-md-2">
-                    <a href="?<?php echo http_build_query(array_diff_key($_GET, ['estado'=>1,'pagina'=>1])); ?>"
+                    <?php $qs_total = http_build_query(array_diff_key($_GET, ['estado'=>1,'pagina'=>1])); ?>
+                    <a href="?<?php echo $qs_total !== '' ? $qs_total : 'limpiar=1'; ?>"
                        class="text-decoration-none">
                         <div class="card stat-card b-dark <?php echo empty($filtro_estado) ? 'active' : ''; ?>">
                             <div class="card-body text-center py-2">
@@ -524,15 +559,28 @@ $current_page = basename(__FILE__);
                                    value="<?php echo htmlspecialchars($busqueda); ?>">
                         </div>
 
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Mes Programado</label>
+                            <select name="mes" class="form-select form-select-sm">
+                                <option value="">Todos</option>
+                                <?php foreach ($meses_disponibles as $mes): ?>
+                                    <?php [$anio, $num_mes] = explode('-', $mes); ?>
+                                    <option value="<?php echo htmlspecialchars($mes); ?>" <?php echo $filtro_mes === $mes ? 'selected' : ''; ?>>
+                                        <?php echo $nombres_meses[$num_mes] . ' ' . $anio; ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
                         <div class="col-md-3">
                             <button type="submit" class="btn btn-primary btn-sm w-100">
                                 <i class="bi bi-funnel me-1"></i>Filtrar
                             </button>
                         </div>
 
-                        <?php if ($filtro_grupo || $filtro_prioridad || $busqueda || $filtro_estado || $filtro_tipo_mant || $filtro_registro): ?>
+                        <?php if ($filtro_grupo || $filtro_prioridad || $busqueda || $filtro_estado || $filtro_tipo_mant || $filtro_registro || $filtro_mes): ?>
                             <div class="col-12">
-                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php"
+                                <a href="<?php echo URL_BASE; ?>dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php?limpiar=1"
                                    class="btn btn-link btn-sm p-0">
                                     <i class="bi bi-x-circle me-1"></i>Limpiar todos los filtros
                                 </a>
@@ -558,7 +606,7 @@ $current_page = basename(__FILE__);
                         <div class="text-center py-5">
                             <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
                             <p class="text-muted mt-3 mb-0">
-                                <?php if ($filtro_estado || $filtro_grupo || $filtro_prioridad || $busqueda): ?>
+                                <?php if ($filtro_estado || $filtro_grupo || $filtro_prioridad || $busqueda || $filtro_tipo_mant || $filtro_registro || $filtro_mes): ?>
                                     No hay solicitudes con los filtros aplicados.
                                 <?php else: ?>
                                     Aún no hay solicitudes de mantenimiento.
@@ -640,12 +688,20 @@ $current_page = basename(__FILE__);
                                                 </td>
                                             <?php endif; ?>
                                             <td>
-                                                <small>
-                                                    <?php
-                                                    $eq = $s['equipo_hostname'] ?: $s['equipo_codigo'];
-                                                    echo $eq ? htmlspecialchars($eq) : '<span class="text-muted">—</span>';
-                                                    ?>
-                                                </small>
+                                                <?php
+                                                $eq_codigo   = trim($s['equipo_codigo'] ?? '');
+                                                $eq_hostname = trim($s['equipo_hostname'] ?? '');
+                                                ?>
+                                                <?php if ($eq_codigo): ?>
+                                                    <small class="fw-semibold"><?php echo htmlspecialchars($eq_codigo); ?></small>
+                                                    <?php if ($eq_hostname && strcasecmp($eq_hostname, $eq_codigo) !== 0): ?>
+                                                        <br><small class="text-muted"><?php echo htmlspecialchars($eq_hostname); ?></small>
+                                                    <?php endif; ?>
+                                                <?php elseif ($eq_hostname): ?>
+                                                    <small><?php echo htmlspecialchars($eq_hostname); ?></small>
+                                                <?php else: ?>
+                                                    <small class="text-muted">—</small>
+                                                <?php endif; ?>
                                             </td>
                                             <td class="text-center">
                                                 <span class="badge <?php echo $badges_prioridad[$prio] ?? 'bg-secondary'; ?>">

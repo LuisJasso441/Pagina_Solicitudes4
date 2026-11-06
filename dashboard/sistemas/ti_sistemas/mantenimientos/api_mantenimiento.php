@@ -1,11 +1,12 @@
 <?php
 /**
- * API Mantenimiento - Endpoints AJAX para cascada Departamento → Usuario → Equipos
+ * API Mantenimiento - Endpoints AJAX para el flujo Equipo → Departamento / Usuario
  * dashboard/sistemas/ti_sistemas/mantenimientos/api_mantenimiento.php
  *
  * Acciones:
  *   GET  ?accion=usuarios&departamento_id=N
- *   GET  ?accion=equipos&departamento_id=N&grupo=computo[&usuario_id=N]
+ *   GET  ?accion=equipos&grupo=computo[&departamento_id=N][&usuario_id=N]
+ *        (departamento_id es opcional: sin él se listan los equipos de todos los departamentos)
  */
 
 session_start();
@@ -75,10 +76,6 @@ try {
             $grupo           = $_GET['grupo'] ?? '';
             $usuario_id      = intval($_GET['usuario_id'] ?? 0);
 
-            if (!$departamento_id) {
-                echo json_encode(['success' => false, 'message' => 'Departamento no especificado.']);
-                exit;
-            }
             if (!isset($grupos_tipos[$grupo])) {
                 echo json_encode(['success' => false, 'message' => 'Grupo de equipo no válido.']);
                 exit;
@@ -87,28 +84,53 @@ try {
             $tipos_grupo  = $grupos_tipos[$grupo];
             $placeholders = implode(',', array_fill(0, count($tipos_grupo), '?'));
 
-            // Equipos activos del departamento, dentro del grupo seleccionado
-            $sql = "SELECT ie.id, ie.hostname, ie.codigo_interno, ie.tipo_equipo,
-                           ie.marca, ie.modelo, ie.ubicacion, ie.usuario_asignado_id,
-                           ua.nombre_completo AS usuario_asignado_nombre
-                    FROM inventario_equipos ie
-                    LEFT JOIN usuarios ua ON ie.usuario_asignado_id = ua.id
-                    WHERE ie.estado = 'activo'
-                      AND ie.departamento_id = ?
-                      AND ie.tipo_equipo IN ({$placeholders})
-                    ORDER BY
-                        CASE WHEN ie.usuario_asignado_id = ? THEN 0 ELSE 1 END,
-                        ie.hostname,
-                        ie.codigo_interno";
+            // Equipos activos del grupo seleccionado (opcionalmente de un departamento)
+            // Se devuelve el departamento y los DOS usuarios que puede tener asignado un equipo,
+            // para que el formulario los llene automáticamente al elegir el equipo.
+            $filtro_depto = $departamento_id ? " AND ie.departamento_id = ?" : "";
 
-            $params = array_merge([$departamento_id], $tipos_grupo, [$usuario_id]);
+            $sql = "SELECT ie.id, ie.hostname, ie.codigo_interno, ie.tipo_equipo,
+                           ie.marca, ie.modelo, ie.ubicacion,
+                           ie.departamento_id,
+                           d.nombre            AS departamento_nombre,
+                           ie.usuario_asignado_id, ie.usuario_asignado_2_id,
+                           ua.nombre_completo  AS usuario_asignado_nombre,
+                           ua.activo           AS usuario_asignado_activo,
+                           ua2.nombre_completo AS usuario_asignado_2_nombre,
+                           ua2.activo          AS usuario_asignado_2_activo
+                    FROM inventario_equipos ie
+                    LEFT JOIN departamentos d ON ie.departamento_id       = d.id
+                    LEFT JOIN usuarios ua     ON ie.usuario_asignado_id   = ua.id
+                    LEFT JOIN usuarios ua2    ON ie.usuario_asignado_2_id = ua2.id
+                    WHERE ie.estado = 'activo'
+                      AND ie.tipo_equipo IN ({$placeholders})
+                      {$filtro_depto}
+                    ORDER BY
+                        CASE WHEN ie.usuario_asignado_id = ? OR ie.usuario_asignado_2_id = ? THEN 0 ELSE 1 END,
+                        ie.codigo_interno,
+                        ie.hostname";
+
+            // El orden de los parámetros sigue al de los "?" en la consulta.
+            // El usuario_id se pasa dos veces: uno por cada columna del ORDER BY.
+            $params = $tipos_grupo;
+            if ($departamento_id) {
+                $params[] = $departamento_id;
+            }
+            $params[] = $usuario_id;
+            $params[] = $usuario_id;
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $equipos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             // Marca cada equipo si está asignado al usuario seleccionado (para resaltar en el front)
+            // Se considera asignado si coincide con CUALQUIERA de los dos usuarios del equipo
             foreach ($equipos as &$eq) {
-                $eq['asignado_al_usuario'] = ($usuario_id > 0 && $eq['usuario_asignado_id'] == $usuario_id) ? 1 : 0;
+                $eq['asignado_al_usuario'] = (
+                    $usuario_id > 0 && (
+                        $eq['usuario_asignado_id']   == $usuario_id ||
+                        $eq['usuario_asignado_2_id'] == $usuario_id
+                    )
+                ) ? 1 : 0;
             }
             unset($eq);
 

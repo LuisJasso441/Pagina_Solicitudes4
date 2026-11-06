@@ -175,6 +175,8 @@ function subirEvidencia($pdo, $solicitud) {
                     $_SESSION['usuario_id'],
                 ]);
                 $subidos++;
+            } else {
+                error_log("EVIDENCIA MANT [{$folio}]: FALLO move_uploaded_file '{$arch['name']}' ? '{$ruta_completa}' — tmp_existe: " . (file_exists($arch['tmp_name']) ? 'sí' : 'no') . ", dir_existe: " . (is_dir($folio_dir) ? 'sí' : 'no') . ", dir_writable: " . (is_writable($folio_dir) ? 'sí' : 'no'));
             }
         }
 
@@ -190,7 +192,11 @@ function subirEvidencia($pdo, $solicitud) {
 
         $pdo->commit();
 
-        establecer_alerta('success', "{$subidos} archivo(s) subido(s) correctamente.");
+        if ($subidos > 0) {
+            establecer_alerta('success', "{$subidos} archivo(s) subido(s) correctamente.");
+        } else {
+            establecer_alerta('error', 'No se pudieron guardar los archivos. Verifique permisos del servidor.');
+        }
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
 

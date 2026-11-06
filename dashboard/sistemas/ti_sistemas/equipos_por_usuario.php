@@ -39,14 +39,16 @@ if ($busqueda) {
 }
 
 // Usuarios con equipos asignados
+// El JOIN con OR hace que un equipo compartido aparezca para sus DOS usuarios
 $sql_usuarios = "
     SELECT ua.id AS usuario_id, ua.nombre_completo, ua.departamento,
            d.nombre AS departamento_nombre,
            COUNT(ie.id) AS total_equipos
     FROM inventario_equipos ie
-    INNER JOIN usuarios ua ON ie.usuario_asignado_id = ua.id
+    INNER JOIN usuarios ua
+            ON (ie.usuario_asignado_id = ua.id OR ie.usuario_asignado_2_id = ua.id)
     LEFT JOIN departamentos d ON ua.departamento_id = d.id
-    WHERE ie.usuario_asignado_id IS NOT NULL {$where_busqueda}
+    WHERE (ie.usuario_asignado_id IS NOT NULL OR ie.usuario_asignado_2_id IS NOT NULL) {$where_busqueda}
     GROUP BY ua.id, ua.nombre_completo, ua.departamento, d.nombre
     ORDER BY ua.nombre_completo ASC
 ";
@@ -55,27 +57,42 @@ $stmt->execute($params);
 $usuarios_con_equipos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Obtener TODOS los equipos asignados (para el detalle)
+// El UNION ALL genera una fila por cada usuario al que pertenece el equipo,
+// de modo que un equipo compartido se lista bajo sus dos usuarios.
 $sql_equipos = "
     SELECT ie.id, ie.hostname, ie.tipo_equipo, ie.marca, ie.modelo, ie.numero_serie,
-           ie.ubicacion, ie.estado, ie.personal_asignado, ie.usuario_asignado_id,
+           ie.ubicacion, ie.estado, ie.personal_asignado,
+           ie.usuario_asignado_id AS usuario_ref,
            d.nombre AS departamento_nombre
     FROM inventario_equipos ie
     LEFT JOIN departamentos d ON ie.departamento_id = d.id
     WHERE ie.usuario_asignado_id IS NOT NULL
-    ORDER BY ie.usuario_asignado_id, ie.tipo_equipo
+
+    UNION ALL
+
+    SELECT ie.id, ie.hostname, ie.tipo_equipo, ie.marca, ie.modelo, ie.numero_serie,
+           ie.ubicacion, ie.estado, ie.personal_asignado,
+           ie.usuario_asignado_2_id AS usuario_ref,
+           d.nombre AS departamento_nombre
+    FROM inventario_equipos ie
+    LEFT JOIN departamentos d ON ie.departamento_id = d.id
+    WHERE ie.usuario_asignado_2_id IS NOT NULL
+
+    ORDER BY usuario_ref, tipo_equipo
 ";
 $equipos_todos = $pdo->query($sql_equipos)->fetchAll(PDO::FETCH_ASSOC);
 
 // Agrupar equipos por usuario
 $equipos_por_usuario = [];
 foreach ($equipos_todos as $eq) {
-    $uid = $eq['usuario_asignado_id'];
+    $uid = $eq['usuario_ref'];
     if (!isset($equipos_por_usuario[$uid])) $equipos_por_usuario[$uid] = [];
     $equipos_por_usuario[$uid][] = $eq;
 }
 
-// Equipos sin asignar
-$stmt_sin = $pdo->query("SELECT COUNT(*) FROM inventario_equipos WHERE usuario_asignado_id IS NULL");
+// Equipos sin asignar (sin ninguno de los dos usuarios)
+$stmt_sin = $pdo->query("SELECT COUNT(*) FROM inventario_equipos
+                         WHERE usuario_asignado_id IS NULL AND usuario_asignado_2_id IS NULL");
 $equipos_sin_asignar = $stmt_sin->fetchColumn();
 
 // Stats
