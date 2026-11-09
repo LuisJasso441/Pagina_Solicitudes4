@@ -6,7 +6,8 @@
  * Recibe la firma del usuario destinatario sobre una solicitud en estado
  * 'finalizada' y la cierra (estado: 'cerrada').
  *
- * Solo el usuario destinatario (sm.usuario_id) puede firmar.
+ * Firma el usuario destinatario (sm.usuario_id). El jefe de su departamento
+ * puede firmar en su ausencia (o si el equipo no tiene usuario asignado).
  */
 
 session_start();
@@ -85,9 +86,15 @@ try {
         exit;
     }
 
-    // Validar permisos: solo el usuario destinatario puede firmar
-    if ($solicitud['usuario_id'] != $_SESSION['usuario_id']) {
-        establecer_alerta('error', 'Solo el usuario destinatario de la solicitud puede firmarla.');
+    // Validar permisos: firma el usuario destinatario; el jefe de su departamento
+    // puede firmar en su ausencia (o si el equipo no tiene usuario asignado)
+    $es_destinatario = ($solicitud['usuario_id'] == $_SESSION['usuario_id']);
+    $depto_jefe      = obtener_departamento_jefe($pdo, $_SESSION['usuario_id']);
+    $firma_como_jefe = !$es_destinatario && $depto_jefe > 0
+                       && (int)$solicitud['departamento_id'] === $depto_jefe;
+
+    if (!$es_destinatario && !$firma_como_jefe) {
+        establecer_alerta('error', 'Solo el usuario destinatario o el jefe de su departamento pueden firmar esta solicitud.');
         header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud_id);
         exit;
     }
@@ -114,19 +121,27 @@ try {
                     firma_usuario        = :firma,
                     nombre_firma_usuario = :nombre,
                     fecha_firma_usuario  = NOW(),
+                    firmado_por          = :firmado_por,
+                    firma_por_jefe       = :por_jefe,
                     estado               = 'cerrada'
                    WHERE id = :id";
     $stmt = $pdo->prepare($sql_update);
     $stmt->execute([
-        ':firma'  => $firma_data,
-        ':nombre' => $nombre_firma,
-        ':id'     => $solicitud_id,
+        ':firma'       => $firma_data,
+        ':nombre'      => $nombre_firma,
+        ':firmado_por' => $_SESSION['usuario_id'],
+        ':por_jefe'    => $firma_como_jefe ? 1 : 0,
+        ':id'          => $solicitud_id,
     ]);
 
     // Historial
-    $comentario_hist = "Usuario firmó la conformidad. Solicitud cerrada.";
-    if ($comentario_firma) {
-        $comentario_hist .= "\nComentario del usuario: " . $comentario_firma;
+    if ($firma_como_jefe) {
+        $comentario_hist = "Jefe de departamento firmó la conformidad en ausencia del usuario. Solicitud cerrada.";
+    } else {
+        $comentario_hist = "Usuario firmó la conformidad. Solicitud cerrada.";
+    }
+    if ($comentario_firma !== '') {
+        $comentario_hist .= ($firma_como_jefe ? "\nComentario del jefe: " : "\nComentario del usuario: ") . $comentario_firma;
     }
 
     $sql_hist = "INSERT INTO historial_mantenimientos_ti
@@ -137,6 +152,23 @@ try {
 
     // Notificar a Sistemas (al que atendió + a todo el departamento Sistemas)
     notificarFirmaUsuario($pdo, $solicitud, $_SESSION['nombre_completo']);
+
+    // Si firmo el jefe, avisar al usuario destinatario (si existe)
+    if ($firma_como_jefe && !empty($solicitud['usuario_id'])) {
+        $stmt_n = $pdo->prepare("INSERT INTO notificaciones (tipo, titulo, mensaje, usuario_destino, datos_json, fecha_creacion)
+                                 VALUES (?, ?, ?, ?, ?, NOW())");
+        $stmt_n->execute([
+            'mantenimiento_firmado',
+            'Mantenimiento firmado por tu jefe',
+            "{$_SESSION['nombre_completo']} firmó en tu ausencia la conformidad del mantenimiento {$solicitud['folio']}.",
+            $solicitud['usuario_id'],
+            json_encode([
+                'solicitud_id' => $solicitud['id'],
+                'folio'        => $solicitud['folio'],
+                'url'          => URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/ver_mantenimiento.php?id=' . $solicitud['id'],
+            ]),
+        ]);
+    }
 
     $pdo->commit();
 

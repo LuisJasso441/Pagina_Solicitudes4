@@ -25,6 +25,22 @@ $departamento     = strtolower(trim($_SESSION['departamento_codigo'] ?? $_SESSIO
 $es_mantenimiento = ($departamento === 'mantenimiento');
 $es_ti            = in_array($departamento, ['ti', 'sistemas', 'ti_sistemas']);
 
+// Jefe de departamento: ve sus mantenimientos y los de todo su departamento
+$depto_jefe = $es_ti ? 0 : obtener_departamento_jefe($pdo, $_SESSION['usuario_id']);
+$es_jefe    = $depto_jefe > 0;
+
+// Alcance de lo que puede ver el usuario (se usa en lista, contadores y meses)
+if ($es_ti) {
+    $alcance_sql    = '';
+    $alcance_params = [];
+} elseif ($es_jefe) {
+    $alcance_sql    = '(sm.usuario_id = ? OR sm.departamento_id = ?)';
+    $alcance_params = [$_SESSION['usuario_id'], $depto_jefe];
+} else {
+    $alcance_sql    = 'sm.usuario_id = ?';
+    $alcance_params = [$_SESSION['usuario_id']];
+}
+
 // ====================================================================
 // PERSISTENCIA DE FILTROS EN SESION
 // Al volver a mantenimientos.php sin parametros (desde Ver detalle,
@@ -74,9 +90,9 @@ $tipos_mant_validos  = ['logico', 'fisico'];
 $where  = [];
 $params = [];
 
-if (!$es_ti) {
-    $where[] = "sm.usuario_id = ?";
-    $params[] = $_SESSION['usuario_id'];
+if ($alcance_sql !== '') {
+    $where[] = $alcance_sql;
+    $params  = array_merge($params, $alcance_params);
 }
 
 if ($filtro_estado && in_array($filtro_estado, $estados_validos)) {
@@ -169,10 +185,10 @@ $sql_cont = "SELECT
     SUM(CASE WHEN estado = 'cancelada'  THEN 1 ELSE 0 END) AS canceladas
 FROM solicitudes_mantenimiento_ti sm";
 
-if (!$es_ti) {
-    $sql_cont .= " WHERE sm.usuario_id = ?";
+if ($alcance_sql !== '') {
+    $sql_cont .= " WHERE " . $alcance_sql;
     $stmt_c = $pdo->prepare($sql_cont);
-    $stmt_c->execute([$_SESSION['usuario_id']]);
+    $stmt_c->execute($alcance_params);
 } else {
     $stmt_c = $pdo->query($sql_cont);
 }
@@ -201,10 +217,10 @@ if ($es_ti && $contadores['finalizadas'] > 0) {
 $sql_meses = "SELECT DISTINCT DATE_FORMAT(sm.fecha_deseada, '%Y-%m') AS mes
               FROM solicitudes_mantenimiento_ti sm
               WHERE sm.fecha_deseada IS NOT NULL"
-           . (!$es_ti ? " AND sm.usuario_id = ?" : "")
+           . ($alcance_sql !== '' ? " AND " . $alcance_sql : "")
            . " ORDER BY mes DESC";
 $stmt_m = $pdo->prepare($sql_meses);
-$stmt_m->execute(!$es_ti ? [$_SESSION['usuario_id']] : []);
+$stmt_m->execute($alcance_params);
 $meses_disponibles = $stmt_m->fetchAll(PDO::FETCH_COLUMN);
 
 $nombres_meses = [
@@ -379,7 +395,15 @@ $current_page = basename(__FILE__);
                         <?php echo $es_ti ? 'Gestión de Mantenimientos' : 'Mis Mantenimientos'; ?>
                     </h4>
                     <small class="text-muted">
-                        <?php echo $es_ti ? 'Todas las solicitudes del sistema' : 'Solicitudes asignadas a tus equipos'; ?>
+                        <?php
+                        if ($es_ti) {
+                            echo 'Todas las solicitudes del sistema';
+                        } elseif ($es_jefe) {
+                            echo 'Solicitudes de tu departamento (Jefe de departamento)';
+                        } else {
+                            echo 'Solicitudes asignadas a tus equipos';
+                        }
+                        ?>
                     </small>
                 </div>
                 <?php if ($es_ti): ?>
@@ -621,8 +645,10 @@ $current_page = basename(__FILE__);
                                         <th>Folio</th>
                                         <th>Tipo</th>
                                         <th class="text-center">Mantenimiento</th>
-                                        <?php if ($es_ti): ?>
+                                        <?php if ($es_ti || $es_jefe): ?>
                                             <th>Usuario</th>
+                                        <?php endif; ?>
+                                        <?php if ($es_ti): ?>
                                             <th>Departamento</th>
                                         <?php endif; ?>
                                         <th>Equipo</th>
@@ -641,9 +667,13 @@ $current_page = basename(__FILE__);
 
                                         // Resaltado contextual de filas
                                         $row_class = '';
-                                        if (!$es_ti && $estado === 'finalizada') {
+                                        $es_propia = ((int)($s['usuario_id'] ?? 0) === (int)$_SESSION['usuario_id']);
+                                        if (!$es_ti && $estado === 'finalizada' && $es_propia) {
                                             // Usuario destinatario: necesita firmar
                                             $row_class = 'row-finalizada-mia';
+                                        } elseif ($es_jefe && $estado === 'finalizada') {
+                                            // Jefe: mantenimiento de su departamento esperando firma
+                                            $row_class = 'row-esperando-firma';
                                         } elseif ($es_ti && $estado === 'finalizada') {
                                             // Sistemas: esperando firma del usuario
                                             $row_class = 'row-esperando-firma';
@@ -679,10 +709,12 @@ $current_page = basename(__FILE__);
                                                     <span class="text-muted">—</span>
                                                 <?php endif; ?>
                                             </td>
-                                            <?php if ($es_ti): ?>
+                                            <?php if ($es_ti || $es_jefe): ?>
                                                 <td>
                                                     <small><?php echo htmlspecialchars($s['solicitante'] ?? '—'); ?></small>
                                                 </td>
+                                            <?php endif; ?>
+                                            <?php if ($es_ti): ?>
                                                 <td>
                                                     <small class="text-muted"><?php echo htmlspecialchars($s['departamento_nombre'] ?? '—'); ?></small>
                                                 </td>
@@ -712,8 +744,10 @@ $current_page = basename(__FILE__);
                                                 <span class="badge <?php echo $badges_estado[$estado] ?? 'bg-secondary'; ?>">
                                                     <?php echo $nombres_estado[$estado] ?? ucfirst($estado); ?>
                                                 </span>
-                                                <?php if (!$es_ti && $estado === 'finalizada'): ?>
+                                                <?php if (!$es_ti && $estado === 'finalizada' && $es_propia): ?>
                                                     <br><small class="text-warning"><i class="bi bi-pen me-1"></i>Falta tu firma</small>
+                                                <?php elseif ($es_jefe && $estado === 'finalizada'): ?>
+                                                    <br><small class="text-warning"><i class="bi bi-pen me-1"></i><?php echo empty($s['usuario_id']) ? 'Sin usuario: firma el jefe' : 'Esperando firma del usuario'; ?></small>
                                                 <?php elseif ($es_ti && $estado === 'finalizada'): ?>
                                                     <br><small class="text-warning">
                                                         <i class="bi bi-pen me-1"></i>Esperando firma

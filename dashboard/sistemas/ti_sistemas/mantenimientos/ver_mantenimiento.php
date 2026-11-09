@@ -38,8 +38,10 @@ $sql = "SELECT sm.*,
                ie.marca           AS equipo_marca,
                ie.modelo          AS equipo_modelo,
                ie.numero_serie    AS equipo_serie,
-               ie.ubicacion       AS equipo_ubicacion
+               ie.ubicacion       AS equipo_ubicacion,
+               uf.nombre_completo AS firmado_por_nombre
         FROM solicitudes_mantenimiento_ti sm
+        LEFT JOIN usuarios uf      ON sm.firmado_por = uf.id
         LEFT JOIN usuarios u       ON sm.usuario_id = u.id
         LEFT JOIN departamentos d  ON sm.departamento_id = d.id
         LEFT JOIN usuarios ua      ON sm.atendido_por = ua.id
@@ -55,7 +57,11 @@ if (!$solicitud) {
     exit;
 }
 
-if (!$es_ti && $solicitud['usuario_id'] != $_SESSION['usuario_id']) {
+// Jefe de departamento: puede ver (y firmar en ausencia del usuario) los de su departamento
+$depto_jefe        = $es_ti ? 0 : obtener_departamento_jefe($pdo, $_SESSION['usuario_id']);
+$es_jefe_del_depto = $depto_jefe > 0 && (int)$solicitud['departamento_id'] === $depto_jefe;
+
+if (!$es_ti && $solicitud['usuario_id'] != $_SESSION['usuario_id'] && !$es_jefe_del_depto) {
     establecer_alerta('error', 'No tiene permisos para ver esta solicitud.');
     header('Location: ' . URL_BASE . 'dashboard/sistemas/ti_sistemas/mantenimientos/mantenimientos.php');
     exit;
@@ -140,7 +146,9 @@ $puede_subir_evidencias = $puede_editar;
 
 // Capacidad de firma del usuario destinatario
 $es_destinatario = ($solicitud['usuario_id'] == $_SESSION['usuario_id']);
-$puede_firmar = $es_destinatario
+// El jefe firma solo si no es el destinatario (en ausencia del usuario o si el equipo no tiene usuario)
+$firma_como_jefe = !$es_destinatario && $es_jefe_del_depto;
+$puede_firmar = ($es_destinatario || $firma_como_jefe)
                 && $estado_actual === 'finalizada'
                 && empty($solicitud['firma_usuario']);
 
@@ -319,11 +327,22 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
             <?php if (function_exists('mostrar_alerta')) echo mostrar_alerta(); ?>
 
             <!-- Banner para usuario receptor cuando esta finalizada y aun no ha firmado -->
-            <?php if ($puede_firmar): ?>
+            <?php if ($puede_firmar && !$firma_como_jefe): ?>
                 <div class="firma-banner mb-3">
                     <i class="bi bi-pen me-2"></i>
                     <strong>Falta tu firma:</strong> Sistemas finalizó el mantenimiento. Por favor revisa los detalles abajo
                     y firma tu conformidad para cerrar la solicitud.
+                </div>
+            <?php elseif ($puede_firmar && $firma_como_jefe): ?>
+                <div class="firma-banner mb-3">
+                    <i class="bi bi-person-badge me-2"></i>
+                    <strong>Firma como Jefe de departamento:</strong>
+                    <?php if (!empty($solicitud['usuario_id'])): ?>
+                        este mantenimiento es de <strong><?php echo htmlspecialchars($solicitud['solicitante_nombre']); ?></strong>.
+                        Firma solo si el usuario está ausente y no podrá hacerlo.
+                    <?php else: ?>
+                        este equipo no tiene usuario asignado; como jefe puedes firmar la conformidad.
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
 
@@ -508,6 +527,14 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                                     <div class="col-md-6">
                                         <div class="detail-label">Firmada por</div>
                                         <div class="detail-value"><?php echo htmlspecialchars($solicitud['nombre_firma_usuario']); ?></div>
+                                        <?php if (!empty($solicitud['firma_por_jefe'])): ?>
+                                            <span class="badge bg-warning text-dark mt-1">
+                                                <i class="bi bi-person-badge me-1"></i>Jefe de departamento
+                                            </span>
+                                            <small class="d-block text-muted mt-1">
+                                                Firmó en ausencia de <?php echo htmlspecialchars($solicitud['solicitante_nombre'] ?? 'usuario no asignado'); ?>
+                                            </small>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="detail-label">Fecha y hora</div>

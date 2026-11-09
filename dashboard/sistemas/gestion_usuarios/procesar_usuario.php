@@ -100,6 +100,19 @@ function validarCorreo($pdo, $correo, $excluir_id = null) {
 }
 
 /**
+ * Validar numero de celular (opcional)
+ */
+function validarCelular($celular) {
+    if ($celular === '') {
+        return true; // Celular opcional
+    }
+    if (!preg_match('/^[0-9+\-\s()]{7,20}$/', $celular)) {
+        return 'El numero de celular solo puede contener numeros, espacios, +, - y parentesis (7 a 20 caracteres).';
+    }
+    return true;
+}
+
+/**
  * Obtener codigo de departamento por ID
  */
 function getCodigoDepartamento($pdo, $departamento_id) {
@@ -124,6 +137,9 @@ if ($accion === 'crear') {
     $password_confirm = $_POST['password_confirm'] ?? '';
     $activo = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
     $no_nomina = trim($_POST['no_nomina'] ?? '');
+    $puesto = trim($_POST['puesto'] ?? '');
+    $numero_celular = trim($_POST['numero_celular'] ?? '');
+    $jefe_inmediato = isset($_POST['jefe_inmediato']) ? 1 : 0;
     
     // Permisos SSC
     $ssc_lector = 1;
@@ -165,6 +181,15 @@ if ($accion === 'crear') {
         $errores[] = $validacion_correo;
     }
     
+    $validacion_celular = validarCelular($numero_celular);
+    if ($validacion_celular !== true) {
+        $errores[] = $validacion_celular;
+    }
+    
+    if (mb_strlen($puesto) > 100) {
+        $errores[] = 'El puesto no puede exceder 100 caracteres.';
+    }
+    
     if ($departamento_id <= 0) {
         $errores[] = 'Debe seleccionar un departamento.';
     }
@@ -201,17 +226,20 @@ if ($accion === 'crear') {
     
     try {
         // Insertar usuario
-        $sql = "INSERT INTO usuarios (nombre_completo, usuario, correo, no_nomina, password, departamento, departamento_id, activo, fecha_registro, created_by) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
+        $sql = "INSERT INTO usuarios (nombre_completo, usuario, correo, no_nomina, puesto, numero_celular, password, departamento, departamento_id, jefe_inmediato, activo, fecha_registro, created_by) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             $nombre_completo,
             strtoupper($usuario), 
             $correo !== '' ? $correo : null,
             $no_nomina !== '' ? $no_nomina : null,
+            $puesto !== '' ? $puesto : null,
+            $numero_celular !== '' ? $numero_celular : null,
             $password_hash, 
             $departamento_codigo, 
             $departamento_id, 
+            $jefe_inmediato,
             $activo,
             $usuario_actual_id
         ]);
@@ -272,6 +300,9 @@ elseif ($accion === 'editar') {
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
     $no_nomina = trim($_POST['no_nomina'] ?? '');
+    $puesto = trim($_POST['puesto'] ?? '');
+    $numero_celular = trim($_POST['numero_celular'] ?? '');
+    $jefe_inmediato = isset($_POST['jefe_inmediato']) ? 1 : 0;
     
     // Permisos SSC
     $ssc_lector = 1;
@@ -310,6 +341,15 @@ elseif ($accion === 'editar') {
     $validacion_correo = validarCorreo($pdo, $correo, $id);
     if ($validacion_correo !== true) {
         $errores[] = $validacion_correo;
+    }
+    
+    $validacion_celular = validarCelular($numero_celular);
+    if ($validacion_celular !== true) {
+        $errores[] = $validacion_celular;
+    }
+    
+    if (mb_strlen($puesto) > 100) {
+        $errores[] = 'El puesto no puede exceder 100 caracteres.';
     }
     
     if ($departamento_id <= 0) {
@@ -354,9 +394,12 @@ elseif ($accion === 'editar') {
                         usuario = ?, 
                         correo = ?,
                         no_nomina = ?,
+                        puesto = ?,
+                        numero_celular = ?,
                         password = ?,
                         departamento = ?, 
                         departamento_id = ?,
+                        jefe_inmediato = ?,
                         updated_at = NOW(),
                         updated_by = ?
                     WHERE id = ?";
@@ -366,9 +409,12 @@ elseif ($accion === 'editar') {
                 strtoupper($usuario),
                 $correo !== '' ? $correo : null,
                 $no_nomina !== '' ? $no_nomina : null,
+                $puesto !== '' ? $puesto : null,
+                $numero_celular !== '' ? $numero_celular : null,
                 $password_hash,
                 $departamento_codigo,
                 $departamento_id,
+                $jefe_inmediato,
                 $usuario_actual_id,
                 $id
             ]);
@@ -378,8 +424,11 @@ elseif ($accion === 'editar') {
                         usuario = ?, 
                         correo = ?,
                         no_nomina = ?,
+                        puesto = ?,
+                        numero_celular = ?,
                         departamento = ?, 
                         departamento_id = ?,
+                        jefe_inmediato = ?,
                         updated_at = NOW(),
                         updated_by = ?
                     WHERE id = ?";
@@ -389,8 +438,11 @@ elseif ($accion === 'editar') {
                 strtoupper($usuario),
                 $correo !== '' ? $correo : null,
                 $no_nomina !== '' ? $no_nomina : null,
+                $puesto !== '' ? $puesto : null,
+                $numero_celular !== '' ? $numero_celular : null,
                 $departamento_codigo,
                 $departamento_id,
+                $jefe_inmediato,
                 $usuario_actual_id,
                 $id
             ]);

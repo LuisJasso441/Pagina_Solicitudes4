@@ -590,6 +590,25 @@ function obtener_fecha_actual_espanol() {
     return "$dia_semana, $dia de $mes de $anio";
 }
 
+/**
+ * Departamento del que el usuario es jefe (usuarios.jefe_inmediato = 1).
+ * Se consulta en BD para que los cambios hechos por Sistemas apliquen de inmediato.
+ * @return int departamento_id, o 0 si no es jefe
+ */
+if (!function_exists('obtener_departamento_jefe')) {
+    function obtener_departamento_jefe($pdo, $usuario_id) {
+        static $cache = [];
+        $usuario_id = (int) $usuario_id;
+        if (!isset($cache[$usuario_id])) {
+            $stmt = $pdo->prepare("SELECT departamento_id FROM usuarios
+                                   WHERE id = ? AND activo = 1 AND jefe_inmediato = 1");
+            $stmt->execute([$usuario_id]);
+            $cache[$usuario_id] = (int) ($stmt->fetchColumn() ?: 0);
+        }
+        return $cache[$usuario_id];
+    }
+}
+
 if (!function_exists('incluir_sidebar_apropiado')) {
     /**
      * Incluye el sidebar correspondiente al usuario logueado, según su rol.

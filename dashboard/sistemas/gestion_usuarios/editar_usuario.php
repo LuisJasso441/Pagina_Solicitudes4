@@ -261,6 +261,32 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                maxlength="20" placeholder="Ej: 1023, 95173, EMP-1234">
                                         <small class="text-muted">Opcional. Aparecerá junto al nombre en los Vales de EPP.</small>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Puesto</label>
+                                        <input type="text" name="puesto" class="form-control"
+                                               value="<?php echo htmlspecialchars($form_data['puesto'] ?? ''); ?>"
+                                               maxlength="100" placeholder="Ej: Auxiliar Contable">
+                                        <small class="text-muted">Opcional.</small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Número Celular</label>
+                                        <input type="tel" name="numero_celular" class="form-control"
+                                               value="<?php echo htmlspecialchars($form_data['numero_celular'] ?? ''); ?>"
+                                               maxlength="20" placeholder="Ej: 444 123 4567"
+                                               pattern="[0-9+\-\s()]{7,20}" title="Solo números, espacios, +, - y paréntesis">
+                                        <small class="text-muted">Opcional.</small>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   name="jefe_inmediato" value="1" id="jefe_inmediato"
+                                                   <?php echo !empty($form_data['jefe_inmediato']) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label fw-semibold" for="jefe_inmediato">
+                                                <i class="bi bi-person-badge me-1"></i>Jefe de departamento
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Firma los mantenimientos de TI de su departamento. Puede haber más de un jefe por departamento.</small>
+                                    </div>
                                 </div>
                             </div>
 
