@@ -6,6 +6,7 @@
  * 
  * ACTUALIZADO: Botones de descarga movidos fuera de filtros
  *              Nuevo botón para descargar por rango de fechas
+ * ACTUALIZADO: Filtro por Departamento (solo Mantenimiento)
  */
 
 session_start();
@@ -52,6 +53,7 @@ $filtros = [
     'estado' => $_GET['estado'] ?? '',
     'empleado' => $_GET['empleado'] ?? '',
     'empresa' => $_GET['empresa'] ?? '',
+    'departamento' => $_GET['departamento'] ?? '',
     'fecha_desde' => $_GET['fecha_desde'] ?? '',
     'fecha_hasta' => $_GET['fecha_hasta'] ?? '',
     'busqueda' => $_GET['busqueda'] ?? ''
@@ -97,6 +99,12 @@ if (!empty($filtros['empresa'])) {
     $params[':empresa'] = $filtros['empresa'];
 }
 
+// Filtro por departamento (solo Mantenimiento; los demás ya ven solo el suyo)
+if ($es_mantenimiento && !empty($filtros['departamento'])) {
+    $sql .= " AND departamento = :departamento_filtro";
+    $params[':departamento_filtro'] = $filtros['departamento'];
+}
+
 if (!empty($filtros['fecha_desde'])) {
     $campo_fecha = $filtro_base === 'local' ? 'fecha_creacion' : 'fecha_completado';
     $sql .= " AND DATE($campo_fecha) >= :fecha_desde";
@@ -110,8 +118,11 @@ if (!empty($filtros['fecha_hasta'])) {
 }
 
 if (!empty($filtros['busqueda'])) {
-    $sql .= " AND (folio LIKE :busqueda OR usuario_nombre LIKE :busqueda OR departamento LIKE :busqueda)";
-    $params[':busqueda'] = '%' . $filtros['busqueda'] . '%';
+    // Placeholders únicos (producción usa ATTR_EMULATE_PREPARES = false)
+    $sql .= " AND (folio LIKE :busqueda1 OR usuario_nombre LIKE :busqueda2 OR departamento LIKE :busqueda3)";
+    $params[':busqueda1'] = '%' . $filtros['busqueda'] . '%';
+    $params[':busqueda2'] = '%' . $filtros['busqueda'] . '%';
+    $params[':busqueda3'] = '%' . $filtros['busqueda'] . '%';
 }
 
 // Ordenamiento
@@ -186,6 +197,13 @@ if ($filtro_base === 'local') {
 // Obtener lista de empresas para filtro
 $stmt_empresas = $pdo->query("SELECT DISTINCT empresa FROM ordenes_servicio_mantenimiento WHERE empresa IS NOT NULL AND empresa != '' ORDER BY empresa");
 $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
+
+// Obtener lista de departamentos para filtro (solo Mantenimiento)
+$departamentos_filtro = [];
+if ($es_mantenimiento) {
+    $stmt_deptos = $pdo->query("SELECT DISTINCT departamento FROM ordenes_servicio_mantenimiento WHERE departamento IS NOT NULL AND departamento != '' ORDER BY departamento");
+    $departamentos_filtro = $stmt_deptos->fetchAll(PDO::FETCH_COLUMN);
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -553,7 +571,7 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                             <input type="hidden" name="base" value="<?php echo $filtro_base; ?>">
                             
                             <?php if ($filtro_base === 'local'): ?>
-                            <div class="col-md-2">
+                            <div class="col-6 col-md-4 col-xl">
                                 <label class="form-label" style="font-size: 0.7rem;">Estado</label>
                                 <select name="estado" class="form-select form-select-sm">
                                     <option value="">Todos</option>
@@ -565,7 +583,22 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                             </div>
                             <?php endif; ?>
                             
-                            <div class="col-md-2">
+                            <?php if ($es_mantenimiento): ?>
+                            <div class="col-6 col-md-4 col-xl">
+                                <label class="form-label" style="font-size: 0.7rem;">Departamento</label>
+                                <select name="departamento" class="form-select form-select-sm">
+                                    <option value="">Todos</option>
+                                    <?php foreach ($departamentos_filtro as $depto): ?>
+                                        <option value="<?php echo htmlspecialchars($depto); ?>"
+                                                <?php echo $filtros['departamento'] === $depto ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($depto); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <div class="col-6 col-md-4 col-xl">
                                 <label class="form-label" style="font-size: 0.7rem;">Empresa</label>
                                 <select name="empresa" class="form-select form-select-sm">
                                     <option value="">Todas</option>
@@ -578,26 +611,26 @@ $empresas = $stmt_empresas->fetchAll(PDO::FETCH_COLUMN);
                                 </select>
                             </div>
                             
-                            <div class="col-md-2">
+                            <div class="col-6 col-md-4 col-xl">
                                 <label class="form-label" style="font-size: 0.7rem;">Desde</label>
                                 <input type="date" name="fecha_desde" class="form-control form-control-sm" 
                                        value="<?php echo $filtros['fecha_desde']; ?>">
                             </div>
                             
-                            <div class="col-md-2">
+                            <div class="col-6 col-md-4 col-xl">
                                 <label class="form-label" style="font-size: 0.7rem;">Hasta</label>
                                 <input type="date" name="fecha_hasta" class="form-control form-control-sm" 
                                        value="<?php echo $filtros['fecha_hasta']; ?>">
                             </div>
                             
-                            <div class="col-md-2">
+                            <div class="col-6 col-md-4 col-xl">
                                 <label class="form-label" style="font-size: 0.7rem;">Búsqueda</label>
                                 <input type="text" name="busqueda" class="form-control form-control-sm" 
                                        placeholder="Folio, usuario..." 
                                        value="<?php echo htmlspecialchars($filtros['busqueda']); ?>">
                             </div>
                             
-                            <div class="col-md-2 d-flex align-items-end">
+                            <div class="col-6 col-md-4 col-xl d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary btn-sm w-100">
                                     <i class="bi bi-search"></i> Filtrar
                                 </button>

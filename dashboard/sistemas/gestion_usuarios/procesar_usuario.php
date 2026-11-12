@@ -113,6 +113,29 @@ function validarCelular($celular) {
 }
 
 /**
+ * Departamentos con acceso al modulo de Inventario EPP (mismo criterio que es_usuario_epp())
+ */
+const DEPTOS_EPP = ['almacen_refacciones', 'seguridad', 'contabilidad'];
+
+/**
+ * Lector EPP: automatico segun el departamento del usuario
+ */
+function lectorEppPorDepartamento($departamento_codigo) {
+    return in_array(strtolower(trim((string) $departamento_codigo)), DEPTOS_EPP, true) ? 1 : 0;
+}
+
+/**
+ * Permisos EPP desde el formulario: [lector, creador, editor]
+ * Lector = departamento EPP, o si se marca Creador/Editor.
+ */
+function permisosEppDesdeFormulario($departamento_codigo) {
+    $creador = isset($_POST['epp_creador']) ? 1 : 0;
+    $editor  = isset($_POST['epp_editor']) ? 1 : 0;
+    $lector  = (lectorEppPorDepartamento($departamento_codigo) || $creador || $editor) ? 1 : 0;
+    return [$lector, $creador, $editor];
+}
+
+/**
  * Obtener codigo de departamento por ID
  */
 function getCodigoDepartamento($pdo, $departamento_id) {
@@ -261,6 +284,11 @@ if ($accion === 'crear') {
         // Insertar permisos SEC
         $pdo->prepare("INSERT INTO permisos_sec (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
             ->execute([$nuevo_usuario_id, $sec_lector, $sec_creador, $sec_editor]);
+        
+        // Insertar permisos EPP (lector segun departamento)
+        [$epp_lector, $epp_creador, $epp_editor] = permisosEppDesdeFormulario($departamento_codigo);
+        $pdo->prepare("INSERT INTO permisos_epp (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)")
+            ->execute([$nuevo_usuario_id, $epp_lector, $epp_creador, $epp_editor]);
         
         
         $pdo->commit();
@@ -467,6 +495,12 @@ elseif ($accion === 'editar') {
         $pdo->prepare("INSERT INTO permisos_sec (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
             ->execute([$id, $sec_lector, $sec_creador, $sec_editor]);
+        
+        // Actualizar permisos EPP (UPSERT, lector segun departamento)
+        [$epp_lector, $epp_creador, $epp_editor] = permisosEppDesdeFormulario($departamento_codigo);
+        $pdo->prepare("INSERT INTO permisos_epp (user_id, lector, creador, editor) VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE lector = VALUES(lector), creador = VALUES(creador), editor = VALUES(editor)")
+            ->execute([$id, $epp_lector, $epp_creador, $epp_editor]);
         
         $pdo->commit();
         

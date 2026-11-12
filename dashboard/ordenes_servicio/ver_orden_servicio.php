@@ -5,6 +5,7 @@
  * VERSIÓN CORREGIDA - Firmas digitales funcionando
  * 
  * ACTUALIZADO: Incluye modal para motivo de devolución y campo visual en Apartado 1
+ * ACTUALIZADO: Navegación Orden Anterior / Siguiente
  */
 
 session_start();
@@ -67,6 +68,48 @@ try {
 }
 
 $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSION['departamento']))) === 'mantenimiento';
+
+// ========================================
+// NAVEGACIÓN: ORDEN ANTERIOR / SIGUIENTE
+// Mismo alcance que el listado: activas con activas, finalizadas con
+// finalizadas; si no es Mantenimiento, solo las de su departamento.
+// ========================================
+$es_orden_completada = ($orden['estado'] === 'completado');
+$orden_anterior  = null;
+$orden_siguiente = null;
+
+try {
+    $db = conectarDB();
+
+    $where_nav = $es_orden_completada
+        ? "estado = 'completado'"
+        : "estado IN ('pendiente_mantenimiento', 'en_proceso', 'pendiente_usuario', 'devuelto')";
+    $params_nav = [':id_actual' => (int) $orden_id];
+
+    if (!$es_mantenimiento) {
+        $where_nav .= " AND departamento = :dept_nav";
+        $params_nav[':dept_nav'] = $_SESSION['departamento_nombre'] ?? '';
+    }
+
+    // Anterior = la orden con id inmediato menor
+    $stmt_ant = $db->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento
+                              WHERE $where_nav AND id < :id_actual
+                              ORDER BY id DESC LIMIT 1");
+    $stmt_ant->execute($params_nav);
+    $orden_anterior = $stmt_ant->fetch(PDO::FETCH_ASSOC) ?: null;
+
+    // Siguiente = la orden con id inmediato mayor
+    $stmt_sig = $db->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento
+                              WHERE $where_nav AND id > :id_actual
+                              ORDER BY id ASC LIMIT 1");
+    $stmt_sig->execute($params_nav);
+    $orden_siguiente = $stmt_sig->fetch(PDO::FETCH_ASSOC) ?: null;
+} catch (Exception $e) {
+    error_log("Error obteniendo navegación OSM: " . $e->getMessage());
+}
+
+$url_listado_osm = URL_BASE . 'dashboard/ordenes_servicio/ordenes_servicio_mantenimiento.php?base='
+                 . ($es_orden_completada ? 'global' : 'local');
 
 // ========================================
 // FUNCIONES HELPER PARA ARCHIVOS OSM
@@ -318,8 +361,28 @@ function formatear_tamanio_osm($bytes) {
             color: #856404 !important;
         }
         
+        /* Navegación Anterior / Siguiente */
+        .nav-ordenes {
+            display: inline-flex;
+            gap: 4px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .nav-ordenes .btn.disabled {
+            opacity: 0.45;
+        }
+
         /* Responsive para botones en móvil */
         @media (max-width: 768px) {
+            .btn-group-acciones .nav-ordenes {
+                display: flex;
+                width: 100%;
+                margin-right: 0;
+            }
+            .btn-group-acciones .nav-ordenes .btn {
+                flex: 1;
+                width: auto;
+            }
             .btn-group-acciones .row {
                 flex-direction: column;
             }
@@ -464,8 +527,37 @@ function formatear_tamanio_osm($bytes) {
                                 </a>
                             <?php endif; ?>
                             
-                            <!-- Botón Volver -->
-                            <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">
+                            <!-- Navegación Orden Anterior / Siguiente (oculta en modo edición) -->
+                            <?php if (!$modo_edicion): ?>
+                                <div class="nav-ordenes">
+                                    <?php if ($orden_anterior): ?>
+                                        <a href="?id=<?php echo (int) $orden_anterior['id']; ?>"
+                                           class="btn btn-outline-primary btn-sm"
+                                           title="Orden anterior: <?php echo htmlspecialchars($orden_anterior['folio']); ?>">
+                                            <i class="bi bi-chevron-left"></i> Anterior
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="btn btn-outline-primary btn-sm disabled" title="No hay orden anterior">
+                                            <i class="bi bi-chevron-left"></i> Anterior
+                                        </span>
+                                    <?php endif; ?>
+
+                                    <?php if ($orden_siguiente): ?>
+                                        <a href="?id=<?php echo (int) $orden_siguiente['id']; ?>"
+                                           class="btn btn-outline-primary btn-sm"
+                                           title="Orden siguiente: <?php echo htmlspecialchars($orden_siguiente['folio']); ?>">
+                                            Siguiente <i class="bi bi-chevron-right"></i>
+                                        </a>
+                                    <?php else: ?>
+                                        <span class="btn btn-outline-primary btn-sm disabled" title="No hay orden siguiente">
+                                            Siguiente <i class="bi bi-chevron-right"></i>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- Botón Volver al listado -->
+                            <a href="<?php echo $url_listado_osm; ?>" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-arrow-left"></i> Volver
                             </a>
                             

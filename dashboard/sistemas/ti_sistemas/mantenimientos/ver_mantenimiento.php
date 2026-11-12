@@ -339,7 +339,6 @@ $ya_firmada = !empty($solicitud['firma_usuario']);
                     <strong>Firma como Jefe de departamento:</strong>
                     <?php if (!empty($solicitud['usuario_id'])): ?>
                         este mantenimiento es de <strong><?php echo htmlspecialchars($solicitud['solicitante_nombre']); ?></strong>.
-                        Firma solo si el usuario está ausente y no podrá hacerlo.
                     <?php else: ?>
                         este equipo no tiene usuario asignado; como jefe puedes firmar la conformidad.
                     <?php endif; ?>

@@ -50,7 +50,10 @@ $sql = "SELECT
             pc.editor AS cqr_editor,
             pse.lector AS sec_lector,
             pse.creador AS sec_creador,
-            pse.editor AS sec_editor
+            pse.editor AS sec_editor,
+            pe.lector AS epp_lector,
+            pe.creador AS epp_creador,
+            pe.editor AS epp_editor
         FROM usuarios u
         LEFT JOIN departamentos d ON u.departamento_id = d.id
         LEFT JOIN usuarios uc ON u.created_by = uc.id
@@ -59,6 +62,7 @@ $sql = "SELECT
         LEFT JOIN permisos_osm po ON u.id = po.user_id
         LEFT JOIN permisos_cqr pc ON u.id = pc.user_id
         LEFT JOIN permisos_sec pse ON u.id = pse.user_id
+        LEFT JOIN permisos_epp pe ON u.id = pe.user_id
         WHERE u.id = ?";
 
 $stmt = $pdo->prepare($sql);
@@ -248,6 +252,7 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                             <option value="">Seleccionar departamento...</option>
                                             <?php foreach ($departamentos as $depto): ?>
                                                 <option value="<?php echo $depto['id']; ?>" 
+                                                        data-codigo="<?php echo htmlspecialchars(strtolower($depto['codigo'])); ?>"
                                                         <?php echo (($form_data['departamento_id'] ?? '') == $depto['id']) ? 'selected' : ''; ?>>
                                                     <?php echo htmlspecialchars($depto['nombre']); ?>
                                                 </option>
@@ -430,11 +435,36 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
                                                 </div>
                                             </td>
                                         </tr>
+                                        <tr>
+                                            <td><strong>Inventario EPP</strong><br><small class="text-muted">Equipo de Protección Personal</small></td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" class="form-check-input" id="epp_lector" disabled>
+                                                </div>
+                                                <small class="text-muted d-block" style="font-size:.7rem;">Automático</small>
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="epp_creador" value="1" class="form-check-input"
+                                                           id="epp_creador" <?php echo ($form_data['epp_creador'] ?? 0) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-check d-flex justify-content-center">
+                                                    <input type="checkbox" name="epp_editor" value="1" class="form-check-input"
+                                                           id="epp_editor" <?php echo ($form_data['epp_editor'] ?? 0) ? 'checked' : ''; ?>>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                                 <small class="text-muted mt-2 d-block">
                                     <i class="bi bi-lightbulb me-1"></i>
                                     <strong>CQR:</strong> Creador = Ventas (crea solicitudes), Editor = Normatividad (responde solicitudes)
+                                </small>
+                                <small class="text-muted mt-1 d-block">
+                                    <i class="bi bi-shield-check me-1"></i>
+                                    <strong>EPP:</strong> Lector se asigna automáticamente a Seguridad y Contabilidad (o si se marca Creador/Editor).
                                 </small>
                             </div>
 
@@ -533,6 +563,27 @@ unset($_SESSION['form_data'], $_SESSION['form_errors']);
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo URL_BASE; ?>assets/js/sidebar-toggle.js"></script>
+    <script>
+        // Permisos EPP: Lector automatico segun departamento (o si se marca Creador/Editor)
+        (function () {
+            const DEPTOS_EPP = ['almacen_refacciones', 'seguridad', 'contabilidad'];
+            const selDepto = document.querySelector('select[name="departamento_id"]');
+            const chkLector = document.getElementById('epp_lector');
+            const chkCreador = document.getElementById('epp_creador');
+            const chkEditor = document.getElementById('epp_editor');
+            if (!selDepto || !chkLector) return;
+
+            function actualizarLectorEpp() {
+                const opt = selDepto.options[selDepto.selectedIndex];
+                const codigo = ((opt && opt.dataset.codigo) || '').toLowerCase();
+                chkLector.checked = DEPTOS_EPP.includes(codigo) || chkCreador.checked || chkEditor.checked;
+            }
+            selDepto.addEventListener('change', actualizarLectorEpp);
+            chkCreador.addEventListener('change', actualizarLectorEpp);
+            chkEditor.addEventListener('change', actualizarLectorEpp);
+            actualizarLectorEpp();
+        })();
+    </script>
     <script>
         // Toggle mostrar/ocultar contraseña
         function togglePassword(inputId, btn) {
