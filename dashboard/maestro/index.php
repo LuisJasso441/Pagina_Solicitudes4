@@ -476,6 +476,51 @@ $current_page = basename(__FILE__);
                         </div>
                     </div>
 
+                    <!-- =====================================================
+                         REPORTE: Bitácora Semanal de Actividades
+                         ===================================================== -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="descarga-card">
+                            <div class="descarga-card-icon morado">
+                                <i class="bi bi-journal-check"></i>
+                            </div>
+                            <div class="descarga-card-title">Bitácora Semanal de Actividades</div>
+                            <div class="descarga-card-desc">
+                                Actividades pendientes y en proceso de la semana (lunes a domingo), con indicadores y resumen.
+                            </div>
+                            <div class="descarga-card-meta">
+                                <span class="badge-codigo">BIT-SEM-01</span> · Por semana
+                            </div>
+
+                            <form action="<?php echo URL_BASE; ?>dashboard/maestro/exportar_bitacora_semanal.php"
+                                  method="POST" class="descarga-card-form" target="_blank">
+
+                                <div class="mb-2">
+                                    <label class="form-label">Semana del</label>
+                                    <input type="date" name="semana" class="form-control" required
+                                           value="<?php echo date('Y-m-d', strtotime('monday this week')); ?>">
+                                    <div class="form-text">Puedes elegir cualquier día; se toma su semana completa.</div>
+                                </div>
+
+                                <div class="mb-2">
+                                    <label class="form-label">Contenido</label>
+                                    <select name="estado" class="form-select">
+                                        <option value="activas" selected>Pendientes + En proceso</option>
+                                        <option value="pendiente">Solo Pendientes</option>
+                                        <option value="en_proceso">Solo En proceso</option>
+                                        <option value="finalizadas">Finalizadas en la semana</option>
+                                        <option value="todas">Todas (abiertas + finalizadas)</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn btn-descargar mt-2"
+                                        style="background:#6d28d9; color:#fff; border-color:#6d28d9;">
+                                    <i class="bi bi-download me-1"></i>Descargar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
                 </div>
             </div>
             

@@ -219,6 +219,12 @@ try {
             <small class="text-white-50 px-3 fw-bold">BITÁCORAS</small>
  
             <li class="nav-item">
+                <a class="nav-link <?php echo $current_page == 'bitacora_semanal.php' ? 'active' : ''; ?>"
+                   href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_semanal/bitacora_semanal.php">
+                    <i class="bi bi-journal-check"></i> Bitácora Semanal
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?php echo $current_page == 'bitacora_aires.php' ? 'active' : ''; ?>"
                    href="<?php echo URL_BASE; ?>dashboard/sistemas/bitacora_aires/bitacora_aires.php">
                     <i class="bi bi-snow"></i> Bitácora Aires AC
