@@ -10,6 +10,7 @@
  * - Sin pendientes: tipo y fecha obligatorios
  * - Con mantenimiento pendiente: solo se avisa; cualquier tipo, opcional
  * - Pendientes con fecha pasada: marcados como "Vencido"
+ * - Físico: columna de Periféricos (computadora + periféricos vinculados), al menos uno
  * - Sin usuario activo o sin departamento: no programables (corregir en inventario)
  */
 
@@ -154,6 +155,48 @@ function prog_render_fila(array $eq, array $form_data, string $hoy, array $tipos
                     </small>
                 <?php endif; ?>
             </td>
+            <!-- Periféricos (solo Físico) -->
+            <?php
+            $es_fisico   = ($tipo_sel === 'fisico');
+            $per_enviado = $form_data[$id]['perifericos'] ?? null;   // null = sin datos previos
+            $per_sel     = is_array($per_enviado) ? array_map('intval', $per_enviado) : null;
+            $marcado     = fn($valor) => $es_fisico && ($per_sel === null || in_array(intval($valor), $per_sel, true));
+            $opciones    = [['id' => $id, 'nombre' => 'Computadora', 'codigo' => $codigo !== '' ? $codigo : $host]];
+            foreach ($eq['perifericos'] as $pid => $p) {
+                $opciones[] = [
+                    'id'     => intval($pid),
+                    'nombre' => prog_nombres_tipo_equipo()[$p['tipo_equipo']] ?? $p['tipo_equipo'],
+                    'codigo' => trim($p['codigo_interno'] ?? '') ?: trim($p['hostname'] ?? ''),
+                ];
+            }
+            ?>
+            <td class="js-celda-per">
+                <div class="js-per-aviso small text-muted fst-italic <?php echo $es_fisico ? 'd-none' : ''; ?>">
+                    Solo aplica a mantenimiento Físico
+                </div>
+                <div class="js-per-opciones per-grid <?php echo $es_fisico ? '' : 'd-none'; ?>">
+                    <?php foreach ($opciones as $op):
+                        $chk_id = 'per_' . $id . '_' . $op['id'];
+                    ?>
+                        <div class="form-check m-0">
+                            <input class="form-check-input js-per" type="checkbox"
+                                   name="programacion[<?php echo $id; ?>][perifericos][]"
+                                   value="<?php echo $op['id']; ?>" id="<?php echo $chk_id; ?>"
+                                   <?php echo $marcado($op['id']) ? 'checked' : ''; ?>
+                                   <?php echo $es_fisico ? '' : 'disabled'; ?>>
+                            <label class="form-check-label" for="<?php echo $chk_id; ?>">
+                                <?php echo prog_h($op['nombre']); ?>
+                                <?php if ($op['codigo'] !== ''): ?>
+                                    <small class="text-muted d-block"><?php echo prog_h($op['codigo']); ?></small>
+                                <?php endif; ?>
+                            </label>
+                        </div>
+                    <?php endforeach; ?>
+                    <?php if (empty($eq['perifericos'])): ?>
+                        <small class="text-muted fst-italic per-sin">Sin periféricos vinculados</small>
+                    <?php endif; ?>
+                </div>
+            </td>
             <!-- Fecha -->
             <td>
                 <input type="date" name="programacion[<?php echo $id; ?>][fecha]"
@@ -163,13 +206,13 @@ function prog_render_fila(array $eq, array $form_data, string $hoy, array $tipos
             </td>
 
         <?php elseif ($estado === 'sin_usuario'): ?>
-            <td colspan="2" class="small text-warning-emphasis">
+            <td colspan="3" class="small text-warning-emphasis">
                 <i class="bi bi-exclamation-triangle me-1"></i>
                 Sin usuario activo asignado. Asígnalo en el inventario para poder programarlo.
             </td>
 
         <?php else: ?>
-            <td colspan="2" class="small text-warning-emphasis">
+            <td colspan="3" class="small text-warning-emphasis">
                 <i class="bi bi-exclamation-triangle me-1"></i>
                 Sin departamento en el inventario. Asígnalo para poder programarlo.
             </td>
@@ -190,6 +233,7 @@ function prog_render_tabla(array $lista, array $form_data, string $hoy, array $t
                     <th>Nombre de usuario</th>
                     <th>Equipo</th>
                     <th>Tipo de Mantenimiento</th>
+                    <th>Periféricos</th>
                     <th>Fecha</th>
                 </tr>
             </thead>
@@ -238,10 +282,22 @@ function prog_render_tabla(array $lista, array $form_data, string $hoy, array $t
             background: #f8f9fa;
         }
         .table-prog td { vertical-align: middle; font-size: 0.85rem; }
-        .table-prog th:nth-child(1), .table-prog td:nth-child(1) { width: 25%; }
-        .table-prog th:nth-child(2), .table-prog td:nth-child(2) { width: 35%; }
-        .table-prog th:nth-child(3), .table-prog td:nth-child(3) { width: 20%; }
-        .table-prog th:nth-child(4), .table-prog td:nth-child(4) { width: 20%; }
+        .table-prog th:nth-child(1), .table-prog td:nth-child(1) { width: 20%; }
+        .table-prog th:nth-child(2), .table-prog td:nth-child(2) { width: 27%; }
+        .table-prog th:nth-child(3), .table-prog td:nth-child(3) { width: 15%; }
+        .table-prog th:nth-child(4), .table-prog td:nth-child(4) { width: 23%; }
+        .table-prog th:nth-child(5), .table-prog td:nth-child(5) { width: 15%; }
+
+        /* Periféricos */
+        .per-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.35rem 0.75rem;
+        }
+        .per-grid .form-check-label { font-size: 0.8rem; line-height: 1.15; }
+        .per-grid .form-check-label small { font-size: 0.68rem; }
+        .per-grid .per-sin { grid-column: 1 / -1; font-size: 0.72rem; }
+        .js-celda-per.per-invalida { box-shadow: inset 0 0 0 2px #dc3545; }
 
         .fila-bloqueada td  { background-color: #fff8e1; }
         .fila-pendiente td  { background-color: #f4f9ff; }
@@ -474,9 +530,33 @@ function valores(tr) {
         f: tr.querySelector('.js-fecha'),
     };
 }
+function perifericosOk(tr) {
+    const { t } = valores(tr);
+    return t.value !== 'fisico' || tr.querySelectorAll('.js-per:checked').length > 0;
+}
 function filaCompleta(tr) {
     const { t, f } = valores(tr);
-    return t.value !== '' && f.value !== '' && f.value >= HOY;
+    return t.value !== '' && f.value !== '' && f.value >= HOY && perifericosOk(tr);
+}
+
+// =====================================================================
+// PERIFÉRICOS: se habilitan solo con tipo Físico
+// Al pasar a Físico se marcan todos (computadora + periféricos).
+// =====================================================================
+function aplicarTipo(tr) {
+    const celda = tr.querySelector('.js-celda-per');
+    if (!celda) return;
+    const fisico   = valores(tr).t.value === 'fisico';
+    const opciones = celda.querySelector('.js-per-opciones');
+    const estaba   = !opciones.classList.contains('d-none');
+
+    opciones.classList.toggle('d-none', !fisico);
+    celda.querySelector('.js-per-aviso').classList.toggle('d-none', fisico);
+    celda.querySelectorAll('.js-per').forEach(chk => {
+        chk.disabled = !fisico;            // deshabilitados no se envían
+        if (fisico && !estaba) chk.checked = true;
+    });
+    if (!fisico) celda.classList.remove('per-invalida');
 }
 
 // =====================================================================
@@ -495,11 +575,13 @@ function actualizarContador() {
 }
 
 form.addEventListener('change', e => {
-    if (e.target.matches('.js-tipo, .js-fecha')) {
+    if (e.target.matches('.js-tipo, .js-fecha, .js-per')) {
         const tr = e.target.closest('tr');
         const { t, f } = valores(tr);
+        if (e.target.matches('.js-tipo')) aplicarTipo(tr);
         t.classList.remove('is-invalid');
         f.classList.remove('is-invalid');
+        if (perifericosOk(tr)) tr.querySelector('.js-celda-per')?.classList.remove('per-invalida');
         actualizarContador();
     }
 });
@@ -524,7 +606,7 @@ document.querySelectorAll('.js-rapido-aplicar').forEach(btn => {
 
         card.querySelectorAll('tr.js-fila-prog').forEach(tr => {
             const { t, f } = valores(tr);
-            if (tipo)  { t.value = tipo;  t.classList.remove('is-invalid'); }
+            if (tipo)  { t.value = tipo;  t.classList.remove('is-invalid'); aplicarTipo(tr); }
             if (fecha) { f.value = fecha; f.classList.remove('is-invalid'); }
         });
         actualizarContador();
@@ -543,11 +625,17 @@ btnCrear.addEventListener('click', () => {
         el.classList.toggle('is-invalid', malo);
         if (malo) invalidos.push(el);
     };
+    const marcarPer = (tr, malo) => {
+        const celda = tr.querySelector('.js-celda-per');
+        celda.classList.toggle('per-invalida', malo);
+        if (malo) invalidos.push(celda);
+    };
 
     form.querySelectorAll('tr.js-fila-prog').forEach(tr => {
         const { t, f } = valores(tr);
         marcar(t, t.value === '');
         marcar(f, f.value === '' || f.value < HOY);
+        marcarPer(tr, !perifericosOk(tr));
     });
 
     form.querySelectorAll('tr.js-fila-pendiente').forEach(tr => {
@@ -555,13 +643,14 @@ btnCrear.addEventListener('click', () => {
         const algo = t.value !== '' || f.value !== '';
         marcar(t, algo && t.value === '');
         marcar(f, algo && (f.value === '' || f.value < HOY));
+        marcarPer(tr, algo && !perifericosOk(tr));
     });
 
     if (invalidos.length) {
         invalidos[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         invalidos[0].focus({ preventScroll: true });
         const filas = new Set(invalidos.map(el => el.closest('tr'))).size;
-        alert(`Faltan datos en ${filas} equipo(s). Cada equipo a programar debe tener tipo de mantenimiento y una fecha a partir de hoy.`);
+        alert(`Faltan datos en ${filas} equipo(s). Cada equipo a programar debe tener tipo de mantenimiento, una fecha a partir de hoy y, si es Físico, al menos un elemento seleccionado en Periféricos.`);
         return;
     }
 

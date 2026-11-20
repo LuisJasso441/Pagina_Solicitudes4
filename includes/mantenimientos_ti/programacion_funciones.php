@@ -30,6 +30,29 @@ function prog_tipos_mantenimiento(): array {
 }
 
 /**
+ * Nombres legibles de todos los tipos de equipo (para periféricos)
+ */
+function prog_nombres_tipo_equipo(): array {
+    return [
+        'all_in_one'   => 'All in One',
+        'pc'           => 'PC',
+        'laptop'       => 'Laptop',
+        'computadora'  => 'Computadora',
+        'monitor'      => 'Monitor',
+        'mouse'        => 'Mouse',
+        'teclado'      => 'Teclado',
+        'impresora'    => 'Impresora',
+        'access_point' => 'Access Point',
+        'switch'       => 'Switch',
+        'camara'       => 'Cámara',
+        'celular'      => 'Celular',
+        'telefono'     => 'Teléfono',
+        'pantalla_tv'  => 'Pantalla TV',
+        'nobreak'      => 'Nobreak',
+    ];
+}
+
+/**
  * Escape corto para la vista
  */
 function prog_h($valor): string {
@@ -61,6 +84,10 @@ function prog_etiqueta_equipo(array $eq): string {
  *   - sin_usuario      -> no tiene usuario activo asignado (no se puede programar)
  *
  * usuario_destino_id: primer usuario activo asignado (misma regla que Nueva Solicitud)
+ *
+ * perifericos: equipos ACTIVOS vinculados a la computadora (personal_asignado =
+ *              código interno o, por vínculos antiguos, hostname del equipo),
+ *              igual que en ver_equipo.php
  *
  * @return array Indexado por id de equipo
  */
@@ -105,9 +132,37 @@ function prog_obtener_equipos(PDO $pdo): array {
         $pendientes_por_equipo[$eid][$tipo] = $p;
     }
 
+    // ---------- Periféricos vinculados (activos) ----------
+    $perifericos_por_clave = [];
+    $sql_per = "SELECT id, codigo_interno, hostname, tipo_equipo, marca, modelo, personal_asignado
+                FROM inventario_equipos
+                WHERE estado = 'activo'
+                  AND personal_asignado IS NOT NULL
+                  AND personal_asignado <> ''
+                ORDER BY tipo_equipo, codigo_interno";
+    foreach ($pdo->query($sql_per)->fetchAll(PDO::FETCH_ASSOC) as $p) {
+        $perifericos_por_clave[strtoupper(trim($p['personal_asignado']))][] = $p;
+    }
+
     $equipos = [];
     foreach ($filas as $f) {
         $id = intval($f['id']);
+
+        // Periféricos de este equipo (por código interno y por hostname, sin duplicados)
+        $perifericos = [];
+        $claves = array_unique(array_filter([
+            strtoupper(trim($f['codigo_interno'] ?? '')),
+            strtoupper(trim($f['hostname'] ?? '')),
+        ]));
+        foreach ($claves as $clave) {
+            foreach ($perifericos_por_clave[$clave] ?? [] as $p) {
+                $pid = intval($p['id']);
+                if ($pid !== $id) {
+                    $perifericos[$pid] = $p;
+                }
+            }
+        }
+        $f['perifericos'] = $perifericos;
 
         // Usuarios activos asignados (1ro y 2do)
         $usuarios = [];

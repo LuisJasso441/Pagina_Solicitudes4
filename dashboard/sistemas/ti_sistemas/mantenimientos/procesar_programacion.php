@@ -9,6 +9,9 @@
  *
  * - Equipos sin pendientes: tipo y fecha obligatorios (todo o nada)
  * - Equipos con mantenimiento pendiente: opcional, cualquier tipo (solo se avisa)
+ * - Físico: se guardan en solicitudes_mantenimiento_perifericos la computadora
+ *   y/o los periféricos seleccionados (al menos uno)
+ * - Folio: MANT-{fecha en que se programa}-NNNN
  * - No se notifica a los usuarios; solo se genera una notificación de
  *   confirmación para quien crea la programación
  */
@@ -111,10 +114,47 @@ try {
             continue;
         }
 
+        // Periféricos: solo en mantenimiento Físico. El propio id del equipo = "Computadora".
+        $componentes = [];
+        if ($tipo === 'fisico') {
+            $seleccion = $entrada[$id]['perifericos'] ?? [];
+            $seleccion = is_array($seleccion) ? array_unique(array_map('intval', $seleccion)) : [];
+
+            foreach ($seleccion as $sel_id) {
+                if ($sel_id === intval($id)) {
+                    $componentes[] = [
+                        'equipo_id'      => intval($id),
+                        'tipo_equipo'    => $eq['tipo_equipo'],
+                        'codigo_interno' => $eq['codigo_interno'],
+                        'es_principal'   => 1,
+                    ];
+                } elseif (isset($eq['perifericos'][$sel_id])) {
+                    $per = $eq['perifericos'][$sel_id];
+                    $componentes[] = [
+                        'equipo_id'      => $sel_id,
+                        'tipo_equipo'    => $per['tipo_equipo'],
+                        'codigo_interno' => $per['codigo_interno'],
+                        'es_principal'   => 0,
+                    ];
+                } else {
+                    $errores[] = "Equipo {$etq}: uno de los periféricos seleccionados ya no está vinculado al equipo.";
+                    continue 2;
+                }
+            }
+
+            if (empty($componentes)) {
+                $errores[] = "Equipo {$etq}: selecciona al menos un elemento (computadora o periférico) para el mantenimiento físico.";
+                continue;
+            }
+            // Computadora primero, después periféricos
+            usort($componentes, fn($a, $b) => $b['es_principal'] <=> $a['es_principal']);
+        }
+
         $filas[] = [
-            'equipo'          => $eq,
-            'tipo'            => $tipo,
-            'fecha'           => $fecha,
+            'equipo'      => $eq,
+            'tipo'        => $tipo,
+            'fecha'       => $fecha,
+            'componentes' => $componentes,
         ];
     }
 
@@ -133,25 +173,19 @@ try {
     }
 
     // -----------------------------------------------------------------
-    // 2) Consecutivo de folio por FECHA PROGRAMADA: MANT-{fecha_deseada}-NNNN
-    //    Se bloquea el rango de cada fecha (en orden ascendente para evitar
-    //    deadlocks entre dos programaciones simultáneas).
+    // 2) Consecutivo de folio por FECHA EN QUE SE PROGRAMA (hoy):
+    //    MANT-{YYYYMMDD de hoy}-NNNN, sin importar la fecha programada.
+    //    FOR UPDATE serializa dos programaciones simultáneas.
     // -----------------------------------------------------------------
-    $fechas = array_values(array_unique(array_column($filas, 'fecha')));
-    sort($fechas);
-
+    $prefijo = 'MANT-' . date('Ymd') . '-';
     $stmt_folio = $pdo->prepare("SELECT folio FROM solicitudes_mantenimiento_ti
                                  WHERE folio LIKE ?
                                  ORDER BY folio DESC
                                  LIMIT 1
                                  FOR UPDATE");
-    $consecutivos = [];
-    foreach ($fechas as $fecha) {
-        $prefijo_fecha = 'MANT-' . str_replace('-', '', $fecha) . '-';
-        $stmt_folio->execute([$prefijo_fecha . '%']);
-        $ultimo = $stmt_folio->fetchColumn();
-        $consecutivos[$fecha] = $ultimo ? intval(substr($ultimo, -4)) : 0;
-    }
+    $stmt_folio->execute([$prefijo . '%']);
+    $ultimo_folio = $stmt_folio->fetchColumn();
+    $consecutivo  = $ultimo_folio ? intval(substr($ultimo_folio, -4)) : 0;
 
     // -----------------------------------------------------------------
     // 3) Insertar solicitudes + historial (mismo formato que "crear")
@@ -168,18 +202,33 @@ try {
                  VALUES (?, NULL, 'pendiente', 'Mantenimiento creado desde la Programación General', ?, NOW())";
     $stmt_hist = $pdo->prepare($sql_hist);
 
+    $sql_comp = "INSERT INTO solicitudes_mantenimiento_perifericos
+                 (solicitud_id, equipo_id, tipo_equipo, codigo_interno, es_principal)
+                 VALUES (?, ?, ?, ?, ?)";
+    $stmt_comp = $pdo->prepare($sql_comp);
+
+    $nombres_tipo_eq = prog_nombres_tipo_equipo();
+
     $folios = [];
     foreach ($filas as $f) {
-        $consecutivos[$f['fecha']]++;
-        if ($consecutivos[$f['fecha']] > 9999) {
-            throw new Exception("Se alcanzó el límite de folios para la fecha {$f['fecha']}.");
+        $consecutivo++;
+        if ($consecutivo > 9999) {
+            throw new Exception('Se alcanzó el límite de folios del día.');
         }
-        $folio = 'MANT-' . str_replace('-', '', $f['fecha']) . '-'
-               . str_pad($consecutivos[$f['fecha']], 4, '0', STR_PAD_LEFT);
+        $folio = $prefijo . str_pad($consecutivo, 4, '0', STR_PAD_LEFT);
         $eq    = $f['equipo'];
 
         $descripcion = 'Mantenimiento preventivo ' . $nombres_tipo[$f['tipo']]
                      . ' programado desde la Programación General de Mantenimientos.';
+
+        // En Físico, la descripción lista lo incluido (visible en ver_mantenimiento.php)
+        if (!empty($f['componentes'])) {
+            $lista = array_map(function ($c) use ($nombres_tipo_eq) {
+                $nombre = $c['es_principal'] ? 'Computadora' : ($nombres_tipo_eq[$c['tipo_equipo']] ?? $c['tipo_equipo']);
+                return $nombre . ($c['codigo_interno'] ? " ({$c['codigo_interno']})" : '');
+            }, $f['componentes']);
+            $descripcion .= "\nIncluye: " . implode(', ', $lista) . '.';
+        }
 
         $stmt_ins->execute([
             $folio,
@@ -196,13 +245,22 @@ try {
         $solicitud_id = $pdo->lastInsertId();
         $stmt_hist->execute([$solicitud_id, $_SESSION['usuario_id']]);
 
+        foreach ($f['componentes'] as $c) {
+            $stmt_comp->execute([
+                $solicitud_id,
+                $c['equipo_id'],
+                $c['tipo_equipo'],
+                $c['codigo_interno'] ?: null,
+                $c['es_principal'],
+            ]);
+        }
+
         $folios[] = $folio;
     }
 
     // -----------------------------------------------------------------
     // 4) Notificación de confirmación para quien programa
     // -----------------------------------------------------------------
-    sort($folios);   // por fecha programada y consecutivo
     $total_creados = count($folios);
     $folio_ini     = $folios[0];
     $folio_fin     = $folios[$total_creados - 1];

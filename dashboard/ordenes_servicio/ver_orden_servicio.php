@@ -71,39 +71,53 @@ $es_mantenimiento = ($_SESSION['departamento_codigo'] ?? strtolower(trim($_SESSI
 
 // ========================================
 // NAVEGACIÓN: ORDEN ANTERIOR / SIGUIENTE
-// Mismo alcance que el listado: activas con activas, finalizadas con
-// finalizadas; si no es Mantenimiento, solo las de su departamento.
+// Solo entre OSM en estado "Pendiente Mantenimiento" y solo se muestra
+// cuando la orden actual también está pendiente.
+// Si no es Mantenimiento, solo las de su departamento.
 // ========================================
 $es_orden_completada = ($orden['estado'] === 'completado');
+$mostrar_nav_osm = ($orden['estado'] === 'pendiente_mantenimiento');
 $orden_anterior  = null;
 $orden_siguiente = null;
 
 try {
     $db = conectarDB();
 
-    $where_nav = $es_orden_completada
-        ? "estado = 'completado'"
-        : "estado IN ('pendiente_mantenimiento', 'en_proceso', 'pendiente_usuario', 'devuelto')";
-    $params_nav = [':id_actual' => (int) $orden_id];
+    // Fecha de creación de la orden actual (el listado ordena por fecha_creacion DESC)
+    $stmt_fc = $db->prepare("SELECT fecha_creacion FROM ordenes_servicio_mantenimiento WHERE id = :id");
+    $stmt_fc->execute([':id' => (int) $orden_id]);
+    $fc_actual = $stmt_fc->fetchColumn();
 
-    if (!$es_mantenimiento) {
-        $where_nav .= " AND departamento = :dept_nav";
-        $params_nav[':dept_nav'] = $_SESSION['departamento_nombre'] ?? '';
+    if ($mostrar_nav_osm && $fc_actual) {
+        $where_nav  = "estado = 'pendiente_mantenimiento'";
+        $params_dep = [];
+        if (!$es_mantenimiento) {
+            $where_nav .= " AND departamento = :dept_nav";
+            $params_dep[':dept_nav'] = $_SESSION['departamento_nombre'] ?? '';
+        }
+
+        // Placeholders únicos (producción usa ATTR_EMULATE_PREPARES = false)
+        $params_nav = $params_dep + [
+            ':fc1' => $fc_actual, ':fc2' => $fc_actual, ':id_actual' => (int) $orden_id,
+        ];
+
+        // ANTERIOR = la de ARRIBA en el listado (más reciente)
+        $stmt_ant = $db->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento
+                                  WHERE $where_nav
+                                    AND (fecha_creacion > :f
+                                  ORDER BY fecha_creacion ASC, id ASC LIMIT 1");
+        $stmt_ant->execute($params_nav);
+        $orden_anterior = $stmt_ant->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        // SIGUIENTE = la de ABAJO en el listado (más antigua)
+        $stmt_sig = $db->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento
+                                  WHERE $where_nav
+                                    AND (fecha_creacion < :fc1
+                                         OR (fecha_creacion = :fc2 AND id < :id_actual))
+                                  ORDER BY fecha_creacion DESC, id DESC LIMIT 1");
+        $stmt_sig->execute($params_nav);
+        $orden_siguiente = $stmt_sig->fetch(PDO::FETCH_ASSOC) ?: null;
     }
-
-    // Anterior = la orden con id inmediato menor
-    $stmt_ant = $db->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento
-                              WHERE $where_nav AND id < :id_actual
-                              ORDER BY id DESC LIMIT 1");
-    $stmt_ant->execute($params_nav);
-    $orden_anterior = $stmt_ant->fetch(PDO::FETCH_ASSOC) ?: null;
-
-    // Siguiente = la orden con id inmediato mayor
-    $stmt_sig = $db->prepare("SELECT id, folio FROM ordenes_servicio_mantenimiento
-                              WHERE $where_nav AND id > :id_actual
-                              ORDER BY id ASC LIMIT 1");
-    $stmt_sig->execute($params_nav);
-    $orden_siguiente = $stmt_sig->fetch(PDO::FETCH_ASSOC) ?: null;
 } catch (Exception $e) {
     error_log("Error obteniendo navegación OSM: " . $e->getMessage());
 }
@@ -527,8 +541,8 @@ function formatear_tamanio_osm($bytes) {
                                 </a>
                             <?php endif; ?>
                             
-                            <!-- Navegación Orden Anterior / Siguiente (oculta en modo edición) -->
-                            <?php if (!$modo_edicion): ?>
+                            <!-- Navegación Orden Anterior / Siguiente (solo OSM pendientes, oculta en modo edición) -->
+                            <?php if ($mostrar_nav_osm && !$modo_edicion): ?>
                                 <div class="nav-ordenes">
                                     <?php if ($orden_anterior): ?>
                                         <a href="?id=<?php echo (int) $orden_anterior['id']; ?>"

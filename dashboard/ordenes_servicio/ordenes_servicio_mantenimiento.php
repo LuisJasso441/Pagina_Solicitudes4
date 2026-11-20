@@ -134,7 +134,7 @@ if ($filtro_base === 'local') {
             WHEN 'en_proceso' THEN 3
             WHEN 'pendiente_usuario' THEN 4
         END,
-        fecha_creacion DESC";
+        fecha_creacion DESC, id DESC";
 } else {
     $sql .= " ORDER BY fecha_completado DESC";
 }
