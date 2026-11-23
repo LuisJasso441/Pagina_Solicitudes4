@@ -13,6 +13,7 @@ session_start();
 require_once __DIR__ . '/../../../config/config.php';
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../../includes/permisos_helper.php';
+require_once __DIR__ . '/../../../includes/csrf.php';
 require_once __DIR__ . '/../../../includes/salidas_envases/tipos_envase_funciones.php';
 
 if (!isset($_SESSION['usuario_id'])) {
@@ -537,6 +538,103 @@ $tipos = obtener_tipos_envase(true); // incluye inactivos para admin
         }
         .modal-footer > * { margin: 0; }
 
+        /* ========= Modal Importar ========= */
+        .sec-import-formato {
+            padding: 0.7rem 0.85rem;
+            background: var(--sec-verde-soft);
+            border-left: 3px solid var(--sec-verde);
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: var(--sec-text);
+        }
+        .sec-import-formato table {
+            margin-top: 0.5rem;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            background: var(--sec-card);
+        }
+        .sec-import-formato th,
+        .sec-import-formato td {
+            border: 1px solid var(--sec-border);
+            padding: 0.2rem 0.6rem;
+        }
+        .sec-import-formato th { background: var(--sec-bg-base); font-weight: 600; }
+        .sec-import-resumen {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.85rem;
+        }
+        .sec-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .sec-chip--verde { background: var(--sec-verde-soft); color: var(--sec-verde); }
+        .sec-chip--ambar { background: var(--sec-ambar-soft); color: var(--sec-ambar); }
+        .sec-chip--rojo  { background: var(--sec-rojo-soft);  color: var(--sec-rojo); }
+        .sec-import-tabla-wrap {
+            max-height: 340px;
+            overflow-y: auto;
+            border: 1px solid var(--sec-border);
+            border-radius: 8px;
+        }
+        .sec-import-tabla {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+        .sec-import-tabla th {
+            position: sticky;
+            top: 0;
+            background: var(--sec-bg-base);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--sec-text-muted);
+            padding: 0.5rem 0.6rem;
+            border-bottom: 1px solid var(--sec-border);
+            text-align: left;
+        }
+        .sec-import-tabla td {
+            padding: 0.45rem 0.6rem;
+            border-bottom: 1px dashed var(--sec-border-soft);
+            vertical-align: top;
+            word-break: break-word;
+        }
+        .sec-import-tabla tr:last-child td { border-bottom: none; }
+        .sec-import-tabla tr.fila-omitido td,
+        .sec-import-tabla tr.fila-error td { color: var(--sec-text-muted); }
+        .sec-import-tabla .col-renglon { width: 60px; color: var(--sec-text-muted); }
+        .sec-estado {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .sec-estado--crear   { background: var(--sec-verde-soft); color: var(--sec-verde); }
+        .sec-estado--omitido { background: var(--sec-ambar-soft); color: var(--sec-ambar); }
+        .sec-estado--error   { background: var(--sec-rojo-soft);  color: var(--sec-rojo); }
+        .sec-estado-detalle  { display: block; font-size: 0.72rem; color: var(--sec-text-muted); margin-top: 2px; }
+        .sec-import-error {
+            padding: 0.6rem 0.8rem;
+            background: var(--sec-rojo-soft);
+            border-left: 3px solid var(--sec-rojo);
+            border-radius: 4px;
+            color: var(--sec-rojo);
+            font-size: 0.85rem;
+            margin-top: 0.85rem;
+        }
+
         /* Responsive */
         @media (max-width: 640px) {
             .sec-page-head { padding-bottom: 0.85rem; }
@@ -573,7 +671,8 @@ $tipos = obtener_tipos_envase(true); // incluye inactivos para admin
                         </div>
                         <?php if ($puede_editar): ?>
                         <div class="sec-actions-row">
-                            <button type="button" class="sec-btn" disabled title="Función próximamente disponible">
+                            <button type="button" class="sec-btn"
+                                    data-bs-toggle="modal" data-bs-target="#modalImportar">
                                 <i class="bi bi-file-earmark-arrow-up"></i> Importar
                             </button>
                             <button type="button" class="sec-btn sec-btn--primary"
@@ -873,6 +972,77 @@ $tipos = obtener_tipos_envase(true); // incluye inactivos para admin
         </div>
     </div>
 
+    <!-- MODAL: Importar tipos y especificaciones -->
+    <div class="modal fade" id="modalImportar" tabindex="-1" aria-hidden="true"
+         data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up"></i> Importar tipos de envase</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" id="btnCerrarImportar"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Paso 1: seleccionar archivo -->
+                    <div id="importPaso1">
+                        <div class="sec-import-formato mb-3">
+                            <strong>Formato:</strong> archivo <strong>.xlsx</strong> o <strong>.csv</strong> con 2 columnas,
+                            un renglón por especificación. El encabezado en el renglón 1 es opcional.
+                            <table>
+                                <tr><th></th><th>A</th><th>B</th></tr>
+                                <tr><th>1</th><td>Tipo</td><td>Especificación</td></tr>
+                                <tr><th>2</th><td>Tambo</td><td>Tambo abierto</td></tr>
+                                <tr><th>3</th><td>Tambo</td><td>Tambo cerrado</td></tr>
+                                <tr><th>4</th><td>Tote</td><td>Tote 1000L</td></tr>
+                            </table>
+                            <small class="sec-input-hint">
+                                <i class="bi bi-info-circle"></i>
+                                Si el tipo ya existe, se le agregan las especificaciones nuevas; las que ya tiene se omiten.
+                            </small>
+                        </div>
+                        <label class="sec-form-label"><i class="bi bi-paperclip"></i>Archivo <span class="req">*</span></label>
+                        <input type="file" class="sec-input" id="inputArchivoImportar" accept=".xlsx,.csv">
+                        <small class="sec-input-hint">Máximo 15 MB y 5000 renglones.</small>
+                    </div>
+
+                    <!-- Paso 2: preview -->
+                    <div id="importPaso2" style="display:none;">
+                        <div class="sec-modal-divider">
+                            <i class="bi bi-eye"></i> Vista previa — <span id="importNombreArchivo"></span>
+                        </div>
+                        <div class="sec-import-resumen" id="importResumen"></div>
+                        <div class="sec-import-tabla-wrap">
+                            <table class="sec-import-tabla">
+                                <thead>
+                                    <tr>
+                                        <th class="col-renglon">Renglón</th>
+                                        <th>Tipo</th>
+                                        <th>Especificación</th>
+                                        <th>Resultado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="importTablaBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="sec-import-error" id="importError" style="display:none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="sec-btn" data-bs-dismiss="modal" id="btnCancelarImportar">Cancelar</button>
+                    <button type="button" class="sec-btn" id="btnOtroArchivo" style="display:none;">
+                        <i class="bi bi-arrow-left"></i> Elegir otro archivo
+                    </button>
+                    <button type="button" class="sec-btn sec-btn--primary" id="btnAnalizar" disabled>
+                        <i class="bi bi-search"></i> Analizar archivo
+                    </button>
+                    <button type="button" class="sec-btn sec-btn--primary" id="btnConfirmarImportar" style="display:none;">
+                        <i class="bi bi-check-circle"></i> Confirmar importación
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Formularios silenciosos para eliminación -->
     <form method="POST" action="<?php echo URL_BASE; ?>dashboard/salidas_envases/catalogo/eliminar_tipo_envase.php"
           id="formEliminarTipo" style="display:none;">
@@ -957,6 +1127,183 @@ $tipos = obtener_tipos_envase(true); // incluye inactivos para admin
         });
 
         marcarModoSeleccionado();
+    })();
+
+    // ===== Importar (analizar → preview → confirmar) =====
+    (function () {
+        const URL_IMPORTAR = <?php echo json_encode(URL_BASE . 'dashboard/salidas_envases/catalogo/importar_tipos_envase.php'); ?>;
+        const CSRF_TOKEN   = <?php echo json_encode(generar_token_csrf()); ?>;
+
+        const modalEl      = document.getElementById('modalImportar');
+        const inputArchivo = document.getElementById('inputArchivoImportar');
+        const paso1        = document.getElementById('importPaso1');
+        const paso2        = document.getElementById('importPaso2');
+        const cajaError    = document.getElementById('importError');
+        const btnAnalizar  = document.getElementById('btnAnalizar');
+        const btnConfirmar = document.getElementById('btnConfirmarImportar');
+        const btnOtro      = document.getElementById('btnOtroArchivo');
+        const btnCancelar  = document.getElementById('btnCancelarImportar');
+        const btnCerrar    = document.getElementById('btnCerrarImportar');
+
+        let tokenImport = null;
+        let ocupado     = false;
+
+        function mostrarError(msg) {
+            cajaError.textContent = msg;
+            cajaError.style.display = msg ? '' : 'none';
+        }
+
+        function setOcupado(valor, boton, htmlCargando) {
+            ocupado = valor;
+            [btnAnalizar, btnConfirmar, btnOtro, btnCancelar, btnCerrar].forEach(b => b.disabled = valor);
+            inputArchivo.disabled = valor;
+            if (valor) {
+                boton.dataset.htmlOriginal = boton.innerHTML;
+                boton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + htmlCargando;
+            } else if (boton.dataset.htmlOriginal) {
+                boton.innerHTML = boton.dataset.htmlOriginal;
+            }
+        }
+
+        function irPaso1() {
+            tokenImport = null;
+            inputArchivo.value = '';
+            paso1.style.display = '';
+            paso2.style.display = 'none';
+            btnAnalizar.style.display = '';
+            btnAnalizar.disabled = true;
+            btnConfirmar.style.display = 'none';
+            btnOtro.style.display = 'none';
+            mostrarError('');
+        }
+
+        function chip(clase, icono, texto) {
+            const s = document.createElement('span');
+            s.className = 'sec-chip ' + clase;
+            s.innerHTML = '<i class="bi ' + icono + '"></i> ';
+            s.appendChild(document.createTextNode(texto));
+            return s;
+        }
+
+        function renderPreview(data) {
+            const r = data.resumen;
+            document.getElementById('importNombreArchivo').textContent = data.archivo;
+
+            const resumen = document.getElementById('importResumen');
+            resumen.innerHTML = '';
+            resumen.appendChild(chip('sec-chip--verde', 'bi-box2', r.tipos_crear + ' tipo(s) nuevo(s)'));
+            if (r.tipos_existentes > 0) resumen.appendChild(chip('sec-chip--verde', 'bi-box-arrow-in-down', r.tipos_existentes + ' tipo(s) existente(s) con especificaciones nuevas'));
+            resumen.appendChild(chip('sec-chip--verde', 'bi-tag', r.especs_crear + ' especificación(es) a crear'));
+            if (r.omitidos > 0) resumen.appendChild(chip('sec-chip--ambar', 'bi-skip-forward', r.omitidos + ' omitido(s)'));
+            if (r.errores > 0)  resumen.appendChild(chip('sec-chip--rojo', 'bi-x-circle', r.errores + ' con error'));
+
+            const etiquetas = { crear: 'Se creará', omitido: 'Omitido', error: 'Error' };
+            const tbody = document.getElementById('importTablaBody');
+            tbody.innerHTML = '';
+            data.filas.forEach(f => {
+                const tr = document.createElement('tr');
+                tr.className = 'fila-' + f.estado;
+
+                const tdR = document.createElement('td'); tdR.className = 'col-renglon'; tdR.textContent = f.renglon;
+                const tdT = document.createElement('td'); tdT.textContent = f.tipo || '—';
+                const tdE = document.createElement('td'); tdE.textContent = f.especificacion || '—';
+                const tdS = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.className = 'sec-estado sec-estado--' + f.estado;
+                badge.textContent = etiquetas[f.estado] || f.estado;
+                tdS.appendChild(badge);
+                if (f.detalle) {
+                    const det = document.createElement('span');
+                    det.className = 'sec-estado-detalle';
+                    det.textContent = f.detalle;
+                    tdS.appendChild(det);
+                }
+                tr.append(tdR, tdT, tdE, tdS);
+                tbody.appendChild(tr);
+            });
+
+            tokenImport = data.token;
+            paso1.style.display = 'none';
+            paso2.style.display = '';
+            btnAnalizar.style.display = 'none';
+            btnOtro.style.display = '';
+            btnConfirmar.style.display = '';
+            btnConfirmar.disabled = !tokenImport;
+            if (!tokenImport) {
+                mostrarError('No hay nada nuevo que importar en este archivo.');
+            }
+        }
+
+        function enviar(fd) {
+            fd.append('csrf_token', CSRF_TOKEN);
+            return fetch(URL_IMPORTAR, { method: 'POST', body: fd })
+                .then(r => r.json().catch(() => ({ ok: false, msg: 'Respuesta inválida del servidor (HTTP ' + r.status + ').' })));
+        }
+
+        inputArchivo.addEventListener('change', function () {
+            mostrarError('');
+            btnAnalizar.disabled = !this.files.length;
+        });
+
+        btnAnalizar.addEventListener('click', function () {
+            if (ocupado || !inputArchivo.files.length) return;
+            const archivo = inputArchivo.files[0];
+            const ext = archivo.name.split('.').pop().toLowerCase();
+            if (!['xlsx', 'csv'].includes(ext)) { mostrarError('Solo se permiten archivos .xlsx o .csv.'); return; }
+            if (archivo.size > 15 * 1024 * 1024) { mostrarError('El archivo excede 15 MB.'); return; }
+
+            const fd = new FormData();
+            fd.append('accion', 'analizar');
+            fd.append('archivo', archivo);
+
+            mostrarError('');
+            setOcupado(true, btnAnalizar, 'Analizando…');
+            enviar(fd)
+                .then(data => {
+                    setOcupado(false, btnAnalizar);
+                    if (data.ok) {
+                        renderPreview(data);
+                    } else {
+                        btnAnalizar.disabled = !inputArchivo.files.length;
+                        mostrarError(data.msg || 'No se pudo analizar el archivo.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    setOcupado(false, btnAnalizar);
+                    mostrarError('Error de red. Intenta de nuevo.');
+                });
+        });
+
+        btnConfirmar.addEventListener('click', function () {
+            if (ocupado || !tokenImport) return;
+            const fd = new FormData();
+            fd.append('accion', 'confirmar');
+            fd.append('token', tokenImport);
+
+            mostrarError('');
+            setOcupado(true, btnConfirmar, 'Importando…');
+            enviar(fd)
+                .then(data => {
+                    if (data.ok) {
+                        // El handler deja el resumen en flash_msg → toast al recargar
+                        window.location.reload();
+                        return;
+                    }
+                    setOcupado(false, btnConfirmar);
+                    tokenImport = null;           // el token ya se consumió en el servidor
+                    btnConfirmar.disabled = true;
+                    mostrarError(data.msg || 'No se pudo completar la importación.');
+                })
+                .catch(err => {
+                    console.error(err);
+                    setOcupado(false, btnConfirmar);
+                    mostrarError('Error de red. Recarga la página para verificar si se importó.');
+                });
+        });
+
+        btnOtro.addEventListener('click', irPaso1);
+        modalEl.addEventListener('hidden.bs.modal', irPaso1);
     })();
 
     function editarTipo(id, nombre, activo) {
